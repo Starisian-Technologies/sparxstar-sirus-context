@@ -26,37 +26,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 function envcheck_enqueue_assets() {
     $script_path = __DIR__ . '/assets/js/sparxstar-user-environment-check.js';
     $style_path  = __DIR__ . '/assets/css/sparxstar-user-environment-check.css';
+    $base_url    = plugin_dir_url(__FILE__);
+    
+    wp_enqueue_script('envcheck-js', $base_url . 'assets/js/sparxstar-user-environment-check.js', [], filemtime($script_path), true);
+    wp_enqueue_style('envcheck-css',  $base_url . 'assets/css/sparxstar-user-environment-check.css', [], filemtime($style_path));
 
-    if ( ! file_exists( $script_path ) || ! file_exists( $style_path ) ) {
-        return;
-    }
 
-    wp_enqueue_script(
-        'envcheck-js',
-        plugins_url( 'sparxstar-user-environment-check.js', __FILE__ ),
-        [],
-        filemtime( $script_path ),
-        true
-    );
-
-    wp_enqueue_style(
-        'envcheck-css',
-        plugins_url( 'sparxstar-user-environment-check.css', __FILE__ ),
-        [],
-        filemtime( $style_path )
-    );
-
-    $consent_category = apply_filters( 'envcheck_consent_category', 'statistics' );
-
-    wp_localize_script(
-        'envcheck-js',
-        'envCheckData',
-        [
-            'ajax_url'    => admin_url( 'admin-ajax.php' ),
-            'nonce'       => wp_create_nonce( 'envcheck_log_nonce' ),
-            'consent_cat' => $consent_category,
-        ]
-    );
+    check_ajax_referer('envcheck_log_nonce','nonce');
+    $cat = apply_filters('envcheck_consent_category','statistics');
+    if ( function_exists('wp_has_consent') && ! wp_has_consent($cat) ) { wp_send_json_error('No consent.'); }
 }
 add_action( 'wp_enqueue_scripts', 'envcheck_enqueue_assets' );
 add_action( 'login_enqueue_scripts', 'envcheck_enqueue_assets' );
