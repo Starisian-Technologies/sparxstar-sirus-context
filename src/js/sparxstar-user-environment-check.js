@@ -12,6 +12,41 @@
 	'use strict';
 
 	/**
+	 * Debug logging utility with different levels
+	 * @const {object}
+	 */
+	const Logger = {
+		levels: { ERROR: 0, WARN: 1, INFO: 2, DEBUG: 3 },
+		currentLevel: window.envCheckData?.debug ? 3 : 1, // DEBUG if debug mode, else WARN
+		
+		log: function(level, message, data = null) {
+			if (level <= this.currentLevel) {
+				const prefix = '[EnvCheck]';
+				const timestamp = new Date().toISOString();
+				switch(level) {
+					case this.levels.ERROR:
+						console.error(`${prefix} ${timestamp} ERROR:`, message, data);
+						break;
+					case this.levels.WARN:
+						console.warn(`${prefix} ${timestamp} WARN:`, message, data);
+						break;
+					case this.levels.INFO:
+						console.info(`${prefix} ${timestamp} INFO:`, message, data);
+						break;
+					case this.levels.DEBUG:
+						console.debug(`${prefix} ${timestamp} DEBUG:`, message, data);
+						break;
+				}
+			}
+		},
+		
+		error: function(message, data) { this.log(this.levels.ERROR, message, data); },
+		warn: function(message, data) { this.log(this.levels.WARN, message, data); },
+		info: function(message, data) { this.log(this.levels.INFO, message, data); },
+		debug: function(message, data) { this.log(this.levels.DEBUG, message, data); }
+	};
+
+	/**
 	 * A namespaced wrapper for browser localStorage to prevent key collisions with other scripts.
 	 * @const {object}
 	 */
@@ -21,24 +56,72 @@
 		 * @param {string} k - The key for the item.
 		 * @returns {string|null} The value of the item, or null if not found.
 		 */
-		get: (k) => localStorage.getItem(`envcheck:${k}`),
+		get: (k) => {
+			try {
+				return localStorage.getItem(`envcheck:${k}`);
+			} catch (e) {
+				Logger.warn('localStorage access failed', { key: k, error: e.message });
+				return null;
+			}
+		},
 
 		/**
 		 * Sets an item in localStorage under the plugin's namespace.
 		 * @param {string} k - The key for the item.
 		 * @param {string} v - The value to store.
 		 */
-		set: (k, v) => localStorage.setItem(`envcheck:${k}`, v),
+		set: (k, v) => {
+			try {
+				localStorage.setItem(`envcheck:${k}`, v);
+			} catch (e) {
+				Logger.warn('localStorage write failed', { key: k, error: e.message });
+			}
+		},
 	};
 
 	/**
 	 * Data passed from WordPress via `wp_localize_script`.
 	 * @const {object}
-	 * @property {string} nonce - The security nonce for the AJAX request.
-	 * @property {string} ajax_url - The URL for WordPress's admin-ajax.php.
+	 * @property {string} nonce - The security nonce for the REST request.
+	 * @property {string} ajax_url - The URL for WordPress's admin-ajax.php (legacy).
+	 * @property {string} rest_url - The URL for the REST API endpoint.
 	 * @property {object} i18n - An object containing translated strings.
+	 * @property {boolean} debug - Debug mode flag.
 	 */
-	const { nonce, ajax_url, i18n } = window.envCheckData || {};
+	const { nonce, ajax_url, rest_url, i18n, debug = false } = window.envCheckData || {};
+
+	// Ensure envCheckData (nonce, ajax_url) is localized in PHP
+	if (typeof window.envCheckData === "undefined") {
+		Logger.error('envCheckData not found - plugin not properly initialized');
+		return;
+	}
+
+	if (!nonce || !rest_url) {
+		Logger.error('Missing required configuration', { nonce: !!nonce, rest_url: !!rest_url });
+		return;
+	}
+
+	/**
+	 * Generate a stable sessionId for this browser session.
+	 * Enhanced with better uniqueness and error handling
+	 */
+	let sessionId;
+	try {
+		sessionId = sessionStorage.getItem("envcheck_session_id");
+		if (!sessionId) {
+			// Fallback for older browsers without crypto.randomUUID
+			sessionId = crypto.randomUUID ? crypto.randomUUID() : 
+				'ses_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+			sessionStorage.setItem("envcheck_session_id", sessionId);
+			Logger.debug('Generated new session ID', { sessionId });
+		} else {
+			Logger.debug('Using existing session ID', { sessionId });
+		}
+	} catch (e) {
+		// Fallback if sessionStorage is not available
+		sessionId = 'ses_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+		Logger.warn('SessionStorage unavailable, using temporary session ID', { sessionId, error: e.message });
+	}
 
 	/**
 	 * Checks for the presence of essential browser APIs.
@@ -58,15 +141,20 @@
 	 * Creates and displays the browser upgrade banner if the browser is incompatible.
 	 */
 	function displayUpgradeBanner() {
+		Logger.debug('Checking browser compatibility for banner display');
+		
 		// Banner guard: Do not show the banner if the user has previously dismissed it.
 		if (LS.get('bannerDismissed') === 'true') {
+			Logger.debug('Banner previously dismissed, skipping display');
 			return;
 		}
 
 		if (isBrowserCompatible()) {
+			Logger.debug('Browser is compatible, no banner needed');
 			return;
 		}
 
+		Logger.info('Displaying browser compatibility banner');
 		const banner = document.createElement('div');
 		banner.className = 'envcheck-banner';
 		banner.innerHTML = `
@@ -74,16 +162,97 @@
                 <strong>${i18n.notice}</strong> ${i18n.update_message}
                 <a href="https://browsehappy.com/" target="_blank" rel="noopener noreferrer">${i18n.update_link}</a>.
             </div>
-            <button class="envcheck-banner-dismiss" aria-label="${i18n.dismiss}">&times;</button>
+            <button class="envcheck-dismiss" aria-label="${i18n.dismiss}">&times;</button>
         `;
 
 		document.body.appendChild(banner);
 
 		// Add event listener to the dismiss button.
-		banner.querySelector('.envcheck-banner-dismiss').addEventListener('click', () => {
+		banner.querySelector('.envcheck-dismiss').addEventListener('click', () => {
+			Logger.debug('Banner dismissed by user');
 			banner.remove();
 			LS.set('bannerDismissed', 'true');
 		});
+	}
+
+	/**
+	 * Collect browser features (simplified Modernizr-style).
+	 */
+	function collectFeatures() {
+		const features = {
+			webrtc: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
+			webgl: (() => {
+				try {
+					const canvas = document.createElement("canvas");
+					return !!(
+						window.WebGLRenderingContext &&
+						(canvas.getContext("webgl") || canvas.getContext("experimental-webgl"))
+					);
+				} catch (e) {
+					Logger.debug('WebGL detection failed', { error: e.message });
+					return false;
+				}
+			})(),
+			serviceWorker: "serviceWorker" in navigator,
+			localStorage: "localStorage" in window,
+			sessionStorage: "sessionStorage" in window,
+			mediaRecorder: 'MediaRecorder' in window,
+			getUserMedia: (navigator.mediaDevices && 'getUserMedia' in navigator.mediaDevices),
+			promise: 'Promise' in window,
+			fetch: 'fetch' in window,
+			// Additional features for better compatibility detection
+			indexedDB: 'indexedDB' in window,
+			webWorkers: 'Worker' in window,
+			pushManager: 'PushManager' in window,
+			notification: 'Notification' in window,
+			geolocation: 'geolocation' in navigator,
+			clipboard: 'clipboard' in navigator,
+			wakeLock: 'wakeLock' in navigator,
+			bluetooth: 'bluetooth' in navigator,
+			usb: 'usb' in navigator,
+			webAssembly: 'WebAssembly' in window,
+			intersectionObserver: 'IntersectionObserver' in window,
+			mutationObserver: 'MutationObserver' in window,
+			resizeObserver: 'ResizeObserver' in window
+		};
+		
+		Logger.debug('Collected browser features', { featureCount: Object.keys(features).length });
+		return features;
+	}
+
+	/**
+	 * Collect privacy signals.
+	 */
+	function collectPrivacy() {
+		return {
+			doNotTrack:
+				navigator.doNotTrack === "1" ||
+				window.doNotTrack === "1" ||
+				navigator.msDoNotTrack === "1",
+			gpc: navigator.globalPrivacyControl || false
+		};
+	}
+
+	/**
+	 * Collect environment snapshot.
+	 */
+	function collectEnvData() {
+		return {
+			sessionId: sessionId,
+			userAgent: navigator.userAgent,
+			os: navigator.platform,
+			language: navigator.language || navigator.userLanguage,
+			screen: {
+				width: screen.width,
+				height: screen.height,
+				availWidth: screen.availWidth,
+				availHeight: screen.availHeight,
+				pixelRatio: window.devicePixelRatio || 1
+			},
+			features: collectFeatures(),
+			privacy: collectPrivacy(),
+			compatible: isBrowserCompatible()
+		};
 	}
 
 	/**
@@ -92,21 +261,7 @@
 	 * @returns {Promise<object>} A promise that resolves with the diagnostic data object.
 	 */
 	async function collectDiagnostics() {
-		let data = {
-			privacy: {
-				doNotTrack: navigator.doNotTrack === '1' || window.doNotTrack === '1' || navigator.msDoNotTrack === '1',
-				gpc: !!navigator.globalPrivacyControl,
-			},
-			userAgent: navigator.userAgent || 'N/A',
-			os: navigator.platform || 'N/A',
-			language: navigator.language || 'N/A',
-			screen: {
-				width: window.screen.width,
-				height: window.screen.height,
-				colorDepth: window.screen.colorDepth,
-			},
-			compatible: isBrowserCompatible(),
-		};
+		let data = collectEnvData(); // Start with the basic env data
 
 		// Parallelize expensive or slow API queries for performance.
 		const [storage, mic, battery] = await Promise.allSettled([
@@ -129,14 +284,21 @@
 		// Client-side data minimization: If DNT or GPC signals are present,
 		// strip the payload down to the bare essentials before sending.
 		if (data.privacy.doNotTrack || data.privacy.gpc) {
+			Logger.info('Privacy signals detected, minimizing data collection');
 			data = {
+				sessionId: data.sessionId, // Keep session ID for proper tracking
 				privacy: data.privacy,
 				userAgent: data.userAgent,
 				os: data.os,
 				compatible: data.compatible,
+				features: data.features // Keep features as they are compatibility-related
 			};
 		}
 
+		Logger.debug('Diagnostics collected', { 
+			dataKeys: Object.keys(data), 
+			privacyMinimized: data.privacy?.doNotTrack || data.privacy?.gpc 
+		});
 		return data;
 	}
 
@@ -146,19 +308,78 @@
 	 * @param {object} diagnosticData - The object containing the data to log.
 	 */
 	async function sendDiagnostics(diagnosticData) {
-		const formData = new FormData();
-		formData.append('action', 'envcheck_log');
-		formData.append('nonce', nonce);
-		formData.append('data', JSON.stringify(diagnosticData));
+		// Rate limiting check
+		const lastSend = LS.get('lastSendTime');
+		const minInterval = 5000; // 5 seconds minimum between sends
+		if (lastSend && (Date.now() - parseInt(lastSend, 10) < minInterval)) {
+			Logger.debug('Rate limited, skipping send');
+			return;
+		}
+
+		// Strip sensitive data before sending
+		const sanitizedData = sanitizeData(diagnosticData);
 
 		try {
-			await fetch(ajax_url, {
+			Logger.debug('Sending diagnostics to server', { dataSize: JSON.stringify(sanitizedData).length });
+			
+			const response = await fetch(rest_url, {
 				method: 'POST',
-				body: formData,
+				body: JSON.stringify(sanitizedData),
+				credentials: "same-origin",
+				headers: {
+					"Content-Type": "application/json",
+					"X-WP-Nonce": nonce,
+					"Accept-CH":
+						"Sec-CH-UA, Sec-CH-UA-Mobile, Sec-CH-UA-Platform, Sec-CH-UA-Model, Sec-CH-UA-Full-Version"
+				},
 			});
+			
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+			}
+			
+			const json = await response.json();
+			Logger.info('Diagnostics sent successfully', { snapshot_id: json.snapshot_id });
+			LS.set('lastSendTime', Date.now().toString());
 		} catch (error) {
-			console.error('SPARXSTAR EnvCheck: Failed to send diagnostics.', error);
+			Logger.error('Failed to send diagnostics', { error: error.message, stack: error.stack });
 		}
+	}
+
+	/**
+	 * Sanitizes diagnostic data by removing sensitive information
+	 * @param {object} data - The data to sanitize
+	 * @returns {object} Sanitized data
+	 */
+	function sanitizeData(data) {
+		const sanitized = { ...data };
+		
+		// Remove potentially sensitive fields
+		const sensitiveFields = ['inputs', 'formData', 'cookies', 'localStorage'];
+		sensitiveFields.forEach(field => {
+			if (sanitized[field]) {
+				delete sanitized[field];
+			}
+		});
+
+		// Sanitize user agent to remove potentially identifying information
+		if (sanitized.userAgent) {
+			// Keep only essential browser info, remove build numbers, etc.
+			sanitized.userAgent = sanitized.userAgent.replace(/\b\d{2,}\.\d+\.\d+\.\d+\b/g, 'x.x.x.x');
+		}
+
+		// Sanitize geolocation if present (round to reduce precision)
+		if (sanitized.latitude && sanitized.longitude) {
+			sanitized.latitude = Math.round(sanitized.latitude * 100) / 100;
+			sanitized.longitude = Math.round(sanitized.longitude * 100) / 100;
+		}
+
+		Logger.debug('Data sanitized', { 
+			originalFields: Object.keys(data).length, 
+			sanitizedFields: Object.keys(sanitized).length 
+		});
+		
+		return sanitized;
 	}
 
 	/**
@@ -171,9 +392,15 @@
 
 		// Check if we have already logged in the last 24 hours.
 		if (lastCheck && (Date.now() - parseInt(lastCheck, 10) < oneDay)) {
+			Logger.debug('Daily diagnostics already sent', { 
+				lastCheck: new Date(parseInt(lastCheck, 10)).toISOString(),
+				nextCheck: new Date(parseInt(lastCheck, 10) + oneDay).toISOString()
+			});
 			return;
 		}
 
+		Logger.info('Running daily diagnostics collection');
+		
 		// Collect and send the data, then update the timestamp.
 		const data = await collectDiagnostics();
 		await sendDiagnostics(data);
@@ -187,206 +414,48 @@
 	function initializeConsentListener() {
 		// Feature detection: Only run if a WP Consent API provider is active.
 		if (window.wp_consent_api) {
+			Logger.debug('WP Consent API detected, setting up listener');
 			document.addEventListener('wp_listen_for_consent_change', (event) => {
 				const { consent_changed, new_consent } = event.detail;
+				Logger.debug('Consent change detected', { consent_changed, new_consent });
 				// If consent was just granted for the 'statistics' category, run the check.
 				if (consent_changed && new_consent && new_consent.includes('statistics')) {
+					Logger.info('Statistics consent granted, running diagnostics');
 					runDiagnosticsOncePerDay();
 				}
 			});
+		} else {
+			Logger.debug('WP Consent API not available');
 		}
 	}
-
-	// Utility function to get current timestamp
-const getCurrentTimestamp = () => new Date().toISOString();
-
-// Gather user information
-const gatherDeviceInfo = async () => {
-    const deviceInfo = {
-        userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        userLanguage: navigator.language || navigator.userLanguage,
-        userAgent: navigator.userAgent,
-        screen: {
-            width: window.screen.width,
-            height: window.screen.height
-        },
-        viewport: {
-            width: window.innerWidth,
-            height: window.innerHeight
-        },
-        cpuCores: navigator.hardwareConcurrency, // Device CPU cores
-        memory: navigator.deviceMemory || 'Unknown', // Device Memory
-    };
-
-    // Capture Audio Devices
-    const audioDevices = await navigator.mediaDevices.enumerateDevices()
-        .then((devices) => devices.filter(
-            (device) => device.kind === 'audioinput' || device.kind === 'audiooutput'
-        ));
-
-    // Capture Network Information
-    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-    const networkInfo = connection
-        ? {
-            effectiveType: connection.effectiveType,
-            downlink: connection.downlink,
-            rtt: connection.rtt,
-            saveData: connection.saveData || false, // Data saver mode
-            // Capture more network performance data like jitter and packet loss (where possible)
-            roundTripTime: connection.rtt,
-        }
-        : null;
-
-    // Capture Battery Status
-    const batteryStatus = await navigator.getBattery().then((battery) => ({
-        charging: battery.charging,
-        level: battery.level * 100,
-        chargingTime: battery.chargingTime,
-        dischargingTime: battery.dischargingTime,
-    }));
-
-    // Web Speech Capabilities
-    const webSpeechCapabilities = {
-        textToSpeech: 'speechSynthesis' in window,
-        speechRecognition: 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window
-    };
-
-    // Combine all the data into a single object
-    deviceInfo.audioDevices = audioDevices;
-    deviceInfo.networkInfo = networkInfo;
-    deviceInfo.batteryStatus = batteryStatus;
-    deviceInfo.webSpeechCapabilities = webSpeechCapabilities;
-
-    return JSON.stringify(deviceInfo); // Convert to JSON
-};
-
-const gatherUserInfo = async () => {
-    const userInfo = {}; // Declare the object here
-
-    // Get geolocation if available
-    try {
-        const position = await new Promise((resolve, reject) => 
-            navigator.geolocation.getCurrentPosition(resolve, reject)
-        );
-        userInfo.latitude = position.coords.latitude;
-        userInfo.longitude = position.coords.longitude;
-    } catch (error) {
-        console.warn('Geolocation not available:', error.message);
-    }
-
-    // Get device details
-    const deviceDetails = await gatherDeviceInfo();
-    userInfo.deviceDetails = deviceDetails;
-
-    // Get connection information
-    if (navigator.connection) {
-        userInfo.connection = {
-            type: navigator.connection.effectiveType,
-            downlink: navigator.connection.downlink, // Mbps
-            rtt: navigator.connection.rtt, // ms
-            saveData: navigator.connection.saveData
-        };
-    }
-
-    // Get audio capabilities
-    userInfo.audio = {
-        sampleRate: (new AudioContext()).sampleRate,
-        channels: (new AudioContext()).destination.channelCount,
-        audioDevices: []
-    };
-
-    // Get available audio devices
-    if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-        try {
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            userInfo.audio.audioDevices = devices
-                .filter(device => device.kind === 'audioinput' || device.kind === 'audiooutput')
-                .map(device => ({
-                    kind: device.kind,
-                    label: device.label,
-                    deviceId: device.deviceId
-                }));
-        } catch (error) {
-            console.warn('Unable to enumerate audio devices:', error);
-        }
-    }
-
-    return userInfo;
-};
-
-// Gather user activity data
-const gatherUserActivity = (startTime) => {
-    const activity = {
-        referrer: document.referrer,
-        submissionTime: getCurrentTimestamp(),
-        timeSpent: Date.now() - startTime,
-        inputs: {}
-    };
-
-    document.querySelectorAll('input, textarea, select').forEach((input) => {
-        activity.inputs[input.name] = { value: input.value, isEmpty: !input.value };
-    });
-
-    return activity;
-};
-
-// Send data to server
-const sendDataToServer = async (data) => {
-    try {
-        const response = await fetch('/your-endpoint', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        const result = await response.json();
-        
-        if (result.success) {
-            console.log('Data sent successfully');
-        } else {
-            if (result.data && result.data.login_required) {
-                showLoginModal(); // Assuming this function exists
-            } else {
-                alert(result.message || 'An error occurred');
-            }
-        }
-    } catch (error) {
-        console.error('Error sending data:', error);
-    }
-};
-
-// Main function to handle form submission
-const handleFormSubmission = async (event) => {
-    event.preventDefault();
-    const startTime = Date.now(); // Assuming this is set when the page loads
-
-    const formData = new FormData(event.target);
-    const userActivity = gatherUserActivity(startTime);
-    const userInfo = await gatherUserInfo();
-
-    const postData = {
-        user: userInfo,
-        activity: userActivity,
-        fields: Object.fromEntries(formData)
-    };
-
-    await sendDataToServer(postData);
-};
-
-// Event listener for form submission
-document.querySelector('form').addEventListener('submit', handleFormSubmission);
 
 	/**
 	 * Initialize the script once the DOM is fully loaded.
 	 */
 	document.addEventListener('DOMContentLoaded', () => {
 		// Stop if essential data from WordPress is missing.
-		if (!nonce || !ajax_url || !i18n) {
-			console.error('SPARXSTAR EnvCheck: Missing localization data.');
+		if (!nonce || !rest_url || !i18n) {
+			Logger.error('Missing localization data', { nonce: !!nonce, rest_url: !!rest_url, i18n: !!i18n });
 			return;
 		}
 
+		Logger.info('Environment check script initialized', { sessionId });
+
 		displayUpgradeBanner();
-		runDiagnosticsOncePerDay();
+		// Initial snapshot send, not daily, as per the second script's logic
+		// This will run once per page load and immediately send a snapshot of the environment.
+		// The `runDiagnosticsOncePerDay` will still manage the daily, more detailed diagnostics.
+		if (document.readyState === "loading") {
+			document.addEventListener("DOMContentLoaded", () => {
+				Logger.debug('DOM loaded, sending basic snapshot');
+				sendDiagnostics(collectEnvData());
+			});
+		} else {
+			Logger.debug('DOM already loaded, sending basic snapshot immediately');
+			sendDiagnostics(collectEnvData()); // Send a basic snapshot immediately
+		}
+
+		runDiagnosticsOncePerDay(); // This handles the detailed daily log
 		initializeConsentListener();
 	});
 
