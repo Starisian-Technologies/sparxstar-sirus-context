@@ -197,6 +197,183 @@
 		}
 	}
 
+	// Utility function to get current timestamp
+const getCurrentTimestamp = () => new Date().toISOString();
+
+// Gather user information
+const gatherDeviceInfo = async () => {
+    const deviceInfo = {
+        userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        userLanguage: navigator.language || navigator.userLanguage,
+        userAgent: navigator.userAgent,
+        screen: {
+            width: window.screen.width,
+            height: window.screen.height
+        },
+        viewport: {
+            width: window.innerWidth,
+            height: window.innerHeight
+        },
+        cpuCores: navigator.hardwareConcurrency, // Device CPU cores
+        memory: navigator.deviceMemory || 'Unknown', // Device Memory
+    };
+
+    // Capture Audio Devices
+    const audioDevices = await navigator.mediaDevices.enumerateDevices()
+        .then((devices) => devices.filter(
+            (device) => device.kind === 'audioinput' || device.kind === 'audiooutput'
+        ));
+
+    // Capture Network Information
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const networkInfo = connection
+        ? {
+            effectiveType: connection.effectiveType,
+            downlink: connection.downlink,
+            rtt: connection.rtt,
+            saveData: connection.saveData || false, // Data saver mode
+            // Capture more network performance data like jitter and packet loss (where possible)
+            roundTripTime: connection.rtt,
+        }
+        : null;
+
+    // Capture Battery Status
+    const batteryStatus = await navigator.getBattery().then((battery) => ({
+        charging: battery.charging,
+        level: battery.level * 100,
+        chargingTime: battery.chargingTime,
+        dischargingTime: battery.dischargingTime,
+    }));
+
+    // Web Speech Capabilities
+    const webSpeechCapabilities = {
+        textToSpeech: 'speechSynthesis' in window,
+        speechRecognition: 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window
+    };
+
+    // Combine all the data into a single object
+    deviceInfo.audioDevices = audioDevices;
+    deviceInfo.networkInfo = networkInfo;
+    deviceInfo.batteryStatus = batteryStatus;
+    deviceInfo.webSpeechCapabilities = webSpeechCapabilities;
+
+    return JSON.stringify(deviceInfo); // Convert to JSON
+};
+
+const gatherUserInfo = async () => {
+    const userInfo = {}; // Declare the object here
+
+    // Get geolocation if available
+    try {
+        const position = await new Promise((resolve, reject) => 
+            navigator.geolocation.getCurrentPosition(resolve, reject)
+        );
+        userInfo.latitude = position.coords.latitude;
+        userInfo.longitude = position.coords.longitude;
+    } catch (error) {
+        console.warn('Geolocation not available:', error.message);
+    }
+
+    // Get device details
+    const deviceDetails = await gatherDeviceInfo();
+    userInfo.deviceDetails = deviceDetails;
+
+    // Get connection information
+    if (navigator.connection) {
+        userInfo.connection = {
+            type: navigator.connection.effectiveType,
+            downlink: navigator.connection.downlink, // Mbps
+            rtt: navigator.connection.rtt, // ms
+            saveData: navigator.connection.saveData
+        };
+    }
+
+    // Get audio capabilities
+    userInfo.audio = {
+        sampleRate: (new AudioContext()).sampleRate,
+        channels: (new AudioContext()).destination.channelCount,
+        audioDevices: []
+    };
+
+    // Get available audio devices
+    if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            userInfo.audio.audioDevices = devices
+                .filter(device => device.kind === 'audioinput' || device.kind === 'audiooutput')
+                .map(device => ({
+                    kind: device.kind,
+                    label: device.label,
+                    deviceId: device.deviceId
+                }));
+        } catch (error) {
+            console.warn('Unable to enumerate audio devices:', error);
+        }
+    }
+
+    return userInfo;
+};
+
+// Gather user activity data
+const gatherUserActivity = (startTime) => {
+    const activity = {
+        referrer: document.referrer,
+        submissionTime: getCurrentTimestamp(),
+        timeSpent: Date.now() - startTime,
+        inputs: {}
+    };
+
+    document.querySelectorAll('input, textarea, select').forEach((input) => {
+        activity.inputs[input.name] = { value: input.value, isEmpty: !input.value };
+    });
+
+    return activity;
+};
+
+// Send data to server
+const sendDataToServer = async (data) => {
+    try {
+        const response = await fetch('/your-endpoint', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log('Data sent successfully');
+        } else {
+            if (result.data && result.data.login_required) {
+                showLoginModal(); // Assuming this function exists
+            } else {
+                alert(result.message || 'An error occurred');
+            }
+        }
+    } catch (error) {
+        console.error('Error sending data:', error);
+    }
+};
+
+// Main function to handle form submission
+const handleFormSubmission = async (event) => {
+    event.preventDefault();
+    const startTime = Date.now(); // Assuming this is set when the page loads
+
+    const formData = new FormData(event.target);
+    const userActivity = gatherUserActivity(startTime);
+    const userInfo = await gatherUserInfo();
+
+    const postData = {
+        user: userInfo,
+        activity: userActivity,
+        fields: Object.fromEntries(formData)
+    };
+
+    await sendDataToServer(postData);
+};
+
+// Event listener for form submission
+document.querySelector('form').addEventListener('submit', handleFormSubmission);
 
 	/**
 	 * Initialize the script once the DOM is fully loaded.
