@@ -21,46 +21,92 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Primary plugin controller for SPARXSTAR User Environment Check.
+ *
+ * Coordinates asset loading, REST handling, log storage, and housekeeping tasks
+ * with awareness of multisite and multinetwork environments.
+ */
 final class Sparxstar_User_Environment_Check {
 
-	private static $instance = null;
-
-	// **MODIFIED**: This is no longer a constant, as it needs to be network-aware.
-	private $log_dir;
-	private $cron_hook;
-
-	const RETENTION_DAYS   = 30;
-	const TEXT_DOMAIN      = 'sparxstar-user-environment-check';
+	/**
+	 * Class instance used to implement the singleton pattern.
+	 *
+	 * @var ?Sparxstar_User_Environment_Check
+	 */
+	private static ?Sparxstar_User_Environment_Check $instance = null;
 
 	/**
-	 * Singleton init.
+	 * Absolute path to the directory used for NDJSON log storage.
+	 *
+	 * @var string
 	 */
-	public static function init() {
+	private string $log_dir;
+
+	/**
+	 * Hook name used when scheduling the housekeeping cron task.
+	 *
+	 * @var string
+	 */
+	private string $cron_hook;
+
+	/**
+	 * Identifier for the active network. Ensures multinetwork isolation.
+	 *
+	 * @var int
+	 */
+	private int $network_id;
+
+	/**
+	 * Number of days to retain NDJSON log files before pruning.
+	 */
+	const RETENTION_DAYS = 30;
+
+	/**
+	 * Text domain identifier used for all translation lookups.
+	 */
+	const TEXT_DOMAIN = 'sparxstar-user-environment-check';
+
+	/**
+	 * Current plugin version used for asset cache-busting.
+	 */
+	const VERSION = '2.2.4';
+
+	/**
+	 * Instantiate or retrieve the singleton instance.
+	 *
+	 * @return Sparxstar_User_Environment_Check
+	 */
+	public static function init(): Sparxstar_User_Environment_Check {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
+
 		return self::$instance;
 	}
 
+	/**
+	 * Establish network-aware properties and register hooks.
+	 */
 	private function __construct() {
-		// **NEW**: Set up network-aware properties for multinetwork compatibility.
-		$network_id      = function_exists( 'get_current_network_id' ) ? get_current_network_id() : 1;
-		$this->log_dir   = WP_CONTENT_DIR . '/envcheck-logs/network-' . $network_id;
-		$this->cron_hook = 'envcheck_cron_housekeeping_' . $network_id;
+		$this->network_id = function_exists( 'get_current_network_id' ) ? (int) get_current_network_id() : 1;
+		$this->log_dir    = trailingslashit( WP_CONTENT_DIR ) . 'envcheck-logs/network-' . $this->network_id;
+		$this->cron_hook  = 'envcheck_cron_housekeeping_' . $this->network_id;
 
-		// i18n
 		add_action( 'init', [ $this, 'load_textdomain' ] );
-		// Assets
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 		add_action( 'login_enqueue_scripts', [ $this, 'enqueue_assets' ] );
-		// REST route
 		add_action( 'rest_api_init', [ $this, 'register_rest_route' ] );
-		// Housekeeping using the network-specific cron hook.
 		add_action( $this->cron_hook, [ $this, 'housekeeping' ] );
 		add_action( 'init', [ $this, 'schedule_cron_jobs' ] );
 	}
 
-	public function load_textdomain() {
+	/**
+	 * Load the plugin translation files.
+	 *
+	 * @return void
+	 */
+	public function load_textdomain(): void {
 		load_plugin_textdomain(
 			self::TEXT_DOMAIN,
 			false,
@@ -68,7 +114,12 @@ final class Sparxstar_User_Environment_Check {
 		);
 	}
 
-	public function enqueue_assets() {
+	/**
+	 * Register front-end assets, respecting consent when available.
+	 *
+	 * @return void
+	 */
+	public function enqueue_assets(): void {
 		$consent_category = apply_filters( 'envcheck_consent_category', 'statistics' );
 		if ( function_exists( 'wp_has_consent' ) && ! wp_has_consent( $consent_category ) ) {
 			return;
@@ -78,11 +129,14 @@ final class Sparxstar_User_Environment_Check {
 		$style_path  = __DIR__ . '/assets/css/sparxstar-user-environment-check.min.css';
 		$base_url    = plugin_dir_url( __FILE__ );
 
+		$script_version = file_exists( $script_path ) ? (string) filemtime( $script_path ) : self::VERSION;
+		$style_version  = file_exists( $style_path ) ? (string) filemtime( $style_path ) : self::VERSION;
+
 		wp_enqueue_script(
 			'envcheck-js',
 			$base_url . 'assets/js/sparxstar-user-environment-check.min.js',
 			[],
-			filemtime( $script_path ),
+			$script_version,
 			true
 		);
 
@@ -90,15 +144,16 @@ final class Sparxstar_User_Environment_Check {
 			'envcheck-css',
 			$base_url . 'assets/css/sparxstar-user-environment-check.min.css',
 			[],
-			filemtime( $style_path )
+			$style_version
 		);
 
 		wp_localize_script(
 			'envcheck-js',
 			'envCheckData',
 			[
-				'nonce'    => wp_create_nonce( 'wp_rest' ), // Use wp_rest nonce for REST API.
-				'ajax_url' => rest_url( 'env/v1/log' ),
+				'nonce'    => wp_create_nonce( 'wp_rest' ),
+				'ajax_url' => admin_url( 'admin-ajax.php' ),
+				'rest_url' => rest_url( 'env/v1/log' ),
 				'i18n'     => [
 					'notice'         => __( 'Notice:', self::TEXT_DOMAIN ),
 					'update_message' => __( 'Your browser may be outdated. For the best experience, please', self::TEXT_DOMAIN ),
@@ -109,27 +164,63 @@ final class Sparxstar_User_Environment_Check {
 		);
 	}
 
-	public function register_rest_route() {
+	/**
+	 * Register the REST API endpoint used for logging snapshots.
+	 *
+	 * @return void
+	 */
+	public function register_rest_route(): void {
 		register_rest_route(
 			'env/v1',
 			'/log',
 			[
 				'methods'             => 'POST',
 				'callback'            => [ $this, 'handle_log_request' ],
-				'permission_callback' => '__return_true', // Public, but we perform checks inside.
+				'permission_callback' => [ $this, 'validate_rest_request' ],
 			]
 		);
 	}
 
+	/**
+	 * Validate REST API requests before processing payloads.
+	 *
+	 * @param WP_REST_Request $request Incoming REST request.
+	 * @return bool|WP_Error True when the request is allowed or an error when blocked.
+	 */
+	public function validate_rest_request( WP_REST_Request $request ) {
+		$nonce = $request->get_header( 'X-WP-Nonce' );
+		if ( empty( $nonce ) ) {
+			return new WP_Error( 'envcheck_missing_nonce', __( 'Security token missing.', self::TEXT_DOMAIN ), [ 'status' => 403 ] );
+		}
+
+		if ( ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
+			return new WP_Error( 'envcheck_invalid_nonce', __( 'Security token is invalid or expired.', self::TEXT_DOMAIN ), [ 'status' => 403 ] );
+		}
+
+		return true;
+	}
+
+	/**
+	 * Recursively sanitize incoming payload values.
+	 *
+	 * @param mixed $value Value to sanitize.
+	 * @return mixed Sanitized value.
+	 */
 	private function sanitize_recursive( $value ) {
 		if ( is_array( $value ) ) {
 			return array_map( [ $this, 'sanitize_recursive' ], $value );
 		}
+
 		return is_scalar( $value ) ? sanitize_text_field( (string) $value ) : $value;
 	}
 
+	/**
+	 * Handle the REST API request to persist an environment snapshot.
+	 *
+	 * @param WP_REST_Request $request Incoming REST request containing JSON diagnostics.
+	 * @return WP_REST_Response REST response indicating success or failure.
+	 */
 	public function handle_log_request( WP_REST_Request $request ) {
-		// Consent enforcement
 		$consent_category = apply_filters( 'envcheck_consent_category', 'statistics' );
 		if ( function_exists( 'wp_has_consent' ) && ! wp_has_consent( $consent_category ) ) {
 			return new WP_REST_Response( [ 'success' => false, 'data' => __( 'Consent not provided.', self::TEXT_DOMAIN ) ], 403 );
@@ -138,7 +229,6 @@ final class Sparxstar_User_Environment_Check {
 		$ip      = $request->get_ip_address();
 		$ip_hash = md5( $ip );
 
-		// Rate-limit
 		if ( ! is_user_logged_in() && get_transient( 'envcheck_rate_' . $ip_hash ) ) {
 			return new WP_REST_Response( [ 'success' => false, 'data' => __( 'Rate limit hit. Please try again later.', self::TEXT_DOMAIN ) ], 429 );
 		}
@@ -150,7 +240,6 @@ final class Sparxstar_User_Environment_Check {
 		}
 		$sanitized_data = $this->sanitize_recursive( $raw_data );
 
-		// Daily throttle with session awareness
 		$current_user_id = get_current_user_id();
 		$session_id      = $sanitized_data['sessionId'] ?? null;
 		$daily_key       = $this->get_daily_key( $current_user_id, $ip_hash, $session_id );
@@ -160,17 +249,16 @@ final class Sparxstar_User_Environment_Check {
 		}
 		set_site_transient( $daily_key, 1, DAY_IN_SECONDS );
 
-		// Collect client hints
 		$client_hints = [];
-		foreach ( [ 'Sec-CH-UA','Sec-CH-UA-Mobile','Sec-CH-UA-Platform','Sec-CH-UA-Model','Sec-CH-UA-Arch','Sec-CH-UA-Bitness','Sec-CH-UA-Full-Version' ] as $h ) {
-			$header_value = $request->get_header( $h );
+		foreach ( [ 'Sec-CH-UA', 'Sec-CH-UA-Mobile', 'Sec-CH-UA-Platform', 'Sec-CH-UA-Model', 'Sec-CH-UA-Arch', 'Sec-CH-UA-Bitness', 'Sec-CH-UA-Full-Version' ] as $hint_name ) {
+			$header_value = $request->get_header( $hint_name );
 			if ( ! empty( $header_value ) ) {
-				$client_hints[ $h ] = sanitize_text_field( $header_value );
+				$client_hints[ $hint_name ] = sanitize_text_field( $header_value );
 			}
 		}
 
-		$privacy = $sanitized_data['privacy'] ?? [];
-		$payload = $sanitized_data;
+		$privacy                 = $sanitized_data['privacy'] ?? [];
+		$payload                 = $sanitized_data;
 		$payload['client_hints'] = $client_hints;
 
 		if ( ! empty( $privacy['doNotTrack'] ) || ! empty( $privacy['gpc'] ) ) {
@@ -186,24 +274,22 @@ final class Sparxstar_User_Environment_Check {
 			];
 		}
 
-		// Allow other plugins to modify the payload before logging.
 		$payload = apply_filters( 'sparxstar_env_snapshot_payload', $payload, $request );
 
 		$entry = [
 			'timestamp_utc' => gmdate( 'c' ),
 			'user_id'       => $current_user_id,
-			'site'          => [ 'home' => home_url(), 'blog_id' => get_current_blog_id() ],
+			'site'          => [
+				'home'    => home_url(),
+				'blog_id' => get_current_blog_id(),
+			],
 			'diagnostics'   => $payload,
 		];
 
-		// **MODIFIED**: Use the network-aware log directory property.
-		if ( ! is_dir( $this->log_dir ) ) {
-			wp_mkdir_p( $this->log_dir );
+		if ( ! $this->ensure_log_directory() ) {
+			return new WP_REST_Response( [ 'success' => false, 'data' => __( 'Log directory unavailable.', self::TEXT_DOMAIN ) ], 500 );
 		}
-		@file_put_contents( $this->log_dir . '/.htaccess', "Require all denied\n", LOCK_EX );
-		@file_put_contents( $this->log_dir . '/index.php', "<?php // Silence is golden", LOCK_EX );
 
-		// **MODIFIED**: Use the network-aware log directory property.
 		$log_file = $this->log_dir . '/envcheck-' . gmdate( 'Y-m-d' ) . '.ndjson';
 		$result   = file_put_contents( $log_file, wp_json_encode( $entry ) . "\n", FILE_APPEND | LOCK_EX );
 
@@ -213,17 +299,8 @@ final class Sparxstar_User_Environment_Check {
 			return new WP_REST_Response( [ 'success' => false, 'data' => __( 'Log write failed.', self::TEXT_DOMAIN ) ], 500 );
 		}
 
-		// Cache the latest snapshot in a transient for fast access.
 		set_transient( 'sparxstar_env_last_' . $daily_key, $entry, DAY_IN_SECONDS );
 
-		/**
-		 * **NEW**: Fires after a new environment snapshot has been successfully saved.
-		 *
-		 * This allows other plugins to react to the new data in real-time.
-		 *
-		 * @since 2.2.3
-		 * @param array $entry The complete log entry that was saved.
-		 */
 		do_action( 'sparxstar_env_snapshot_saved', $entry );
 
 		return new WP_REST_Response( [ 'success' => true, 'data' => __( 'Data logged.', self::TEXT_DOMAIN ), 'snapshot_id' => $daily_key ], 200 );
@@ -237,18 +314,16 @@ final class Sparxstar_User_Environment_Check {
 	 * @return array|null The snapshot entry array, or null if not found.
 	 */
 	public function get_snapshot( $user_id = null, $session_id = null ) {
-		$user_id = is_null( $user_id ) ? get_current_user_id() : (int) $user_id;
-		$ip_hash = md5( $_SERVER['REMOTE_ADDR'] ?? '' );
-		$key     = $this->get_daily_key( $user_id, $ip_hash, $session_id );
+		$user_id   = is_null( $user_id ) ? get_current_user_id() : (int) $user_id;
+		$remote_ip = $this->get_remote_address();
+		$ip_hash   = md5( $remote_ip );
+		$key       = $this->get_daily_key( $user_id, $ip_hash, $session_id );
 
-		// 1. Try to get from the fast transient cache first.
 		$cached_snapshot = get_transient( 'sparxstar_env_last_' . $key );
 		if ( false !== $cached_snapshot && is_array( $cached_snapshot ) ) {
 			return $cached_snapshot;
 		}
 
-		// 2. If not cached, read from today's log file.
-		// **MODIFIED**: Use the network-aware log directory property.
 		$log_file = $this->log_dir . '/envcheck-' . gmdate( 'Y-m-d' ) . '.ndjson';
 		if ( ! file_exists( $log_file ) || ! is_readable( $log_file ) ) {
 			return null;
@@ -256,56 +331,109 @@ final class Sparxstar_User_Environment_Check {
 
 		$lines = file( $log_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES );
 
-		// Search backwards, as the most recent entry is likely the correct one.
 		foreach ( array_reverse( $lines ) as $line ) {
 			$entry = json_decode( $line, true );
 			if ( ! $entry || ! isset( $entry['user_id'] ) ) {
 				continue;
 			}
 
-			// Check if the user ID matches.
 			if ( (int) $entry['user_id'] === $user_id ) {
-				// If a session ID is provided, it must also match.
 				if ( ! $session_id || ( $entry['diagnostics']['sessionId'] ?? null ) === $session_id ) {
-					return $entry; // Found a match.
+					return $entry;
 				}
 			}
 		}
 
-		return null; // No snapshot found.
+		return null;
 	}
 
 	/**
 	 * Helper to consistently generate the daily transient key.
+	 *
+	 * @param int         $user_id    User identifier.
+	 * @param string      $ip_hash    Hash of the visitor IP address.
+	 * @param string|null $session_id Optional session identifier.
+	 * @return string Generated transient key scoped per network.
 	 */
 	private function get_daily_key( $user_id, $ip_hash, $session_id = null ) {
 		$key = $user_id ? 'envcheck_daily_user_' . $user_id : 'envcheck_daily_anon_' . $ip_hash;
 		if ( $session_id ) {
 			$key .= '_' . sanitize_key( $session_id );
 		}
-		return $key;
+
+		return $key . '_network_' . $this->network_id;
 	}
 
-	public function housekeeping() {
-		// **MODIFIED**: Use the network-aware log directory property.
+	/**
+	 * Delete expired NDJSON log files from the log directory.
+	 *
+	 * @return void
+	 */
+	public function housekeeping(): void {
 		if ( ! is_dir( $this->log_dir ) ) {
 			return;
 		}
-		// **MODIFIED**: Use the network-aware log directory property.
+
 		foreach ( new DirectoryIterator( $this->log_dir ) as $fileinfo ) {
 			if ( $fileinfo->isFile() && 'ndjson' === $fileinfo->getExtension() && str_starts_with( $fileinfo->getFilename(), 'envcheck-' ) ) {
 				if ( $fileinfo->getMTime() < time() - ( self::RETENTION_DAYS * DAY_IN_SECONDS ) ) {
-					@unlink( $fileinfo->getPathname() );
+					if ( ! unlink( $fileinfo->getPathname() ) ) {
+						error_log( 'SPARXSTAR EnvCheck: Unable to remove expired log file ' . $fileinfo->getPathname() );
+					}
 				}
 			}
 		}
 	}
 
-	public function schedule_cron_jobs() {
-		// **MODIFIED**: Use the network-aware cron hook property.
+	/**
+	 * Schedule daily housekeeping tasks on first run.
+	 *
+	 * @return void
+	 */
+	public function schedule_cron_jobs(): void {
 		if ( ! wp_next_scheduled( $this->cron_hook ) ) {
 			wp_schedule_event( time(), 'daily', $this->cron_hook );
 		}
+	}
+
+	/**
+	 * Create and protect the network-aware log directory.
+	 *
+	 * @return bool True when the directory is writable.
+	 */
+	private function ensure_log_directory(): bool {
+		if ( ! wp_mkdir_p( $this->log_dir ) && ! is_dir( $this->log_dir ) ) {
+			error_log( 'SPARXSTAR EnvCheck: Failed to create log directory ' . $this->log_dir );
+			return false;
+		}
+
+		$htaccess_path = $this->log_dir . '/.htaccess';
+		if ( ! file_exists( $htaccess_path ) && false === file_put_contents( $htaccess_path, "Require all denied\n", LOCK_EX ) ) {
+			error_log( 'SPARXSTAR EnvCheck: Failed to protect log directory with .htaccess.' );
+		}
+
+		$index_path = $this->log_dir . '/index.php';
+		if ( ! file_exists( $index_path ) && false === file_put_contents( $index_path, "<?php // Silence is golden" ) ) {
+			error_log( 'SPARXSTAR EnvCheck: Failed to create log directory index file.' );
+		}
+
+		return is_writable( $this->log_dir );
+	}
+
+	/**
+	 * Retrieve the visitor IP address from server variables.
+	 *
+	 * @return string IP address or empty string when unavailable.
+	 */
+	private function get_remote_address(): string {
+		$remote_addr = $_SERVER['REMOTE_ADDR'] ?? '';
+		$remote_addr = is_string( $remote_addr ) ? sanitize_text_field( wp_unslash( $remote_addr ) ) : '';
+
+		if ( filter_var( $remote_addr, FILTER_VALIDATE_IP ) ) {
+			return $remote_addr;
+		}
+
+		return '';
 	}
 }
 

@@ -1,146 +1,248 @@
 <?php
 /**
+ * Utility helpers for SPARXSTAR environment diagnostics.
  *
+ * @package SparxstarUserEnvironmentCheck
  */
-// If this file is called directly, abort.
-if ((!defined('ABSPATH')) || (!defined('WPINC'))) {
+
+if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class StarUserUtils{
-	public static function star_getIP(){
-			return $_SERVER['REMOTE_ADDR'];
+/**
+ * Collection of static helper methods for retrieving sanitized visitor metadata.
+*/
+final class StarUserUtils {
+
+	/**
+	 * Retrieve the direct remote IP address exposed by the server.
+	 *
+	 * @return string Normalized IP address or an empty string when unavailable.
+	*/
+	public static function star_getIP(): string {
+		return self::filter_ip_address( $_SERVER['REMOTE_ADDR'] ?? '' );
 	}
 
-	public static function star_getUserIP(){
-		// PHP7+
-    $clientIP = $_SERVER['HTTP_CLIENT_IP'] 
-        ?? $_SERVER["HTTP_CF_CONNECTING_IP"] # when behind cloudflare
-        ?? $_SERVER['HTTP_X_FORWARDED'] 
-        ?? $_SERVER['HTTP_X_FORWARDED_FOR'] 
-        ?? $_SERVER['HTTP_FORWARDED'] 
-        ?? $_SERVER['HTTP_FORWARDED_FOR'] 
-        ?? $_SERVER['REMOTE_ADDR'] 
-        ?? '0.0.0.0';
-    
-    // Earlier than PHP7
-    $clientIP = '0.0.0.0';
-    
-    if (isset($_SERVER['HTTP_CLIENT_IP'])) {
-        $clientIP = $_SERVER['HTTP_CLIENT_IP'];
-    } elseif (isset($_SERVER['HTTP_CF_CONNECTING_IP'])) {
-        // when behind cloudflare
-        $clientIP = $_SERVER['HTTP_CF_CONNECTING_IP']; 
-    } elseif (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-        $clientIP = $_SERVER['HTTP_X_FORWARDED_FOR'];
-    } elseif (isset($_SERVER['HTTP_X_FORWARDED'])) {
-        $clientIP = $_SERVER['HTTP_X_FORWARDED'];
-    } elseif (isset($_SERVER['HTTP_FORWARDED_FOR'])) {
-        $clientIP = $_SERVER['HTTP_FORWARDED_FOR'];
-    } elseif (isset($_SERVER['HTTP_FORWARDED'])) {
-        $clientIP = $_SERVER['HTTP_FORWARDED'];
-    } elseif (isset($_SERVER['REMOTE_ADDR'])) {
-        $clientIP = $_SERVER['REMOTE_ADDR'];
-    }
-    return $clientIP;
+	/**
+	 * Determine the most reliable client IP address using proxy-aware headers.
+	 *
+	 * @return string Normalized IP address or an empty string when it cannot be determined.
+	*/
+	public static function star_getUserIP(): string {
+		$headers = [
+		'HTTP_CLIENT_IP',
+		'HTTP_CF_CONNECTING_IP',
+		'HTTP_X_FORWARDED_FOR',
+		'HTTP_X_FORWARDED',
+		'HTTP_X_CLUSTER_CLIENT_IP',
+		'HTTP_FORWARDED_FOR',
+		'HTTP_FORWARDED',
+		'REMOTE_ADDR',
+		];
+
+		foreach ( $headers as $header ) {
+			$value = self::get_server_value( $header );
+			if ( empty( $value ) ) {
+				continue;
+			}
+
+	 // Handle comma-separated lists from X-Forwarded-For.
+			$maybe_ip = strtok( $value, ',' );
+			$maybe_ip = self::filter_ip_address( $maybe_ip );
+			if ( $maybe_ip ) {
+				return $maybe_ip;
+			}
+		}
+
+		return '';
 	}
 
-	public static function star_getUserSessionID(){
-		return session_id();
+	/**
+	 * Retrieve the active PHP session identifier when available.
+	 *
+	 * @return string Session identifier or an empty string when no session is active.
+	*/
+	public static function star_getUserSessionID(): string {
+		return PHP_SESSION_ACTIVE === session_status() ? session_id() : '';
 	}
 
-	public static function star_getUserAgent(): string{
-		return $_SERVER['HTTP_USER_AGENT'];
+	/**
+	 * Access the current user agent string with sanitization applied.
+	 *
+	 * @return string Sanitized user agent string.
+	*/
+	public static function star_getUserAgent(): string {
+		return self::get_server_value( 'HTTP_USER_AGENT' );
 	}
 
-	public static function star_getCurrentURL(): string{
-		return (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+	/**
+	 * Build the current request URL using sanitized server globals.
+	 *
+	 * @return string Normalized current URL or an empty string when incomplete data is available.
+	*/
+	public static function star_getCurrentURL(): string {
+		$host = self::get_server_value( 'HTTP_HOST' );
+		$uri  = self::get_server_value( 'REQUEST_URI' );
+
+		if ( empty( $host ) || empty( $uri ) ) {
+			return '';
+		}
+
+		$scheme = is_ssl() ? 'https://' : 'http://';
+
+		return esc_url_raw( $scheme . $host . $uri );
 	}
 
-	public static function star_getReferrerURL(): string{
-		return isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';
+	/**
+	 * Retrieve the referring URL from the request headers.
+	 *
+	 * @return string Normalized referrer URL or an empty string when not provided.
+	*/
+	public static function star_getReferrerURL(): string {
+		$referer = self::get_server_value( 'HTTP_REFERER' );
+
+		return $referer ? esc_url_raw( $referer ) : '';
 	}
 
-	public static function star_getIPGeoLocation(): string{
-		$ip = self::star_getUserIP();
-    // TODO Replace 'YOUR_ACCESS_TOKEN' with your actual API token from a service like ipinfo.io
-    $token = 'YOUR_ACCESS_TOKEN'; 
-    $url = "https://api.ipinfo.io/lite/$ip?token=$token";
+	/**
+	 * Fetch geolocation data using an external provider hooked via WordPress filters.
+	 *
+	 * @return array Associative array of geolocation data supplied by integrations.
+	*/
+	public static function star_getIPGeoLocation(): array {
+		$ip   = self::star_getUserIP();
+		$data = apply_filters( 'sparxstar_env_geolocation_lookup', null, $ip );
 
-    $geolocationData = file_get_contents($url);
-    return json_decode($geolocationData, true); // Decode JSON response into an associative array
-}
+		return is_array( $data ) ? $data : [];
+	}
 
-public static function star_getGeoLocationData(): string {
-  $userIp = getUserIP();
-  $locationData = getUserGeolocation($userIp);
+	/**
+	 * Retrieve a specific field from the geolocation payload.
+	 *
+	 * @param string $field Optional field name to fetch (city, region, country, location).
+	 * @return string Human-readable geolocation string or a fallback message.
+	*/
+	public static function star_getGeoLocationData( string $field = '' ): string {
+		$location = self::star_getIPGeoLocation();
 
-  if (is_array($locationData) && ! is_array_empty($locationData)) {
-    switch $data
-      case "city":
-          return trim($locationData['city']);
-      case "region":
-          return trim($locationData['region']);
-      case "country":
-          return trim($locationData['country']);
-      case "location":
-          return trim($locationData['loc']);
-      default:
-  } else {
-      return "Location data unavailable.";
-  }
-}
+		if ( empty( $location ) ) {
+			return __( 'Location data unavailable.', 'sparxstar-user-environment-check' );
+		}
 
-  public static function star_getUserLanguage(string $retType='code'): string{
-    // Get the raw Accept-Language header
-    $acceptLanguage = $_SERVER['HTTP_ACCEPT_LANGUAGE'];
-    
-    // Extract the primary language code (e.g., "en-US" or "en")
-    // This example takes the first part before a comma and before a semicolon
-    $primaryLanguage = explode(',', $acceptLanguage)[0];
-    $primaryLanguage = explode(';', $primaryLanguage)[0];
-    
-    // You might want to further process this to get just the two-letter code
-    $twoLetterCode = substr($primaryLanguage, 0, 2);
+		if ( '' === $field ) {
+			return wp_json_encode( $location );
+		}
 
-    if($retType === 'code'){
-      // returns two letter code e.g. "en"
-      return trim($twoLetterCode);
-    } else {
-      // returns locale "en_US"
-      return trim($primaryLanguage);
-    }
-  }
+		$map = [
+		'city'     => 'city',
+		'region'   => 'region',
+		'country'  => 'country',
+		'location' => 'loc',
+		];
 
-	public static function star_getUserDeviceType(){
-		$user_agent = $_SERVER['HTTP_USER_AGENT'];
-		if (preg_match('/mobile/i', $user_agent)) {
-			return 'Mobile';
-		} elseif (preg_match('/tablet/i', $user_agent)) {
+		$key = $map[ $field ] ?? null;
+		if ( $key && ! empty( $location[ $key ] ) ) {
+			return trim( (string) $location[ $key ] );
+		}
+
+		return __( 'Location data unavailable.', 'sparxstar-user-environment-check' );
+	}
+
+	/**
+	 * Determine the preferred language from the Accept-Language header.
+	 *
+	 * @param string $ret_type Either 'code' for the ISO code or 'locale' for the full locale string.
+	 * @return string Sanitized language representation.
+	*/
+	public static function star_getUserLanguage( string $ret_type = 'code' ): string {
+		$raw = self::get_server_value( 'HTTP_ACCEPT_LANGUAGE' );
+		if ( empty( $raw ) ) {
+			return '';
+		}
+
+		$primary = explode( ',', $raw )[0];
+		$primary = explode( ';', $primary )[0];
+		$primary = trim( $primary );
+
+		if ( 'code' === strtolower( $ret_type ) ) {
+			return substr( $primary, 0, 2 );
+		}
+
+		return $primary;
+	}
+
+	/**
+	 * Classify the visitor device type based on the user agent string.
+	 *
+	 * @return string One of "Mobile", "Tablet", or "Desktop".
+	*/
+	public static function star_getUserDeviceType(): string {
+		$user_agent = strtolower( self::star_getUserAgent() );
+
+		if ( preg_match( '/tablet|ipad/', $user_agent ) ) {
 			return 'Tablet';
-		} else {
-			return 'Desktop';
 		}
+
+		if ( preg_match( '/mobi|android/', $user_agent ) ) {
+			return 'Mobile';
+		}
+
+		return 'Desktop';
 	}
 
-  public static function star_getUserAgent(): string{
-    return $_SERVER['HTTP_USER_AGENT'];
-  }
+	/**
+	 * Determine the visitor operating system using a lightweight signature map.
+	 *
+	 * @return string Friendly operating system name.
+	*/
+	public static function star_getUserOS(): string {
+		$user_agent = strtolower( self::star_getUserAgent() );
+		$map        = [
+		'windows' => 'Windows',
+		'mac'     => 'Mac',
+		'linux'   => 'Linux',
+		'unix'    => 'Unix',
+		'ios'     => 'iOS',
+		'android' => 'Android',
+		];
 
-	public static function star_getUserOS(){
-		$user_agent = $_SERVER['HTTP_USER_AGENT'];
-		if (preg_match('/win/i', $user_agent)) {
-			return 'Windows';
-		} elseif (preg_match('/mac/i', $user_agent)) {
-			return 'Mac';
-		} elseif (preg_match('/linux/i', $user_agent)) {
-			return 'Linux';
-		} elseif (preg_match('/unix/i', $user_agent)) {
-			return 'Unix';
-		} else {
-			return 'Other';
+		foreach ( $map as $needle => $label ) {
+			if ( str_contains( $user_agent, $needle ) ) {
+				return $label;
+			}
 		}
+
+		return 'Other';
 	}
 
+	/**
+	 * Sanitize and validate IP address strings.
+	 *
+	 * @param string|null $value Potential IP address.
+	 * @return string Normalized IP or empty string on failure.
+	*/
+	private static function filter_ip_address( ?string $value ): string {
+		if ( ! is_string( $value ) ) {
+			return '';
+		}
 
+		$value = trim( $value );
+		if ( str_contains( $value, ',' ) ) {
+			$value = strtok( $value, ',' );
+		}
+
+		$value = sanitize_text_field( wp_unslash( $value ) );
+
+		return filter_var( $value, FILTER_VALIDATE_IP ) ? $value : '';
+	}
+
+	/**
+	 * Retrieve a sanitized server variable by key.
+	 *
+	 * @param string $key Server array key to read.
+	 * @return string Sanitized value or empty string.
+	*/
+	private static function get_server_value( string $key ): string {
+		return isset( $_SERVER[ $key ] ) ? sanitize_text_field( wp_unslash( $_SERVER[ $key ] ) ) : '';
+	}
 }
