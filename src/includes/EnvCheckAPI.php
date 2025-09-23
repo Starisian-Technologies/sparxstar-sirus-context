@@ -78,6 +78,75 @@ class SparxstarUECAPI {
 			]
 		);
 	}
+	/**
+	 * Stores the diagnostic snapshot in the database and updates the cache.
+	 * If a record with the same snapshot_hash exists, it updates the timestamp and invalidates the cache.
+	 *
+	 * @return array|\WP_Error Result array with status and ID, or WP_Error on failure.
+	 */
+	private function store_diagnostic_snapshot( ?int $user_id, ?string $user_fingerprint, ?string $session_id, string $client_ip_hash, string $snapshot_hash, array $server_data, array $client_data, array $client_hints ): array|\WP_Error {
+		global $wpdb;
+		$table_name = $wpdb->base_prefix . self::TABLE_NAME;
+
+		// Check if a snapshot with this exact environment hash already exists.
+		$existing_id = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table_name} WHERE snapshot_hash = %s", $snapshot_hash ) );
+
+		if ( $existing_id ) {
+			// Environment is identical. Just update the timestamp to show it's still active.
+			$wpdb->update(
+				$table_name,
+				[ 'updated_at' => current_time( 'mysql' ) ],
+				[ 'id' => $existing_id ],
+				[ '%s' ],
+				[ '%d' ]
+			);
+
+			// ## CACHE WIRING: Invalidate the cache for this user/session. ##
+			// The next call to EnvCheckCache::get_snapshot() will trigger a fresh DB lookup.
+			EnvCheckCache::delete_snapshot( $user_id, $session_id, $user_fingerprint );
+
+			return [ 'status' => 'updated', 'id' => $existing_id ];
+		}
+
+		// Environment is new. Insert a new record.
+		$current_time = current_time( 'mysql' );
+		$data_to_insert = [
+			'user_id'           => $user_id,
+			'session_id'        => $session_id,
+			'snapshot_hash'     => $snapshot_hash,
+			'client_ip_hash'    => $client_ip_hash,
+			'server_side_data'  => wp_json_encode( $server_data ),
+			'client_side_data'  => wp_json_encode( $client_data ),
+			'client_hints_data' => ! empty( $client_hints ) ? wp_json_encode( $client_hints ) : null,
+			'created_at'        => $current_time,
+			'updated_at'        => $current_time,
+		];
+		
+		$result = $wpdb->insert( $table_name, $data_to_insert );
+
+		if ( false === $result ) {
+			return new \WP_Error( 'db_insert_error', __( 'Could not write snapshot to the database.', 'sparxstar-user-environment-check' ), [ 'status' => 500 ] );
+		}
+
+		$new_id = $wpdb->insert_id;
+
+		// ## CACHE WIRING: Prime the cache with the new snapshot data. ##
+		// This prevents the next read from hitting the database.
+		$snapshot_for_cache = [
+			'id' => $new_id,
+			'user_id' => $user_id,
+			'session_id' => $session_id,
+			// ... add other fields as they are in the DB row ...
+			'server_side_data' => $server_data, // Use the raw array for cache
+			'client_side_data' => $client_data,
+			'client_hints_data' => $client_hints,
+			'created_at' => $current_time,
+			'updated_at' => $current_time,
+		];
+		EnvCheckCache::set_snapshot( $user_id, $session_id, $snapshot_for_cache, $user_fingerprint );
+
+		return [ 'status' => 'inserted', 'id' => $new_id ];
+	}
 
 	/**
 	 * Handles incoming POST requests to the environment log endpoint.
@@ -336,3 +405,4 @@ class SparxstarUECAPI {
 			];
 			// Filter to only include necessary fields
 			$sanitized = array_intersect_key( $sanitized, array_flip( $minimized
+
