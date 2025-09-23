@@ -37,14 +37,14 @@ class EnvCheckAPI {
 	}
 
 	private function __construct() {
-		add_action( 'rest_api_init', [ $this, 'register_rest_route' ] );
-		add_action( 'init', [ $this, 'schedule_cleanup' ] );
-		add_action( 'sparxstar_env_cleanup_hook', [ $this, 'cleanup_old_snapshots' ] );
+		\add_action( 'rest_api_init', [ $this, 'register_rest_route' ] );
+		\add_action( 'init', [ $this, 'schedule_cleanup' ] );
+		\add_action( 'sparxstar_env_cleanup_hook', [ $this, 'cleanup_old_snapshots' ] );
 
 		// ## REFINED: The activation hook now correctly points to the installer method. ##
 		// Assuming your main plugin file defines SPX_ENV_CHECK_PLUGIN_FILE.
 		if ( defined( 'SPX_ENV_CHECK_PLUGIN_FILE' ) ) {
-			register_activation_hook( SPX_ENV_CHECK_PLUGIN_FILE, [ $this, 'create_db_table' ] );
+			\register_activation_hook( SPX_ENV_CHECK_PLUGIN_FILE, [ $this, 'create_db_table' ] );
 		}
 	}
 
@@ -85,7 +85,7 @@ class EnvCheckAPI {
 	 * Registers the REST API endpoint for environment logging.
 	 */
 	public function register_rest_route() {
-		register_rest_route(
+		\register_rest_route(
 			'sparxstar-env/v1', // Custom namespace for clarity.
 			'/log',
 			[
@@ -112,10 +112,10 @@ class EnvCheckAPI {
 	public function handle_log_request( \WP_REST_Request $request ) {
 		// 1. Nonce Verification
 		$nonce = $request->get_header( 'X-WP-Nonce' );
-		if ( ! $nonce || ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
+		if ( ! $nonce || ! \wp_verify_nonce( $nonce, 'wp_rest' ) ) {
 			return new \WP_Error(
 				'invalid_nonce',
-				__( 'Invalid security token.', 'sparxstar-user-environment-check' ),
+				\__( 'Invalid security token.', 'sparxstar-user-environment-check' ),
 				[ 'status' => 403 ]
 			);
 		}
@@ -124,7 +124,7 @@ class EnvCheckAPI {
 		if ( ! $this->check_rate_limit() ) {
 			return new \WP_Error(
 				'rate_limited',
-				__( 'Too many requests. Please wait before sending more data.', 'sparxstar-user-environment-check' ),
+				\__( 'Too many requests. Please wait before sending more data.', 'sparxstar-user-environment-check' ),
 				[ 'status' => 429 ]
 			);
 		}
@@ -132,13 +132,13 @@ class EnvCheckAPI {
 		$client_data = $request->get_json_params();
 
 		if ( empty( $client_data ) || ! is_array( $client_data ) ) {
-			return new \WP_Error( 'invalid_data', __( 'Invalid JSON payload.', 'sparxstar-user-environment-check' ), [ 'status' => 400 ] );
+			return new \WP_Error( 'invalid_data', \__( 'Invalid JSON payload.', 'sparxstar-user-environment-check' ), [ 'status' => 400 ] );
 		}
 
 		// 3. Sanitize Client Data
 		$sanitized_client_data = $this->sanitize_client_diagnostic_data( $client_data );
 
-		if ( is_wp_error( $sanitized_client_data ) ) {
+		if ( \is_wp_error( $sanitized_client_data ) ) {
 			return $sanitized_client_data;
 		}
 
