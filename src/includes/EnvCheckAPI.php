@@ -1,191 +1,243 @@
 <?php
 /**
- * Environment Check REST API Handler
- * 
+ * Sparxstar Environment Check REST API Handler
+ *
  * Handles the collection and storage of environment diagnostics with enhanced
- * security, session awareness, client hints, and concurrency handling.
+ * security, session awareness, client hints, and concurrency handling,
+ * specifically targeting MariaDB storage for snapshots.
  *
  * @package SparxstarUserEnvironmentCheck
- * @since 2.2
+ * @since 2.3.0
  */
+
+namespace SparxstarUEC\includes;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-class EnvCheckAPI {
-	
-	private static $instance = null;
-	
+class SparxstarUECAPI {
+
+	private static ?self $instance = null; // Use nullable type hint for consistency.
+
 	/**
 	 * Rate limiting settings
 	 */
-	private const RATE_LIMIT_WINDOW = 300; // 5 minutes
-	private const RATE_LIMIT_MAX_REQUESTS = 10; // Max requests per window
-	
+	private const RATE_LIMIT_WINDOW_SECONDS = 300; // 5 minutes
+	private const RATE_LIMIT_MAX_REQUESTS   = 10;  // Max requests per window per IP
+
 	/**
-	 * Singleton instance
+	 * Database table name for snapshots.
 	 */
-	public static function init() {
+	private const TABLE_NAME = 'sparxstar_env_snapshots';
+
+	/**
+	 * Snapshot retention in days for cleanup (if not handled by cron).
+	 */
+	private const SNAPSHOT_RETENTION_DAYS = 30; // Default retention
+
+	/**
+	 * Singleton instance.
+	 *
+	 * @return self
+	 */
+	public static function init(): self {
 		if ( self::$instance === null ) {
 			self::$instance = new self();
 		}
 		return self::$instance;
 	}
 
+	/**
+	 * Constructor.
+	 */
 	private function __construct() {
 		add_action( 'rest_api_init', [ $this, 'register_rest_route' ] );
-		add_action( 'wp', [ $this, 'schedule_cleanup' ] );
+		add_action( 'init', [ $this, 'schedule_cleanup' ] ); // Schedule on init, ensure DB table
+		register_activation_hook( SPX_ENV_CHECK_PLUGIN_FILE, [ $this, 'create_db_table' ] );
 	}
 
 	/**
-	 * Register the REST API endpoint
+	 * Registers the REST API endpoint for environment logging.
 	 */
 	public function register_rest_route() {
-		register_rest_route( 'env/v1', '/log', [
-			'methods'  => 'POST',
-			'callback' => [ $this, 'handle_log_request' ],
-			'permission_callback' => '__return_true', // Open endpoint for anonymized data
-			'args' => [
-				'data' => [
-					'required' => true,
-					'type' => 'object',
-					'description' => 'Environment diagnostic data',
+		register_rest_route(
+			'sparxstar-env/v1', // Custom namespace for clarity.
+			'/log',
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'handle_log_request' ],
+				'permission_callback' => '__return_true', // Open endpoint for anonymized data.
+				'args'                => [
+					'data' => [
+						'required'    => true,
+						'type'        => 'object',
+						'description' => 'Environment diagnostic data from client.',
+					],
 				],
-			],
-		] );
+			]
+		);
 	}
 
 	/**
-	 * Handle the log request with enhanced security and session awareness
+	 * Handles incoming POST requests to the environment log endpoint.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST API request.
+	 * @return \WP_REST_Response|\WP_Error
 	 */
-	public function handle_log_request( WP_REST_Request $request ) {
-		// Verify nonce for additional security
+	public function handle_log_request( \WP_REST_Request $request ) {
+		// 1. Nonce Verification
 		$nonce = $request->get_header( 'X-WP-Nonce' );
 		if ( ! $nonce || ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
-			return new WP_Error( 
-				'invalid_nonce', 
-				'Invalid security token.', 
-				[ 'status' => 403 ] 
+			return new \WP_Error(
+				'invalid_nonce',
+				__( 'Invalid security token.', 'sparxstar-user-environment-check' ),
+				[ 'status' => 403 ]
 			);
 		}
 
-		// Rate limiting check
+		// 2. Rate Limiting Check
 		if ( ! $this->check_rate_limit() ) {
-			return new WP_Error( 
-				'rate_limited', 
-				'Too many requests. Please wait before sending more data.', 
-				[ 'status' => 429 ] 
+			return new \WP_Error(
+				'rate_limited',
+				__( 'Too many requests. Please wait before sending more data.', 'sparxstar-user-environment-check' ),
+				[ 'status' => 429 ]
 			);
 		}
 
-		$data = $request->get_json_params();
+		$client_data = $request->get_json_params();
 
-		if ( empty( $data ) || ! is_array( $data ) ) {
-			return new WP_Error( 'invalid_data', 'Invalid JSON payload.', [ 'status' => 400 ] );
+		if ( empty( $client_data ) || ! is_array( $client_data ) ) {
+			return new \WP_Error( 'invalid_data', __( 'Invalid JSON payload.', 'sparxstar-user-environment-check' ), [ 'status' => 400 ] );
 		}
 
-		// Enhanced data validation and sanitization
-		$sanitized_data = $this->sanitize_diagnostic_data( $data );
-		
-		if ( is_wp_error( $sanitized_data ) ) {
-			return $sanitized_data;
+		// 3. Sanitize Client Data
+		$sanitized_client_data = $this->sanitize_client_diagnostic_data( $client_data );
+
+		if ( is_wp_error( $sanitized_client_data ) ) {
+			return $sanitized_client_data;
 		}
 
-		// Collect client hints from headers
+		// 4. Collect Server-Side Data
+		$server_side_data = $this->collect_server_side_data();
+
+		// 5. Collect Client Hints
 		$client_hints = $this->collect_client_hints();
-		if ( ! empty( $client_hints ) ) {
-			$sanitized_data['clientHints'] = $client_hints;
+
+		// Determine user and session context
+		$user_id    = get_current_user_id() ?: null;
+		$session_id = $sanitized_client_data['sessionId'] ?? null;
+		$client_ip  = StarUserUtils::getClientIP();
+
+		// For anonymous users, create a robust fingerprint (combining IP and User-Agent)
+		$user_fingerprint = null;
+		if ( ! $user_id ) {
+			$user_fingerprint = hash( 'sha256', $client_ip . $server_side_data['userAgent'] );
 		}
 
-		// Enhanced session awareness
-		$session_id = $sanitized_data['sessionId'] ?? null;
-		$user_id = get_current_user_id();
-		
-		if ( $user_id ) {
-			$snapshot_id = 'user_' . $user_id . ( $session_id ? "_$session_id" : '' );
-		} else {
-			// Enhanced fingerprinting with client IP detection
-			$client_ip = $this->get_client_ip();
-			$user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
-			$fingerprint = hash( 'sha256', $client_ip . $user_agent );
-			$snapshot_id = 'anon_' . $fingerprint . ( $session_id ? "_$session_id" : '' );
-		}
+		// Hash the combined environment data to detect changes
+		// Exclude volatile data like battery level, rtt if they frequently change but don't signify environment change
+		$env_hash_data = [
+			'user_id'          => $user_id,
+			'user_fingerprint' => $user_fingerprint,
+			'session_id'       => $session_id,
+			'server_side'      => $server_side_data,
+			'client_side'      => $sanitized_client_data,
+			'client_hints'     => $client_hints,
+		];
+		// Remove highly dynamic data before hashing for environment change detection
+		unset( $env_hash_data['client_side']['battery'], $env_hash_data['client_side']['network']['rtt'] );
 
-		// Store the diagnostic data with file locking for concurrency safety
-		$result = $this->store_diagnostic_data( $snapshot_id, $sanitized_data );
-		
+		$snapshot_hash = hash( 'sha256', wp_json_encode( $env_hash_data ) );
+
+		// 6. Store/Update Snapshot in DB
+		$result = $this->store_diagnostic_snapshot(
+			$user_id,
+			$user_fingerprint,
+			$session_id,
+			hash( 'sha256', $client_ip ), // Store hashed IP for privacy
+			$snapshot_hash,
+			$server_side_data,
+			$sanitized_client_data,
+			$client_hints
+		);
+
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
 
-		// Log the event for debugging
-		error_log( sprintf( 
-			'[EnvCheck] Diagnostic data stored: %s (User: %s, Session: %s)', 
-			$snapshot_id, 
-			$user_id ?: 'anonymous', 
-			$session_id ?: 'none' 
-		) );
+		$log_message = sprintf(
+			'[EnvCheck] Diagnostic data %s: User: %s, Session: %s, IP: %s, Hash: %s',
+			( $result['status'] === 'updated' ? 'updated' : 'stored' ),
+			$user_id ?: ( $user_fingerprint ? 'Anon-' . substr( $user_fingerprint, 0, 8 ) : 'Unknown' ),
+			$session_id ?: 'none',
+			$client_ip,
+			substr( $snapshot_hash, 0, 8 )
+		);
+		error_log( $log_message );
 
-		return [ 
-			'status' => 'ok', 
-			'snapshot_id' => $snapshot_id,
-			'timestamp' => current_time( 'mysql', true )
+		return new \WP_REST_Response(
+			[
+				'status'      => 'ok',
+				'action'      => $result['status'],
+				'snapshot_id' => $result['id'],
+				'timestamp'   => current_time( 'mysql', true ),
+			],
+			200
+		);
+	}
+
+	/**
+	 * Collect server-side environment data using StarUserUtils.
+	 *
+	 * @return array
+	 */
+	private function collect_server_side_data(): array {
+		return [
+			'ip'         => StarUserUtils::getClientIP(), // Not hashed for immediate server use, but will be hashed before DB store.
+			'userAgent'  => StarUserUtils::getUserAgent(),
+			'sessionID'  => StarUserUtils::getSessionID(), // PHP session ID
+			'currentURL' => StarUserUtils::getCurrentURL(),
+			'referrerURL' => StarUserUtils::getReferrerURL(),
+			'language'   => StarUserUtils::getUserLanguage( 'locale' ),
+			'os'         => StarUserUtils::getUserOS(),
+			'browser'    => StarUserUtils::getUserBrowser(),
+			'isBot'      => StarUserUtils::isBot(),
+			'requestMethod' => StarUserUtils::getRequestMethod(),
+			'isAjax'     => StarUserUtils::isAjax(),
+			'wpEnvType'  => StarUserUtils::getWpEnvironmentType(),
+			'geolocation' => StarUserUtils::getIPGeoLocation(), // Full geo data
 		];
 	}
 
 	/**
-	 * Get client IP with support for proxies and CDNs
+	 * Collect Client Hints from headers for better device fingerprinting.
+	 *
+	 * @return array
 	 */
-	private function get_client_ip() {
-		$ip_headers = [
-			'HTTP_CF_CONNECTING_IP',     // Cloudflare
-			'HTTP_CLIENT_IP',
-			'HTTP_X_FORWARDED_FOR',
-			'HTTP_X_FORWARDED',
-			'HTTP_X_CLUSTER_CLIENT_IP',
-			'HTTP_FORWARDED_FOR',
-			'HTTP_FORWARDED',
-			'REMOTE_ADDR'
-		];
-
-		foreach ( $ip_headers as $header ) {
-			if ( ! empty( $_SERVER[ $header ] ) ) {
-				$ip = $_SERVER[ $header ];
-				// Handle comma-separated IPs (X-Forwarded-For)
-				if ( strpos( $ip, ',' ) !== false ) {
-					$ip = trim( explode( ',', $ip )[0] );
-				}
-				// Validate IP
-				if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
-					return $ip;
-				}
-			}
-		}
-
-		return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-	}
-
-	/**
-	 * Collect Client Hints from headers for better device fingerprinting
-	 */
-	private function collect_client_hints() {
+	private function collect_client_hints(): array {
 		$client_hints = [];
-		
+
 		$hint_headers = [
-			'HTTP_SEC_CH_UA' => 'userAgent',
-			'HTTP_SEC_CH_UA_MOBILE' => 'mobile',
-			'HTTP_SEC_CH_UA_PLATFORM' => 'platform',
+			'HTTP_SEC_CH_UA'                  => 'userAgentBrand', // Example: "Brave";v="121", "Not A(Brand)";v="8"
+			'HTTP_SEC_CH_UA_MOBILE'           => 'mobile',        // ?0 or ?1
+			'HTTP_SEC_CH_UA_PLATFORM'         => 'platform',      // Example: "macOS", "Windows"
 			'HTTP_SEC_CH_UA_PLATFORM_VERSION' => 'platformVersion',
-			'HTTP_SEC_CH_UA_ARCH' => 'architecture',
-			'HTTP_SEC_CH_UA_BITNESS' => 'bitness',
-			'HTTP_SEC_CH_UA_MODEL' => 'model',
-			'HTTP_SEC_CH_UA_FULL_VERSION' => 'fullVersion',
+			'HTTP_SEC_CH_UA_ARCH'             => 'architecture',
+			'HTTP_SEC_CH_UA_BITNESS'          => 'bitness',
+			'HTTP_SEC_CH_UA_MODEL'            => 'model',
+			'HTTP_SEC_CH_UA_FULL_VERSION'     => 'fullVersion',
+			'HTTP_DEVICE_MEMORY'              => 'deviceMemory', // Not a standard CH, but common from JS
+			'HTTP_DPR'                        => 'devicePixelRatio',
+			'HTTP_VIEWPORT_WIDTH'             => 'viewportWidth',
+			'HTTP_RW'                         => 'resourceWidth',
 		];
 
 		foreach ( $hint_headers as $header => $key ) {
 			if ( ! empty( $_SERVER[ $header ] ) ) {
-				$client_hints[ $key ] = sanitize_text_field( $_SERVER[ $header ] );
+				// Some client hints need parsing (e.g., Sec-CH-UA).
+				// For simplicity, we sanitize as text for now.
+				$client_hints[ $key ] = sanitize_text_field( wp_unslash( $_SERVER[ $header ] ) );
 			}
 		}
 
@@ -193,182 +245,94 @@ class EnvCheckAPI {
 	}
 
 	/**
-	 * Enhanced rate limiting with IP-based tracking
+	 * Checks and updates rate limit for the current client IP.
+	 *
+	 * @return bool True if allowed, false if rate limited.
 	 */
-	private function check_rate_limit() {
-		$client_ip = $this->get_client_ip();
-		$rate_key = 'envcheck_rate_' . hash( 'md5', $client_ip );
-		
-		$current_requests = get_transient( $rate_key ) ?: 0;
-		
+	private function check_rate_limit(): bool {
+		$client_ip = StarUserUtils::getClientIP();
+		// Use a hashed IP for transient key to avoid exposing raw IP in options table.
+		$rate_key = 'sparxstar_env_rate_' . hash( 'md5', $client_ip );
+
+		$current_requests = (int) get_transient( $rate_key );
+
 		if ( $current_requests >= self::RATE_LIMIT_MAX_REQUESTS ) {
 			return false;
 		}
-		
-		set_transient( $rate_key, $current_requests + 1, self::RATE_LIMIT_WINDOW );
-		
+
+		// Increment and set/update transient.
+		set_transient( $rate_key, $current_requests + 1, self::RATE_LIMIT_WINDOW_SECONDS );
+
 		return true;
 	}
 
 	/**
-	 * Sanitize and validate diagnostic data
+	 * Sanitizes and validates diagnostic data received from the client.
+	 *
+	 * @param array $data The raw client data.
+	 * @return array|\WP_Error Sanitized data or WP_Error on invalid input.
 	 */
-	private function sanitize_diagnostic_data( $data ) {
+	private function sanitize_client_diagnostic_data( array $data ): array|\WP_Error {
 		$sanitized = [];
-		
-		// Allowed fields with their sanitization functions
+
+		// Define allowed top-level fields and their expected types/sanitization rules
 		$allowed_fields = [
-			'sessionId' => 'sanitize_text_field',
-			'userAgent' => 'sanitize_text_field',
-			'os' => 'sanitize_text_field',
-			'language' => 'sanitize_text_field',
-			'screen' => null, // Will be handled separately
-			'features' => null, // Will be handled separately
-			'privacy' => null, // Will be handled separately
-			'compatible' => 'boolval',
-			'storage' => null,
-			'micPermission' => 'sanitize_text_field',
-			'battery' => null,
+			'sessionId'     => [ 'type' => 'string', 'sanitizer' => 'sanitize_text_field' ],
+			'userAgent'     => [ 'type' => 'string', 'sanitizer' => 'sanitize_textarea_field' ], // User agent can be long
+			'os'            => [ 'type' => 'string', 'sanitizer' => 'sanitize_text_field' ],
+			'language'      => [ 'type' => 'string', 'sanitizer' => 'sanitize_text_field' ],
+			'screen'        => [ 'type' => 'array', 'sanitizer' => null ],
+			'device'        => [ 'type' => 'array', 'sanitizer' => null ], // From device-detector-js
+			'network'       => [ 'type' => 'array', 'sanitizer' => null ], // From Network Information API
+			'features'      => [ 'type' => 'array', 'sanitizer' => null ],
+			'privacy'       => [ 'type' => 'array', 'sanitizer' => null ],
+			'compatible'    => [ 'type' => 'boolean', 'sanitizer' => 'boolval' ],
+			'storage'       => [ 'type' => 'array', 'sanitizer' => null ],
+			'micPermission' => [ 'type' => 'string', 'sanitizer' => 'sanitize_text_field' ],
+			'battery'       => [ 'type' => 'array', 'sanitizer' => null ],
 		];
 
-		foreach ( $allowed_fields as $field => $sanitizer ) {
-			if ( isset( $data[ $field ] ) ) {
-				if ( $sanitizer && is_callable( $sanitizer ) ) {
-					$sanitized[ $field ] = call_user_func( $sanitizer, $data[ $field ] );
-				} elseif ( is_array( $data[ $field ] ) ) {
-					$sanitized[ $field ] = $this->sanitize_array_recursively( $data[ $field ] );
+		foreach ( $allowed_fields as $field => $rules ) {
+			if ( ! isset( $data[ $field ] ) ) {
+				continue;
+			}
+
+			$value = $data[ $field ];
+
+			// Type checking
+			if ( gettype( $value ) !== $rules['type'] ) {
+				// Allow string for numbers if they can be cast
+				if ( ( $rules['type'] === 'integer' || $rules['type'] === 'float' ) && is_string( $value ) && is_numeric( $value ) ) {
+					// Will be cast later
+				} elseif ( $rules['type'] === 'boolean' && ( $value === 'true' || $value === 'false' || is_numeric( $value ) ) ) {
+					// Will be cast later
 				} else {
-					$sanitized[ $field ] = $data[ $field ];
+					return new \WP_Error(
+						'invalid_data_type',
+						sprintf( __( 'Invalid data type for field "%s". Expected %s.', 'sparxstar-user-environment-check' ), $field, $rules['type'] ),
+						[ 'status' => 400, 'field' => $field ]
+					);
 				}
 			}
-		}
 
-		// Validate session ID format
-		if ( isset( $sanitized['sessionId'] ) && ! preg_match( '/^[a-zA-Z0-9_-]+$/', $sanitized['sessionId'] ) ) {
-			return new WP_Error( 'invalid_session', 'Invalid session ID format.', [ 'status' => 400 ] );
-		}
-
-		// Strip potentially sensitive data if privacy signals are detected
-		if ( ! empty( $sanitized['privacy']['doNotTrack'] ) || ! empty( $sanitized['privacy']['gpc'] ) ) {
-			$sanitized = array_intersect_key( $sanitized, array_flip( [
-				'sessionId', 'privacy', 'userAgent', 'os', 'compatible', 'features'
-			] ) );
-		}
-
-		return $sanitized;
-	}
-
-	/**
-	 * Recursively sanitize array data
-	 */
-	private function sanitize_array_recursively( $array ) {
-		$sanitized = [];
-		
-		foreach ( $array as $key => $value ) {
-			$clean_key = sanitize_key( $key );
-			
-			if ( is_array( $value ) ) {
-				$sanitized[ $clean_key ] = $this->sanitize_array_recursively( $value );
-			} elseif ( is_string( $value ) ) {
-				$sanitized[ $clean_key ] = sanitize_text_field( $value );
-			} elseif ( is_numeric( $value ) ) {
-				$sanitized[ $clean_key ] = is_float( $value ) ? floatval( $value ) : intval( $value );
-			} elseif ( is_bool( $value ) ) {
-				$sanitized[ $clean_key ] = boolval( $value );
-			}
-		}
-		
-		return $sanitized;
-	}
-
-	/**
-	 * Store diagnostic data with file locking for concurrency safety
-	 */
-	private function store_diagnostic_data( $snapshot_id, $data ) {
-		$today = date( 'Y-m-d' );
-		$upload_dir = wp_upload_dir();
-		$log_dir = trailingslashit( $upload_dir['basedir'] ) . 'env-logs/';
-		
-		// Ensure directory exists
-		if ( ! wp_mkdir_p( $log_dir ) ) {
-			return new WP_Error( 'directory_error', 'Failed to create log directory.', [ 'status' => 500 ] );
-		}
-
-		$file = $log_dir . $today . '.json';
-
-		// Load current daily log with file locking
-		$entries = [];
-		if ( file_exists( $file ) ) {
-			$file_handle = fopen( $file, 'r' );
-			if ( $file_handle && flock( $file_handle, LOCK_SH ) ) {
-				$json = fread( $file_handle, filesize( $file ) );
-				$entries = json_decode( $json, true ) ?: [];
-				flock( $file_handle, LOCK_UN );
-				fclose( $file_handle );
+			if ( $rules['sanitizer'] && is_callable( $rules['sanitizer'] ) ) {
+				$sanitized[ $field ] = call_user_func( $rules['sanitizer'], $value );
+			} elseif ( is_array( $value ) ) {
+				$sanitized[ $field ] = $this->sanitize_array_recursively( $value );
 			} else {
-				return new WP_Error( 'file_lock_error', 'Could not acquire file lock for reading.', [ 'status' => 500 ] );
+				$sanitized[ $field ] = $value; // Should ideally have a sanitizer or type cast
 			}
 		}
 
-		// Add or update entry
-		$entries[ $snapshot_id ] = [
-			'timestamp' => current_time( 'mysql', true ),
-			'data' => $data,
-			'ip_hash' => hash( 'sha256', $this->get_client_ip() ), // Store hashed IP for analytics
-		];
-
-		// Write back with exclusive lock
-		$json_data = wp_json_encode( $entries, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
-		$bytes_written = file_put_contents( $file, $json_data, LOCK_EX );
-		
-		if ( $bytes_written === false ) {
-			return new WP_Error( 'write_error', 'Failed to write diagnostic data.', [ 'status' => 500 ] );
+		// Specific validation for sessionId (if present)
+		if ( isset( $sanitized['sessionId'] ) && ! preg_match( '/^[a-zA-Z0-9_-]{10,128}$/', $sanitized['sessionId'] ) ) {
+			return new \WP_Error( 'invalid_session', __( 'Invalid session ID format.', 'sparxstar-user-environment-check' ), [ 'status' => 400 ] );
 		}
 
-		return true;
-	}
-
-	/**
-	 * Schedule cleanup job
-	 */
-	public function schedule_cleanup() {
-		if ( ! wp_next_scheduled( 'envcheck_cleanup_logs' ) ) {
-			wp_schedule_event( time(), 'daily', 'envcheck_cleanup_logs' );
-		}
-		
-		add_action( 'envcheck_cleanup_logs', [ $this, 'cleanup_old_logs' ] );
-	}
-
-	/**
-	 * Clean up old log files
-	 */
-	public function cleanup_old_logs() {
-		$upload_dir = wp_upload_dir();
-		$log_dir = trailingslashit( $upload_dir['basedir'] ) . 'env-logs/';
-		
-		if ( ! is_dir( $log_dir ) ) {
-			return;
-		}
-
-		$retention_days = defined( 'ENVCHECK_RETENTION_DAYS' ) ? ENVCHECK_RETENTION_DAYS : 30;
-		$cutoff_time = time() - ( $retention_days * DAY_IN_SECONDS );
-		
-		$files = glob( $log_dir . '*.json' );
-		$deleted_count = 0;
-		
-		foreach ( $files as $file ) {
-			if ( filemtime( $file ) < $cutoff_time ) {
-				if ( unlink( $file ) ) {
-					$deleted_count++;
-				}
-			}
-		}
-		
-		if ( $deleted_count > 0 ) {
-			error_log( sprintf( '[EnvCheck] Cleaned up %d old log files', $deleted_count ) );
-		}
-	}
-}
-
-// Initialize the API
-EnvCheckAPI::init();
+		// Data minimization if privacy signals are strong
+		if ( ! empty( $sanitized['privacy']['doNotTrack'] ) || ! empty( $sanitized['privacy']['gpc'] ) ) {
+			$minimized_fields = [
+				'sessionId', 'privacy', 'userAgent', 'os', 'compatible', 'features', 'device', 'network',
+			];
+			// Filter to only include necessary fields
+			$sanitized = array_intersect_key( $sanitized, array_flip( $minimized
