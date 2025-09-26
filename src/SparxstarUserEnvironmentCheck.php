@@ -1,41 +1,61 @@
 <?php
-namespace Starisian\SparxstarUEC;
 /**
- * Sparxstar User Environment Check
- *
- * This class handles the initialization and setup of the Sparxstar User Environment Check plugin.
+ * Client hint header registration for SPARXSTAR Environment Check.
  *
  * @package SparxstarUserEnvironmentCheck
- * @version 1.0.0
- * @since 1.0.0
- * 
+ * @since 3.0.0
  */
 
+namespace Starisian\SparxstarUserEnvironmentCheck;
 
-
-class SparxstarUserEnvironmentCheck {
-  private function __contstructor(){
-    $this->register_hooks();
-
-  }
-
-  public function get_instance(): SparxstarUserEnvironmentCheck {
-
-  }
-
-  private function register_hooks(): void {
-    /**
-    * Add Accept-CH header to the site's front-end to request Client Hints from the browser.
-    */
-    add_action( 'send_headers', [ $this, 'add_client_hints_header' ]);
-  }
-  
-    private function add_client_hints_header() {
-      // Only send on front-end, non-admin pages.
-      if ( is_admin() ) {
-          return;
-      }
-    
-      header( "Accept-CH: Sec-CH-UA, Sec-CH-UA-Mobile, Sec-CH-UA-Platform, Sec-CH-UA-Model, Sec-CH-UA-Full-Version, Sec-CH-UA-Platform-Version, Sec-CH-UA-Bitness" );
-    }
+if ( ! defined( 'ABSPATH' ) ) {
+        exit;
 }
+
+/**
+ * Registers Accept-CH headers so browsers provide User-Agent Client Hints.
+ */
+final class SparxstarUserEnvironmentCheck {
+
+        /**
+         * Singleton instance of the client hint registrar.
+         *
+         * @var self|null
+         */
+        private static ?self $instance = null;
+
+        /**
+         * Retrieve the singleton instance.
+         *
+         * @return self
+         */
+        public static function get_instance(): self {
+                if ( null === self::$instance ) {
+                        self::$instance = new self();
+                }
+
+                return self::$instance;
+        }
+
+        /**
+         * Hook registration.
+         */
+        private function __construct() {
+                add_action( 'send_headers', [ $this, 'add_client_hints_header' ] );
+        }
+
+        /**
+         * Send Accept-CH headers on front-end requests.
+         *
+         * @return void
+         */
+        public function add_client_hints_header(): void {
+                if ( is_admin() ) {
+                        return;
+                }
+
+                header( 'Accept-CH: Sec-CH-UA, Sec-CH-UA-Mobile, Sec-CH-UA-Platform, Sec-CH-UA-Model, Sec-CH-UA-Full-Version, Sec-CH-UA-Platform-Version, Sec-CH-UA-Bitness' );
+        }
+}
+
+SparxstarUserEnvironmentCheck::get_instance();

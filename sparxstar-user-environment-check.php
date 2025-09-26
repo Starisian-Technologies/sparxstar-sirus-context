@@ -23,8 +23,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// Define the plugin file constant for the new EnvCheckAPI
+// Define the plugin file constant for the new EnvCheckAPI.
 define( 'SPX_ENV_CHECK_PLUGIN_FILE', __FILE__ );
+
+require_once __DIR__ . '/src/SparxstarUserEnvironmentCheck.php';
+require_once __DIR__ . '/src/utils/StarUserUtils.php';
+require_once __DIR__ . '/src/includes/EnvCheckAPI.php';
 
 /**
  * Primary plugin controller for SPARXSTAR User Environment Check.
@@ -133,17 +137,28 @@ final class Sparxstar_User_Environment_Check {
 			return;
 		}
 
-		$script_path = __DIR__ . '/assets/js/sparxstar-user-environment-check.min.js';
+		$script_path = __DIR__ . '/assets/js/sparxstar-user-environment-check.js';
 		$style_path  = __DIR__ . '/assets/css/sparxstar-user-environment-check.min.css';
 		$base_url    = plugin_dir_url( __FILE__ );
 
 		$script_version = file_exists( $script_path ) ? (string) filemtime( $script_path ) : self::VERSION;
 		$style_version  = file_exists( $style_path ) ? (string) filemtime( $style_path ) : self::VERSION;
 
+		$vendor_script_path = __DIR__ . '/assets/js/vendor-device-detector.js';
+		$vendor_version     = file_exists( $vendor_script_path ) ? (string) filemtime( $vendor_script_path ) : self::VERSION;
+
+		wp_register_script(
+			'envcheck-device-detector',
+			$base_url . 'assets/js/vendor-device-detector.js',
+			[],
+			$vendor_version,
+			true
+		);
+
 		wp_enqueue_script(
 			'envcheck-js',
-			$base_url . 'assets/js/sparxstar-user-environment-check.min.js',
-			[],
+			$base_url . 'assets/js/sparxstar-user-environment-check.js',
+			[ 'envcheck-device-detector' ],
 			$script_version,
 			true
 		);
@@ -159,15 +174,23 @@ final class Sparxstar_User_Environment_Check {
 			'envcheck-js',
 			'envCheckData',
 			[
-				'nonce'    => wp_create_nonce( 'wp_rest' ),
-				'ajax_url' => admin_url( 'admin-ajax.php' ),
-				'rest_url' => rest_url( 'env/v1/log' ),
-				'i18n'     => [
+				'nonce'         => wp_create_nonce( 'wp_rest' ),
+				'ajax_url'      => admin_url( 'admin-ajax.php' ),
+				'rest_url'      => rest_url( 'env/v1/log' ),
+				'i18n'          => [
 					'notice'         => __( 'Notice:', self::TEXT_DOMAIN ),
-					'update_message' => __( 'Your browser may be outdated. For the best experience, please', self::TEXT_DOMAIN ),
+					'update_message' => __( 'Your browser may be outdated. For the best experience, please update your browser.', self::TEXT_DOMAIN ),
 					'update_link'    => __( 'update your browser', self::TEXT_DOMAIN ),
 					'dismiss'        => __( 'Dismiss', self::TEXT_DOMAIN ),
 				],
+				'server'        => [
+					'acceptLanguage' => StarUserUtils::getUserLanguage( 'locale' ),
+					'languageCode'   => StarUserUtils::getUserLanguage( 'code' ),
+					'ipAddress'      => StarUserUtils::getClientIP(),
+					'userAgent'      => StarUserUtils::getUserAgent(),
+					'timezone'       => wp_timezone_string(),
+				],
+				'debug'         => (bool) apply_filters( 'sparxstar_env_debug', defined( 'WP_DEBUG' ) && WP_DEBUG ),
 			]
 		);
 	}
@@ -248,6 +271,10 @@ final class Sparxstar_User_Environment_Check {
 		}
 		$sanitized_data = $this->sanitize_recursive( $raw_data );
 
+		if ( empty( $sanitized_data['language'] ) && ! empty( $sanitized_data['languages'][0] ) ) {
+			$sanitized_data['language'] = sanitize_text_field( (string) $sanitized_data['languages'][0] );
+		}
+
 		$current_user_id = get_current_user_id();
 		$session_id      = $sanitized_data['sessionId'] ?? null;
 		$daily_key       = $this->get_daily_key( $current_user_id, $ip_hash, $session_id );
@@ -293,6 +320,22 @@ final class Sparxstar_User_Environment_Check {
 			],
 			'diagnostics'   => $payload,
 		];
+		\Starisian\SparxstarUserEnvironmentCheck\Includes\EnvCheckAPI::store_session_snapshot(
+			$entry,
+			[
+				'user_id'       => $current_user_id,
+				'session_id'    => $session_id,
+				'ip_hash'       => $ip_hash,
+				'server_source' => [
+					'accept_language' => StarUserUtils::getUserLanguage( 'locale' ),
+					'user_agent'      => StarUserUtils::getUserAgent(),
+					'timezone'        => wp_timezone_string(),
+					'site_locale'     => get_locale(),
+				],
+			]
+		);
+
+
 
 		if ( ! $this->ensure_log_directory() ) {
 			return new WP_REST_Response( [ 'success' => false, 'data' => __( 'Log directory unavailable.', self::TEXT_DOMAIN ) ], 500 );
