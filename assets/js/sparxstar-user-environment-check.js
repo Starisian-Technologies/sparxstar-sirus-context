@@ -1,216 +1,570 @@
 /**
  * @file Main client-side script for SPARXSTAR User Environment Check.
- * @author Starisian Technologies (Max Barrett)
- * @version 2.2
  *
- * @description This script performs two primary functions:
- * 1. Checks for modern browser API compatibility and displays a dismissible banner if required APIs are missing.
- * 2. Collects and sends anonymized, consent-based diagnostic data once per day to a WordPress AJAX endpoint.
+ * Collects detailed browser, device, and network information, surfaces helper
+ * methods for other scripts, and forwards diagnostics to the WordPress REST API.
+ *
+ * @version 3.0.0
  */
 
-(function() {
-	'use strict';
+(function () {
+        'use strict';
 
-	/**
-	 * A namespaced wrapper for browser localStorage to prevent key collisions with other scripts.
-	 * @const {object}
-	 */
-	const LS = {
-		/**
-		 * Retrieves an item from localStorage under the plugin's namespace.
-		 * @param {string} k - The key for the item.
-		 * @returns {string|null} The value of the item, or null if not found.
-		 */
-		get: (k) => localStorage.getItem(`envcheck:${k}`),
+        const envData = window.envCheckData || {};
+        const {
+                nonce,
+                rest_url: restUrl,
+                ajax_url: ajaxUrl,
+                i18n = {},
+                server = {},
+                debug = false,
+        } = envData;
 
-		/**
-		 * Sets an item in localStorage under the plugin's namespace.
-		 * @param {string} k - The key for the item.
-		 * @param {string} v - The value to store.
-		 */
-		set: (k, v) => localStorage.setItem(`envcheck:${k}`, v),
-	};
+        /**
+         * Structured logger used across modules.
+         * @type {object}
+         */
+        const Logger = {
+                levels: { error: 0, warn: 1, info: 2, debug: 3 },
+                currentLevel: debug ? 3 : 1,
 
-	/**
-	 * Data passed from WordPress via `wp_localize_script`.
-	 * @const {object}
-	 * @property {string} nonce - The security nonce for the AJAX request.
-	 * @property {string} ajax_url - The URL for WordPress's admin-ajax.php.
-	 * @property {object} i18n - An object containing translated strings.
-	 */
-	const { nonce, ajax_url, i18n } = window.envCheckData || {};
+                log(level, message, data) {
+                        if (level > this.currentLevel) {
+                                return;
+                        }
 
-	/**
-	 * Checks for the presence of essential browser APIs.
-	 *
-	 * @returns {boolean} Returns `true` if all required APIs are present, otherwise `false`.
-	 */
-	function isBrowserCompatible() {
-		return (
-			'Promise' in window &&
-			'fetch' in window &&
-			'MediaRecorder' in window &&
-			(navigator.mediaDevices && 'getUserMedia' in navigator.mediaDevices)
-		);
-	}
+                        const prefix = '[EnvCheck]';
+                        const timestamp = new Date().toISOString();
+                        const payload = data === undefined ? '' : data;
 
-	/**
-	 * Creates and displays the browser upgrade banner if the browser is incompatible.
-	 */
-	function displayUpgradeBanner() {
-		// Banner guard: Do not show the banner if the user has previously dismissed it.
-		if (LS.get('bannerDismissed') === 'true') {
-			return;
-		}
+                        switch (level) {
+                                case this.levels.error:
+                                        console.error(`${prefix} ${timestamp} ERROR:`, message, payload);
+                                        break;
+                                case this.levels.warn:
+                                        console.warn(`${prefix} ${timestamp} WARN:`, message, payload);
+                                        break;
+                                case this.levels.info:
+                                        console.info(`${prefix} ${timestamp} INFO:`, message, payload);
+                                        break;
+                                default:
+                                        console.debug(`${prefix} ${timestamp} DEBUG:`, message, payload);
+                                        break;
+                        }
+                },
 
-		if (isBrowserCompatible()) {
-			return;
-		}
+                error(message, data) {
+                        this.log(this.levels.error, message, data);
+                },
 
-		const banner = document.createElement('div');
-		banner.className = 'envcheck-banner';
-		banner.innerHTML = `
-            <div class="envcheck-banner-content">
-                <strong>${i18n.notice}</strong> ${i18n.update_message}
-                <a href="https://browsehappy.com/" target="_blank" rel="noopener noreferrer">${i18n.update_link}</a>.
-            </div>
-            <button class="envcheck-banner-dismiss" aria-label="${i18n.dismiss}">&times;</button>
-        `;
+                warn(message, data) {
+                        this.log(this.levels.warn, message, data);
+                },
 
-		document.body.appendChild(banner);
+                info(message, data) {
+                        this.log(this.levels.info, message, data);
+                },
 
-		// Add event listener to the dismiss button.
-		banner.querySelector('.envcheck-banner-dismiss').addEventListener('click', () => {
-			banner.remove();
-			LS.set('bannerDismissed', 'true');
-		});
-	}
+                debug(message, data) {
+                        this.log(this.levels.debug, message, data);
+                },
+        };
 
-	/**
-	 * Asynchronously collects a wide range of browser and platform diagnostics.
-	 *
-	 * @returns {Promise<object>} A promise that resolves with the diagnostic data object.
-	 */
-	async function collectDiagnostics() {
-		let data = {
-			privacy: {
-				doNotTrack: navigator.doNotTrack === '1' || window.doNotTrack === '1' || navigator.msDoNotTrack === '1',
-				gpc: !!navigator.globalPrivacyControl,
-			},
-			userAgent: navigator.userAgent || 'N/A',
-			os: navigator.platform || 'N/A',
-			language: navigator.language || 'N/A',
-			screen: {
-				width: window.screen.width,
-				height: window.screen.height,
-				colorDepth: window.screen.colorDepth,
-			},
-			compatible: isBrowserCompatible(),
-		};
+        /**
+         * Namespaced localStorage helper.
+         * @type {object}
+         */
+        const LS = {
+                get(key) {
+                        try {
+                                return localStorage.getItem(`envcheck:${key}`);
+                        } catch (error) {
+                                Logger.warn('localStorage read failed', { key, error: error.message });
+                                return null;
+                        }
+                },
+                set(key, value) {
+                        try {
+                                localStorage.setItem(`envcheck:${key}`, value);
+                        } catch (error) {
+                                Logger.warn('localStorage write failed', { key, error: error.message });
+                        }
+                },
+        };
 
-		// Parallelize expensive or slow API queries for performance.
-		const [storage, mic, battery] = await Promise.allSettled([
-			navigator.storage?.estimate?.(),
-			navigator.permissions?.query?.({ name: 'microphone' }),
-			navigator.getBattery?.(),
-		]);
+        if (!nonce || !restUrl) {
+                Logger.error('Missing required localization data', { hasNonce: !!nonce, hasRestUrl: !!restUrl });
+                return;
+        }
 
-		// Safely process the results of the parallel queries.
-		if (storage.status === 'fulfilled' && storage.value) {
-			data.storage = { quota: storage.value.quota, usage: storage.value.usage };
-		}
-		if (mic.status === 'fulfilled' && mic.value) {
-			data.micPermission = mic.value.state;
-		}
-		if (battery.status === 'fulfilled' && battery.value) {
-			data.battery = { level: battery.value.level, charging: battery.value.charging };
-		}
+        /**
+         * Ensure we have a stable session identifier.
+         * @type {string}
+         */
+        let sessionId = '';
+        try {
+                sessionId = sessionStorage.getItem('envcheck_session_id') || '';
+                if (!sessionId) {
+                        sessionId = typeof crypto.randomUUID === 'function'
+                                ? crypto.randomUUID()
+                                : `ses_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+                        sessionStorage.setItem('envcheck_session_id', sessionId);
+                }
+        } catch (error) {
+                Logger.warn('SessionStorage unavailable; generating ephemeral session id', { error: error.message });
+                sessionId = `ses_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        }
 
-		// Client-side data minimization: If DNT or GPC signals are present,
-		// strip the payload down to the bare essentials before sending.
-		if (data.privacy.doNotTrack || data.privacy.gpc) {
-			data = {
-				privacy: data.privacy,
-				userAgent: data.userAgent,
-				os: data.os,
-				compatible: data.compatible,
-			};
-		}
+        /**
+         * Device detector facade.
+         * @type {object}
+         */
+        const DeviceDetectorFacade = (() => {
+                let detector = null;
 
-		return data;
-	}
+                /**
+                 * Lazy-load the vendor DeviceDetector instance.
+                 * @return {DeviceDetector|null}
+                 */
+                function ensureDetector() {
+                        if (detector || typeof window.DeviceDetector === 'undefined') {
+                                return detector;
+                        }
 
-	/**
-	 * Sends the collected diagnostic data to the server.
-	 *
-	 * @param {object} diagnosticData - The object containing the data to log.
-	 */
-	async function sendDiagnostics(diagnosticData) {
-		const formData = new FormData();
-		formData.append('action', 'envcheck_log');
-		formData.append('nonce', nonce);
-		formData.append('data', JSON.stringify(diagnosticData));
+                        try {
+                                detector = new window.DeviceDetector({ skipBotDetection: true, versionTruncation: 2 });
+                                Logger.debug('DeviceDetector initialised');
+                        } catch (error) {
+                                Logger.error('Failed to initialise DeviceDetector', { error: error.message });
+                                detector = null;
+                        }
+                        return detector;
+                }
 
-		try {
-			await fetch(ajax_url, {
-				method: 'POST',
-				body: formData,
-			});
-		} catch (error) {
-			console.error('SPARXSTAR EnvCheck: Failed to send diagnostics.', error);
-		}
-	}
+                return {
+                        /**
+                         * Parse a user agent string into structured device information.
+                         * @param {string} userAgent
+                         * @return {object}
+                         */
+                        getDeviceInfo(userAgent = navigator.userAgent) {
+                                const instance = ensureDetector();
+                                if (!instance) {
+                                        return {};
+                                }
 
-	/**
-	 * The main execution function for logging.
-	 * Checks if a log has been sent today and proceeds if not.
-	 */
-	async function runDiagnosticsOncePerDay() {
-		const oneDay = 24 * 60 * 60 * 1000;
-		const lastCheck = LS.get('lastCheck');
+                                try {
+                                        return instance.parse(userAgent) || {};
+                                } catch (error) {
+                                        Logger.error('Device parsing failed', { error: error.message });
+                                        return {};
+                                }
+                        },
+                };
+        })();
 
-		// Check if we have already logged in the last 24 hours.
-		if (lastCheck && (Date.now() - parseInt(lastCheck, 10) < oneDay)) {
-			return;
-		}
+        /**
+         * Network monitor module that captures and caches Network Information API fields.
+         * @type {object}
+         */
+        const NetworkMonitor = (() => {
+                let cached = {};
 
-		// Collect and send the data, then update the timestamp.
-		const data = await collectDiagnostics();
-		await sendDiagnostics(data);
-		LS.set('lastCheck', Date.now().toString());
-	}
+                /**
+                 * Normalize Network Information API data into a plain object.
+                 * @param {NetworkInformation|null} conn
+                 * @return {object}
+                 */
+                function normalizeConnection(conn) {
+                        return {
+                                online: navigator.onLine,
+                                type: conn && conn.type ? conn.type : 'unknown',
+                                effectiveType: conn && conn.effectiveType ? conn.effectiveType : 'unknown',
+                                downlink: conn && typeof conn.downlink === 'number' ? conn.downlink : null,
+                                downlinkMax: conn && typeof conn.downlinkMax === 'number' ? conn.downlinkMax : null,
+                                rtt: conn && typeof conn.rtt === 'number' ? conn.rtt : null,
+                                saveData: !!(conn && conn.saveData),
+                                bandwidth: conn && typeof conn.bandwidth === 'number' ? conn.bandwidth : null,
+                                metered: conn && typeof conn.metered === 'boolean' ? conn.metered : null,
+                                effectiveBandwidthEstimate: conn && typeof conn.effectiveBandwidthEstimate === 'number' ? conn.effectiveBandwidthEstimate : null,
+                                signalStrength: conn && typeof conn.signalStrength === 'number' ? conn.signalStrength : null,
+                                connectionId: conn && typeof conn.id !== 'undefined' ? conn.id : null,
+                        };
+                }
 
-	/**
-	 * Sets up a listener for the WordPress Consent API.
-	 * If consent for 'statistics' is granted after the page loads, it triggers the diagnostic check.
-	 */
-	function initializeConsentListener() {
-		// Feature detection: Only run if a WP Consent API provider is active.
-		if (window.wp_consent_api) {
-			document.addEventListener('wp_listen_for_consent_change', (event) => {
-				const { consent_changed, new_consent } = event.detail;
-				// If consent was just granted for the 'statistics' category, run the check.
-				if (consent_changed && new_consent && new_consent.includes('statistics')) {
-					runDiagnosticsOncePerDay();
-				}
-			});
-		}
-	}
+                /**
+                 * Refresh cached network information and return a copy.
+                 * @return {object}
+                 */
+                function update() {
+                                const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection || null;
+                                cached = normalizeConnection(connection);
+                                return { ...cached };
+                }
 
+                /**
+                 * Register listeners for online/offline and connection change events.
+                 * @return {void}
+                 */
+                function initListeners() {
+                        window.addEventListener('online', update);
+                        window.addEventListener('offline', update);
 
-	/**
-	 * Initialize the script once the DOM is fully loaded.
-	 */
-	document.addEventListener('DOMContentLoaded', () => {
-		// Stop if essential data from WordPress is missing.
-		if (!nonce || !ajax_url || !i18n) {
-			console.error('SPARXSTAR EnvCheck: Missing localization data.');
-			return;
-		}
+                        const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection || null;
+                        if (connection && typeof connection.addEventListener === 'function') {
+                                connection.addEventListener('change', () => {
+                                        update();
+                                        document.dispatchEvent(new CustomEvent('sparxstar_network_change', { detail: { ...cached } }));
+                                });
+                        }
+                }
 
-		displayUpgradeBanner();
-		runDiagnosticsOncePerDay();
-		initializeConsentListener();
-	});
+                cached = update();
+                initListeners();
 
+                return {
+                        getNetworkInfo() {
+                                return update();
+                        },
+                        isOnline() {
+                                return !!navigator.onLine;
+                        },
+                };
+        })();
+
+        /**
+         * Check support for critical APIs.
+         * @return {boolean}
+         */
+        function isBrowserCompatible() {
+                return (
+                        'Promise' in window &&
+                        'fetch' in window &&
+                        'MediaRecorder' in window &&
+                        navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function'
+                );
+        }
+
+        /**
+         * Display upgrade banner when compatibility requirements are not met.
+         * @return {void}
+         */
+        function displayUpgradeBanner() {
+                if (LS.get('bannerDismissed') === 'true' || isBrowserCompatible()) {
+                        return;
+                }
+
+                const banner = document.createElement('div');
+                banner.className = 'envcheck-banner';
+                banner.innerHTML = `
+                        <div class="envcheck-banner-content">
+                                <strong>${i18n.notice || 'Notice:'}</strong> ${i18n.update_message || ''}
+                                <a href="https://browsehappy.com/" target="_blank" rel="noopener noreferrer">${i18n.update_link || 'update your browser'}</a>.
+                        </div>
+                        <button class="envcheck-dismiss" aria-label="${i18n.dismiss || 'Dismiss'}">&times;</button>
+                `;
+
+                banner.querySelector('.envcheck-dismiss').addEventListener('click', () => {
+                        LS.set('bannerDismissed', 'true');
+                        banner.remove();
+                });
+
+                document.body.appendChild(banner);
+        }
+
+        /**
+         * Gather privacy signals.
+         * @return {object}
+         */
+        function collectPrivacy() {
+                return {
+                        doNotTrack:
+                                navigator.doNotTrack === '1' ||
+                                window.doNotTrack === '1' ||
+                                navigator.msDoNotTrack === '1',
+                        gpc: !!navigator.globalPrivacyControl,
+                };
+        }
+
+        /**
+         * Basic feature detection map.
+         * @return {object}
+         */
+        function collectFeatures() {
+                        return {
+                                webrtc: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
+                                webgl: (() => {
+                                        try {
+                                                const canvas = document.createElement('canvas');
+                                                return !!(
+                                                        window.WebGLRenderingContext &&
+                                                        (canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
+                                                );
+                                        } catch (error) {
+                                                Logger.debug('WebGL detection failed', { error: error.message });
+                                                return false;
+                                        }
+                                })(),
+                                serviceWorker: 'serviceWorker' in navigator,
+                                localStorage: 'localStorage' in window,
+                                sessionStorage: 'sessionStorage' in window,
+                                mediaRecorder: 'MediaRecorder' in window,
+                                getUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
+                                promise: 'Promise' in window,
+                                fetch: 'fetch' in window,
+                                indexedDB: 'indexedDB' in window,
+                                webWorkers: 'Worker' in window,
+                                pushManager: 'PushManager' in window,
+                                notification: 'Notification' in window,
+                                geolocation: 'geolocation' in navigator,
+                                clipboard: 'clipboard' in navigator,
+                                wakeLock: 'wakeLock' in navigator,
+                                bluetooth: 'bluetooth' in navigator,
+                                usb: 'usb' in navigator,
+                                webAssembly: 'WebAssembly' in window,
+                                intersectionObserver: 'IntersectionObserver' in window,
+                                mutationObserver: 'MutationObserver' in window,
+                                resizeObserver: 'ResizeObserver' in window,
+                        };
+        }
+
+        /**
+         * Collect baseline environment data shared by diagnostics and immediate snapshots.
+         * @return {object}
+         */
+        function collectEnvData() {
+                const resolved = typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function'
+                        ? Intl.DateTimeFormat().resolvedOptions()
+                        : {};
+                const deviceInfo = DeviceDetectorFacade.getDeviceInfo();
+                const networkInfo = NetworkMonitor.getNetworkInfo();
+
+                const languages = Array.isArray(navigator.languages) ? navigator.languages.slice(0, 10) : [];
+
+                return {
+                        sessionId,
+                        userAgent: navigator.userAgent,
+                        acceptLanguage: navigator.language || server.acceptLanguage || '',
+                        languages,
+                        locale: resolved.locale || navigator.language || server.languageCode || '',
+                        timeZone: resolved.timeZone || server.timezone || '',
+                        server,
+                        ipAddress: server.ipAddress || '',
+                        screen: {
+                                width: window.screen && typeof window.screen.width !== "undefined" ? window.screen.width : null,
+                                height: window.screen && typeof window.screen.height !== "undefined" ? window.screen.height : null,
+                                availWidth: window.screen && typeof window.screen.availWidth !== "undefined" ? window.screen.availWidth : null,
+                                availHeight: window.screen && typeof window.screen.availHeight !== "undefined" ? window.screen.availHeight : null,
+                                pixelRatio: window.devicePixelRatio || 1,
+                        },
+                        device: deviceInfo.device || {},
+                        deviceType: (deviceInfo.device && deviceInfo.device.type) ? deviceInfo.device.type : 'unknown',
+                        os: deviceInfo.os || {},
+                        browser: deviceInfo.client || {},
+                        network: networkInfo,
+                        features: collectFeatures(),
+                        privacy: collectPrivacy(),
+                        compatible: isBrowserCompatible(),
+                        clientTimestamp: new Date().toISOString(),
+                };
+        }
+
+        /**
+         * Collect extended diagnostics asynchronously.
+         * @return {Promise<object>}
+         */
+        async function collectDiagnostics() {
+                let data = collectEnvData();
+
+                const [storage, microphone, battery] = await Promise.allSettled([
+                        navigator.storage && typeof navigator.storage.estimate === 'function' ? navigator.storage.estimate() : undefined,
+                        navigator.permissions && typeof navigator.permissions.query === 'function' ? navigator.permissions.query({ name: 'microphone' }) : undefined,
+                        navigator.getBattery ? navigator.getBattery() : undefined,
+                ]);
+
+                if (storage.status === 'fulfilled' && storage.value) {
+                        data.storage = {
+                                quota: storage.value.quota,
+                                usage: storage.value.usage,
+                        };
+                }
+
+                if (microphone.status === 'fulfilled' && microphone.value) {
+                        data.micPermission = microphone.value.state;
+                }
+
+                if (battery.status === 'fulfilled' && battery.value) {
+                        data.battery = {
+                                level: battery.value.level,
+                                charging: battery.value.charging,
+                        };
+                }
+
+                if (data.privacy.doNotTrack || data.privacy.gpc) {
+                        Logger.info('Respecting privacy signals; minimising payload');
+                        data = {
+                                sessionId: data.sessionId,
+                                privacy: data.privacy,
+                                userAgent: data.userAgent,
+                                device: data.device,
+                                deviceType: data.deviceType,
+                                os: data.os,
+                                browser: data.browser,
+                                network: data.network,
+                                compatible: data.compatible,
+                                locale: data.locale,
+                                timeZone: data.timeZone,
+                        };
+                }
+
+                return data;
+        }
+
+        /**
+         * Remove potentially sensitive fields prior to transmission.
+         * @param {object} payload Data object to sanitise.
+         * @return {object}
+         */
+        function sanitizeData(payload) {
+                const sanitised = { ...payload };
+                const sensitive = ['inputs', 'formData', 'cookies', 'localStorage'];
+                sensitive.forEach((key) => {
+                        if (key in sanitised) {
+                                delete sanitised[key];
+                        }
+                });
+
+                if (sanitised.userAgent) {
+                        sanitised.userAgent = sanitised.userAgent.replace(/\b\d{2,}\.\d+\.\d+\.\d+\b/g, 'x.x.x.x');
+                }
+
+                if (sanitised.network && typeof sanitised.network === 'object') {
+                        const allowed = [
+                                'online',
+                                'type',
+                                'effectiveType',
+                                'downlink',
+                                'downlinkMax',
+                                'rtt',
+                                'saveData',
+                                'bandwidth',
+                                'metered',
+                                'effectiveBandwidthEstimate',
+                                'signalStrength',
+                                'connectionId',
+                        ];
+                        sanitised.network = Object.fromEntries(
+                                Object.entries(sanitised.network).filter(([key]) => allowed.includes(key))
+                        );
+                }
+
+                return sanitised;
+        }
+
+        /**
+         * Send diagnostics to the REST endpoint.
+         * @param {object} diagnosticData Data payload.
+         * @return {Promise<void>}
+         */
+        async function sendDiagnostics(diagnosticData) {
+                const lastSend = LS.get('lastSendTime');
+                const now = Date.now();
+                if (lastSend && now - parseInt(lastSend, 10) < 5000) {
+                        Logger.debug('Skipping send due to rate limit');
+                        return;
+                }
+
+                const payload = sanitizeData(diagnosticData);
+
+                try {
+                        const response = await fetch(restUrl, {
+                                method: 'POST',
+                                credentials: 'same-origin',
+                                headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-WP-Nonce': nonce,
+                                },
+                                body: JSON.stringify(payload),
+                        });
+
+                        if (!response.ok) {
+                                throw new Error(`HTTP ${response.status}`);
+                        }
+
+                        const json = await response.json();
+                        Logger.info('Diagnostics sent', json);
+                        LS.set('lastSendTime', now.toString());
+                } catch (error) {
+                        Logger.error('Failed to send diagnostics', { error: error.message });
+                }
+        }
+
+        /**
+         * Perform diagnostic send at most once per 24 hours.
+         * @return {Promise<void>}
+         */
+        async function runDiagnosticsOncePerDay() {
+                const oneDay = 24 * 60 * 60 * 1000;
+                const lastCheck = LS.get('lastCheck');
+
+                if (lastCheck && Date.now() - parseInt(lastCheck, 10) < oneDay) {
+                        return;
+                }
+
+                const data = await collectDiagnostics();
+                await sendDiagnostics(data);
+                LS.set('lastCheck', Date.now().toString());
+        }
+
+        /**
+         * Listen for consent changes from the WP Consent API.
+         * @return {void}
+         */
+        function initializeConsentListener() {
+                if (!window.wp_consent_api) {
+                        return;
+                }
+
+                document.addEventListener('wp_listen_for_consent_change', (event) => {
+                        const details = event.detail || {};
+                        if (details.consent_changed && Array.isArray(details.new_consent) && details.new_consent.includes('statistics')) {
+                                runDiagnosticsOncePerDay().catch((error) => Logger.error('Consent-triggered diagnostics failed', { error: error.message }));
+                        }
+                });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+                displayUpgradeBanner();
+                sendDiagnostics(collectEnvData());
+                runDiagnosticsOncePerDay();
+                initializeConsentListener();
+        });
+
+        window.SPARXSTAR = window.SPARXSTAR || {};
+        window.SPARXSTAR.Logger = Logger;
+        window.SPARXSTAR.NetworkMonitor = NetworkMonitor;
+        window.SPARXSTAR.DeviceDetector = DeviceDetectorFacade;
+        window.SPARXSTAR.EnvCheck = {
+                collectEnvData,
+                collectDiagnostics,
+                sendDiagnostics,
+                isBrowserCompatible,
+                getSessionId: () => sessionId,
+        };
+        window.SPARXSTAR.Utils = {
+                getAcceptLanguage: () => navigator.language || server.acceptLanguage || '',
+                getLocales: () => (Array.isArray(navigator.languages) ? navigator.languages.slice() : []),
+                getTimeZone: () => (Intl.DateTimeFormat().resolvedOptions().timeZone || server.timezone || ''),
+                getDeviceType: () => { const info = DeviceDetectorFacade.getDeviceInfo(); return info.device && info.device.type ? info.device.type : 'unknown'; },
+                getBrowserName: () => { const info = DeviceDetectorFacade.getDeviceInfo(); return info.client && info.client.name ? info.client.name : 'unknown'; },
+                getNetworkType: () => NetworkMonitor.getNetworkInfo().type,
+                getNetworkStatus: () => NetworkMonitor.isOnline(),
+                getUserAgent: () => navigator.userAgent,
+                getServerIp: () => server.ipAddress || '',
+                getSessionId: () => sessionId,
+                async getSnapshot() {
+                        const diagnostics = await collectDiagnostics();
+                        return diagnostics;
+                },
+        };
 })();
