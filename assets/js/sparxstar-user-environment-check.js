@@ -101,18 +101,29 @@
          * Ensure we have a stable session identifier.
          * @type {string}
          */
+        // Helper to generate a secure random hex string.
+        function generateSecureHex(length = 16) {
+                if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
+                        const array = new Uint8Array(length);
+                        window.crypto.getRandomValues(array);
+                        return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+                } else {
+                        // Worst-case fallback if crypto is not available (should be exceedingly rare)
+                        return Math.random().toString(16).slice(2);
+                }
+        }
         let sessionId = '';
         try {
                 sessionId = sessionStorage.getItem('envcheck_session_id') || '';
                 if (!sessionId) {
                         sessionId = typeof crypto.randomUUID === 'function'
                                 ? crypto.randomUUID()
-                                : `ses_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+                                : `ses_${Date.now()}_${generateSecureHex(16)}`;
                         sessionStorage.setItem('envcheck_session_id', sessionId);
                 }
         } catch (error) {
                 Logger.warn('SessionStorage unavailable; generating ephemeral session id', { error: error.message });
-                sessionId = `ses_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+                sessionId = `ses_${Date.now()}_${generateSecureHex(16)}`;
         }
 
         /**
