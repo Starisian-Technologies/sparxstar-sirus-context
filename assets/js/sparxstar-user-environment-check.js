@@ -113,11 +113,11 @@
                         const hex = Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('');
                         return [
                                 'ses',
-                                hex.substr(0, 8),
-                                hex.substr(8, 4),
-                                hex.substr(12, 4),
-                                hex.substr(16, 4),
-                                hex.substr(20, 12)
+                                hex.slice(0, 8),
+                                hex.slice(8, 12),
+                                hex.slice(12, 16),
+                                hex.slice(16, 20),
+                                hex.slice(20, 32)
                         ].join('_');
                 }
                 // As a last resort, use timestamp ONLY (not random), which is unique enough but not secure
