@@ -101,40 +101,45 @@
          * Ensure we have a stable session identifier.
          * @type {string}
          */
-        /**
-         * Helper to generate a secure random hex string of the specified length.
-         * @param {number} length - Number of hex characters desired in the output string.
-         * @returns {string} Hex string of exactly the requested length.
-         */
-        function generateSecureHex(length = 16) {
-                if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
-                        // Each byte gives 2 hex characters, so need ceil(length/2) bytes
-                        const byteLength = Math.ceil(length / 2);
-                        const array = new Uint8Array(byteLength);
-                        window.crypto.getRandomValues(array);
-                        const hex = Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
-                        return hex.slice(0, length);
-                } else {
-                        // Worst-case fallback if crypto is not available (should be exceedingly rare)
-                        let hex = '';
-                        while (hex.length < length) {
-                                hex += Math.random().toString(16).slice(2);
-                        }
-                        return hex.slice(0, length);
+
+        // Helper to generate a random session id using crypto.getRandomValues if crypto.randomUUID is unavailable
+        function generateRandomSessionId() {
+                if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+                        // Create a simple UUIDv4-like string
+                        const buf = new Uint8Array(16);
+                        crypto.getRandomValues(buf);
+                        // Set UUID version (4) and variant bits
+                        buf[6] = (buf[6] & 0x0f) | 0x40;
+                        buf[8] = (buf[8] & 0x3f) | 0x80;
+                        const hex = Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('');
+                        return [
+                                'ses',
+                                hex.slice(0, 8),
+                                hex.slice(8, 12),
+                                hex.slice(12, 16),
+                                hex.slice(16, 20),
+                                hex.slice(20, 32)
+                        ].join('_');
                 }
+                // As a last resort, use timestamp ONLY (not random), which is unique enough but not secure
+                return `ses_${Date.now()}`;
         }
+
         let sessionId = '';
         try {
                 sessionId = sessionStorage.getItem('envcheck_session_id') || '';
                 if (!sessionId) {
-                        sessionId = typeof crypto.randomUUID === 'function'
+                        sessionId = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
                                 ? crypto.randomUUID()
-                                : `ses_${Date.now()}_${generateSecureHex(16)}`;
+
+                                : generateRandomSessionId();
+
                         sessionStorage.setItem('envcheck_session_id', sessionId);
                 }
         } catch (error) {
                 Logger.warn('SessionStorage unavailable; generating ephemeral session id', { error: error.message });
-                sessionId = `ses_${Date.now()}_${generateSecureHex(16)}`;
+
+                sessionId = generateRandomSessionId();
         }
 
         /**
