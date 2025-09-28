@@ -42,8 +42,6 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-require_once SPX_ENV_CHECK_PLUGIN_PATH . 'src/Includes/SparxstarUserEnvironmentCheckCacheHelper.php';
-
 /**
  * Collection of static helper methods for retrieving sanitized visitor metadata.
  */
