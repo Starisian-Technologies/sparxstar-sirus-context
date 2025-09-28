@@ -1,78 +1,108 @@
 /**
- * @file Client-side script for SPARXSTAR Global Helper Methods.
- * @author Starisian Technologies (Max Barrett)
- * @version 1.0.0
- * @since 1.0.0
- * @license GLP-3.0-or-later
- *
- * @description This script exposes a few common utility methods globally for easy access
- * from other scripts or the console, under the window.SPARXSTAR.Utils namespace.
+ * @file SPARXSTAR Global State and Utility Methods.
+ * @description Establishes a central data store (SPARXSTAR.State), exposes simple getters,
+ * and (optionally) syncs state deltas to the server REST endpoint.
  */
-
 (function() {
     'use strict';
 
-    const Logger = window.SPARXSTAR?.Logger || console; // Fallback to console if Logger isn't ready
-
-    // Ensure core modules are loaded
-    if (!window.SPARXSTAR?.DeviceDetector || !window.SPARXSTAR?.NetworkMonitor || !window.SPARXSTAR?.EnvCheck) {
-        Logger.warn('Core SPARXSTAR modules not fully loaded, some global utilities might be unavailable.');
-    }
-
-    /**
-     * Retrieves the client's current IP address (as seen by the browser).
-     * Note: This is typically the local network IP or an IP from a WebRTC connection.
-     * For the *actual* public IP, server-side detection is required.
-     * @returns {string} The client IP string, or 'unknown'.
-     */
-    function getUserIP() {
-        // Client-side JS cannot reliably get the *public* IP directly.
-        // It can only see the local IP (e.g., 192.168.x.x) or IP from a WebRTC peer.
-        // The most common practical way to get the *public* IP is to have the server
-        // include it in the localized script data or query a public IP API.
-        // For demonstration, we'll return a placeholder or the session ID.
-        Logger.warn('Client-side getUserIP is limited. For public IP, check server-side reports.');
-        return window.SPARXSTAR?.EnvCheck?.getSessionId() || 'unknown'; // Return session ID as a unique client identifier
-    }
-
-    /**
-     * Retrieves the current device type.
-     * @returns {string} The device type (e.g., "desktop", "mobile", "tablet"), or "unknown".
-     */
-    function getDeviceType() {
-        const deviceInfo = window.SPARXSTAR?.DeviceDetector?.getDeviceInfo();
-        return deviceInfo?.device?.type || 'unknown';
-    }
-
-    /**
-     * Retrieves the current browser name.
-     * @returns {string} The browser name (e.g., "Chrome", "Firefox"), or "unknown".
-     */
-    function getBrowserName() {
-        const deviceInfo = window.SPARXSTAR?.DeviceDetector?.getDeviceInfo();
-        return deviceInfo?.client?.name || 'unknown';
-    }
-
-    /**
-     * Checks if the browser is currently online.
-     * @returns {boolean} True if online, false if offline.
-     */
-    function isOnline() {
-        return window.SPARXSTAR?.NetworkMonitor?.isOnline() || false;
-    }
-
-    /**
-     * Gets the effective connection type.
-     * @returns {string} Effective connection type (e.g., "4g", "3g", "slow-2g"), or "unknown".
-     */
-    function getEffectiveConnectionType() {
-        const networkInfo = window.SPARXSTAR?.NetworkMonitor?.getNetworkInfo();
-        return networkInfo?.effectiveType || 'unknown';
-    }
-
-    // Expose utility methods globally under the SPARXSTAR.Utils namespace
+    // Namespace
     window.SPARXSTAR = window.SPARXSTAR || {};
+    const Logger = window.SPARXSTAR?.Logger || console;
+
+    /**
+     * Single source of truth for client-side environment data (session-scoped).
+     */
+    window.SPARXSTAR.State = {
+        ipAddress: 'unknown',
+        sessionId: 'unknown',
+        userAgent: 'unknown',
+        device: { type: 'unknown', brand: 'unknown', model: 'unknown', full: null },
+        network: { isOnline: false, effectiveType: 'unknown', type: 'unknown', full: null }
+    };
+
+    /**
+     * Initialize global state once (called by main.js after DOM is ready).
+     * DeviceDetector/NetworkMonitor must be loaded before this runs.
+     */
+    function initializeState() {
+        const State = window.SPARXSTAR.State;
+        const DeviceDetector = window.SPARXSTAR.DeviceDetector;
+        const NetworkMonitor = window.SPARXSTAR.NetworkMonitor;
+        const EnvCheck = window.SPARXSTAR.EnvCheck;
+
+        // Server-provided IP; session ID from EnvCheck; UA from navigator
+        State.ipAddress = window.envCheckData?.ip_address || 'unknown';
+        State.sessionId = EnvCheck?.getSessionId() || 'unknown';
+        State.userAgent = navigator.userAgent;
+
+        // One-time device parse (expensive → do once)
+        if (DeviceDetector) {
+            const info = DeviceDetector.getDeviceInfo();
+            if (info) {
+                State.device.type  = info.device?.type  || 'desktop';
+                State.device.brand = info.device?.brand || 'unknown';
+                State.device.model = info.device?.model || 'unknown';
+                State.device.full  = info;
+            }
+        } else {
+            Logger.warn('[SPARXSTAR] DeviceDetector not found during initialization.');
+        }
+
+        // Seed network info
+        if (NetworkMonitor) {
+            const net = NetworkMonitor.getNetworkInfo();
+            State.network.isOnline      = net.online;
+            State.network.effectiveType = net.effectiveType;
+            State.network.type          = net.type;
+            State.network.full          = net;
+        } else {
+            Logger.warn('[SPARXSTAR] NetworkMonitor not found during initialization.');
+        }
+
+        Logger.info('[SPARXSTAR] Global state initialized.', { state: State });
+    }
+
+    /**
+     * Optional: sync any state delta to server.
+     * Callers pass the *minimal* delta object (e.g., { network: {...} }).
+     */
+    async function syncStateToServer(delta) {
+        const rest = window.envCheckData?.rest_url;
+        const nonce = window.envCheckData?.nonce;
+        if (!rest || !nonce) {
+            Logger.debug('[SPARXSTAR] REST not configured; delta not synced.', { delta });
+            return;
+        }
+        try {
+            const body = {
+                sessionId: window.SPARXSTAR.State.sessionId,
+                delta
+            };
+            const rsp = await fetch(rest, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': nonce },
+                credentials: 'same-origin',
+                body: JSON.stringify(body)
+            });
+            if (!rsp.ok) throw new Error(`HTTP ${rsp.status}`);
+            Logger.debug('[SPARXSTAR] Delta synced.', delta);
+        } catch (err) {
+            Logger.warn('[SPARXSTAR] Delta sync failed.', { err: err.message });
+        }
+    }
+
+    // Simple, zero-cost global getters
     window.SPARXSTAR.Utils = {
-        getUserIP: getUserIP,
-        getDeviceType: getDeviceType,
-        getBrowserName: getBrowserName
+        getIpAddress:        () => window.SPARXSTAR.State.ipAddress,
+        getSessionId:        () => window.SPARXSTAR.State.sessionId,
+        getUserAgent:        () => window.SPARXSTAR.State.userAgent,
+        getDeviceType:       () => window.SPARXSTAR.State.device.type,
+        getNetworkStatus:    () => (window.SPARXSTAR.State.network.isOnline ? 'online' : 'offline'),
+        getNetworkBandwidth: () => window.SPARXSTAR.State.network.effectiveType
+    };
+
+    // Expose init + sync so main.js/network.js can call them
+    window.SPARXSTAR.initializeState = initializeState;
+    window.SPARXSTAR.syncStateToServer = syncStateToServer;
+})();

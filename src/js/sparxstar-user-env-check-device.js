@@ -1,89 +1,43 @@
 /**
- * @file Client-side script for SPARXSTAR Device Detection.
- * @author Starisian Technologies (Max Barrett)
- * @version 1.0.0
- * @since 1.0.0
- * @license GLP-3.0-or-later
- *
- * @description This script integrates device-detector-js to parse the user agent
- * and provide detailed device, OS, and browser information.
- * It exposes methods globally under window.SPARXSTAR.DeviceDetector.
- * 
+ * @file SPARXSTAR Device Detector (device-detector-js wrapper).
  */
-
-
-
 (function() {
     'use strict';
 
-    const Logger = window.SPARXSTAR?.Logger || console; // Fallback to console if Logger isn't ready
+    const Logger = window.SPARXSTAR?.Logger || console;
 
-    // Ensure DeviceDetector is available. If you're using npm and a bundler,
-    // you'd typically import it here:
-    // import DeviceDetector from "device-detector-js";
-    // For a standalone script without a bundler, assume it's global.
     if (typeof DeviceDetector === 'undefined') {
-        Logger.error('device-detector-js library not found. Please ensure it is loaded.');
+        Logger.error('device-detector-js not found. Ensure it is loaded before this file.');
         return;
     }
 
-    let deviceDetectorInstance;
-
-    /**
-     * Initializes the DeviceDetector instance.
-     * @returns {DeviceDetector} The initialized DeviceDetector instance.
-     */
-    function getDeviceDetectorInstance() {
-        if (!deviceDetectorInstance) {
+    let detector;
+    function getInstance() {
+        if (!detector) {
             try {
-                // You can add options here, e.g., { skipBotDetection: true }
-                deviceDetectorInstance = new DeviceDetector({
-                    skipBotDetection: true, // Typically, we don't need client-side bot detection for user environment
-                    versionTruncation: 2 // Show major and minor versions (e.g., X.Y)
-                });
+                detector = new DeviceDetector({ skipBotDetection: true, versionTruncation: 2 });
                 Logger.debug('device-detector-js initialized.');
             } catch (e) {
-                Logger.error('Failed to initialize device-detector-js', { error: e.message });
-                deviceDetectorInstance = null; // Ensure it's null on failure
+                Logger.error('device-detector-js init failed', { error: e.message });
+                detector = null;
             }
         }
-        return deviceDetectorInstance;
+        return detector;
     }
 
-    /**
-     * Parses the current user agent and returns detailed device information.
-     * @param {string} userAgent - The user agent string to parse. Defaults to navigator.userAgent.
-     * @returns {object|null} An object containing client, os, and device information, or null if parsing fails.
-     */
     function getDeviceInfo(userAgent = navigator.userAgent) {
-        const detector = getDeviceDetectorInstance();
-        if (!detector) {
-            return null;
-        }
-
+        const d = getInstance();
+        if (!d) return null;
         try {
-            const device = detector.parse(userAgent);
-            Logger.debug('Device information parsed', { device });
-            return device;
+            const parsed = d.parse(userAgent);
+            Logger.debug('Device info parsed', { parsed });
+            return parsed;
         } catch (e) {
-            Logger.error('Failed to parse user agent with device-detector-js', { userAgent, error: e.message });
+            Logger.error('UA parse failed', { error: e.message });
             return null;
         }
     }
 
-    // Expose methods globally under the SPARXSTAR namespace
     window.SPARXSTAR = window.SPARXSTAR || {};
-    window.SPARXSTAR.DeviceDetector = {
-        getDeviceInfo: getDeviceInfo,
-        // Potentially expose the raw instance if needed for advanced usage
-        // getInstance: getDeviceDetectorInstance
-    };
-
-    Logger.info('SPARXSTAR DeviceDetector module loaded.');
-
-    // Optionally, parse and log immediately for debugging
-    if (window.envCheckData?.debug) {
-        Logger.debug('Initial device info:', getDeviceInfo());
-    }
-
+    window.SPARXSTAR.DeviceDetector = { getDeviceInfo };
 })();
