@@ -203,7 +203,7 @@ final class SparxstarUECAdmin
             esc_html((string) $snapshot['updated_at'])
         );
 
-        echo '<pre style="background-color: #f1f1f1; padding: 15px; border-radius: 4px; max-height: 500px; overflow: auto;"><code>';
+        echo '<pre style="' . esc_attr('background-color: #f1f1f1; padding: 15px; border-radius: 4px; max-height: 500px; overflow: auto;') . '"><code>';
         echo esc_html($json_dump);
         echo '</code></pre>';
     }
