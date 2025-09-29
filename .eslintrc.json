@@ -1,0 +1,28 @@
+{
+  "root": true,
+  "env": {
+    "browser": true,
+    "es2021": true
+  },
+  "extends": ["eslint:recommended"],
+  "parserOptions": {
+    "ecmaVersion": 2021,
+    "sourceType": "script"
+  },
+  "globals": {
+    "wp": "readonly",
+    "jQuery": "readonly"
+  },
+  "ignorePatterns": [
+    "node_modules/",
+    "vendor/",
+    "assets/",
+    "languages/",
+    "tests/e2e/"
+  ],
+  "rules": {
+    "no-console": "off",
+    "no-unused-vars": ["warn", { "args": "none", "vars": "all" }],
+    "no-undef": "error"
+  }
+}

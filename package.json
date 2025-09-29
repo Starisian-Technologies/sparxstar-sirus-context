@@ -1,0 +1,18 @@
+{
+  "name": "sparxstaruserenvironmentcheck",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WordPress plugin utilities for collecting browser and environment diagnostics.",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "scripts": {
+    "lint": "npm run lint:js && npm run lint:css",
+    "lint:js": "npx --yes eslint@8.57.0 \"src/js/**/*.js\"",
+    "lint:js:fix": "npx --yes eslint@8.57.0 \"src/js/**/*.js\" --fix",
+    "lint:css": "npx --yes stylelint@16.8.0 \"src/css/**/*.css\"",
+    "lint:css:fix": "npx --yes stylelint@16.8.0 \"src/css/**/*.css\" --fix",
+    "format": "npm run lint:js:fix && npm run lint:css:fix"
+  },
+  "dependencies": {
+    "device-detector-js": "^2.2.10"
+  }
+}

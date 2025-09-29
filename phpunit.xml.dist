@@ -1,8 +1,11 @@
 <?xml version="1.0"?>
-<phpunit bootstrap="tests/phpunit/bootstrap.php" colors="true">
+<phpunit bootstrap="tests/bootstrap.php" colors="true">
     <testsuites>
-        <testsuite name="Plugin Tests">
-            <directory>tests/phpunit</directory>
+        <testsuite name="Unit Tests">
+            <directory>tests/unit</directory>
+        </testsuite>
+        <testsuite name="Integration Tests">
+            <directory>tests/integration</directory>
         </testsuite>
     </testsuites>
 </phpunit>
