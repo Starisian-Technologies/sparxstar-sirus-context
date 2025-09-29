@@ -14,6 +14,7 @@
 # These should be installed by developers locally, not stored in Git.
 /vendor/
 /node_modules/
+src/node_modules/
 
 # Ignore build artifacts if you have a build process (e.g., for minification).
 /dist/
@@ -99,3 +100,4 @@ debug.log
 .env
 .env.*
 !.env.example
+
