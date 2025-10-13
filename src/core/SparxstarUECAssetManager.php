@@ -184,8 +184,8 @@ final class SparxstarUECAssetManager
 	$data = array(
 		'nonce'      => wp_create_nonce( 'wp_rest' ),
 		'rest_urls'  => array(
-			'log'         => esc_url_raw( rest_url( 'sparxstar-uec/v1/log' ) ),
-			'fingerprint' => esc_url_raw( rest_url( 'sparxstar-uec/v1/fingerprint' ) ),
+			'log'         => esc_url_raw( rest_url( 'star-uec/v1/log' ) ),         // <-- Changed to 'star-uec/v1'
+			'fingerprint' => esc_url_raw( rest_url( 'star-uec/v1/fingerprint' ) ), // <-- Changed to 'star-uec/v1'
 		),
 		'ip_address' => StarUserEnv::get_current_visitor_ip(),
 		'debug'      => defined( 'WP_DEBUG' ) && WP_DEBUG,

@@ -4,11 +4,11 @@
  */
 declare(strict_types=1);
 
-namespace Starisian\SparxstarUEC\core;
+namespace Starisian\SparxstarUEC\api;
 
 use Starisian\SparxstarUEC\core\SparxstarUECDatabase;
-use Starisian\SparxstarUEC\StarUserEnv;
-use Starisian\SparxstarUEC\services\SparxstarUECGeoIPService;
+use Starisian\SparxstarUEC\StarUserEnv; // Ensure this class is correctly included and exists
+use Starisian\SparxstarUEC\services\SparxstarUECGeoIPService; // Ensure this class is correctly included and exists
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
@@ -19,12 +19,10 @@ if (!defined('ABSPATH')) {
 
 final class SparxstarUECRESTController
 {
-
-
 	private const RATE_LIMIT_WINDOW_SECONDS = 300;
 	private const RATE_LIMIT_MAX_REQUESTS = 15;
 
-	private ?SparxstarUECDatabase $database = null;
+	private SparxstarUECDatabase $database; // Changed to non-nullable as it's set in constructor
 
 	public function __construct(SparxstarUECDatabase $database)
 	{
@@ -37,7 +35,7 @@ final class SparxstarUECRESTController
 	public function register_routes(): void
 	{
 		register_rest_route(
-			'sparxstar-uec/v1',
+			'star-uec/v1',
 			'/log',
 			[
 				'methods'             => 'POST',
@@ -47,7 +45,7 @@ final class SparxstarUECRESTController
 		);
 
 		register_rest_route(
-			'sparxstar-uec/v1',
+			'star-uec/v1',
 			'/fingerprint',
 			[
 				'methods'             => 'POST',
@@ -57,9 +55,10 @@ final class SparxstarUECRESTController
 					'visitorId' => [
 						'type'     => 'string',
 						'required' => true,
+						'sanitize_callback' => 'sanitize_text_field',
 					],
-					'components' => [
-						'type'     => 'array',
+					'components' => [ // Components can be a complex array, no simple sanitize_callback
+						'type'     => 'object', // Changed from array to object as it's typically key-value pairs
 						'required' => false,
 					],
 				],
@@ -88,13 +87,16 @@ final class SparxstarUECRESTController
 		}
 
 		$client_ip = $this->get_client_ip();
-		$client_ip_hash = hash('sha265', $client_ip);
+		$client_ip_hash = hash('sha256', $client_ip); // Changed to sha256 for consistency if not already
 		$user_id = get_current_user_id() ?: null;
 		$session_id = $this->sanitize_value($payload['sessionId'] ?? null);
 
 		if (isset($payload['delta']) && is_array($payload['delta'])) {
 			$latest_snapshot = $this->database->get_latest_snapshot($client_ip_hash, $user_id, $session_id);
 
+			if (is_wp_error($latest_snapshot)) { // Check if get_latest_snapshot returned an error
+				return $latest_snapshot;
+			}
 			if ($latest_snapshot === null) {
 				return new \WP_Error('no_snapshot_for_delta', 'Cannot apply a delta without an existing snapshot.', array('status' => 409));
 			}
@@ -116,6 +118,7 @@ final class SparxstarUECRESTController
 			'client_side' => $client_data,
 			'client_hints' => $hints_data,
 		);
+		// Note: The unset here means these won't contribute to the hash, which is fine if they are volatile
 		unset($hash_data['client_side']['network']['rtt'], $hash_data['client_side']['battery']);
 		$snapshot_hash = hash('sha256', wp_json_encode($hash_data));
 
@@ -135,9 +138,6 @@ final class SparxstarUECRESTController
 			return $result;
 		}
 
-		// Optionally flush a cache if needed
-		// StarUserEnv::flush_cache($user_id, $session_id);
-
 		return new \WP_REST_Response(
 			array(
 				'status' => 'ok',
@@ -148,8 +148,6 @@ final class SparxstarUECRESTController
 		);
 	}
 
-	// ... All helper methods like get_client_ip, sanitize_array_recursively, collect_client_hints, etc. remain here ...
-	// These methods are specific to handling and sanitizing the request data.
 	/**
 	 * Enforce a per-client request budget to protect the API.
 	 */
@@ -170,16 +168,14 @@ final class SparxstarUECRESTController
 	}
 
 	/**
-	 * Determine the most reliable client IP address from server variables.
-	 */
-	/**
 	 * Determine the client IP address using the shared helper.
 	 */
 	private function get_client_ip(): string
 	{
-		// Use the single source of truth for IP detection.
-		return StarUserEnv::getClientIP();
+		// FIX: Use the correct method name from StarUserEnv
+		return StarUserEnv::get_current_visitor_ip();
 	}
+
 	/**
 	 * Capture server-side metadata for a snapshot, now including GeoIP data.
 	 *
@@ -188,14 +184,9 @@ final class SparxstarUECRESTController
 	 */
 	private function collect_server_side_data(string $client_ip): array
 	{
-		// 1. Ensure the GeoIP service class is available.
-		// We include it here because it's only needed for this specific action.
-		require_once SPX_ENV_CHECK_PLUGIN_PATH . 'src/services/SparxstarUECGeoIPService.php';
-
-		// 2. Create an instance of the GeoIP service.
+		// Create an instance of the GeoIP service.
 		$geoip_service = new SparxstarUECGeoIPService();
 
-		// 3. Build the data array.
 		// The lookup method will gracefully return null if no API key is set
 		// or if the lookup fails, preventing any errors.
 		return array(
@@ -276,40 +267,75 @@ final class SparxstarUECRESTController
 	 * Store fingerprint ID in environment snapshots.
 	 *
 	 * @param \WP_REST_Request $request
-	 * @return \WP_REST_Response
+	 * @return \WP_REST_Response|\WP_Error
 	 */
-	function capture_fingerprint(\WP_REST_Request $request): \WP_REST_Response
+	function capture_fingerprint(\WP_REST_Request $request): \WP_REST_Response|\WP_Error
 	{
-		global $wpdb;
+		// Removed global $wpdb; as we now use the injected $this->database
 		$visitorId = sanitize_text_field($request->get_param('visitorId'));
-		$components = $request->get_param('components');
+		// For 'components', get_param() returns an array/object, no simple sanitize_text_field
+		$components = $request->get_param('components'); 
 
 		if (empty($visitorId)) {
-			return new \WP_REST_Response(['status' => 'error', 'message' => 'Missing visitorId'], 400);
+			return new \WP_Error('missing_visitor_id', 'Missing visitorId in fingerprint request.', array('status' => 400));
 		}
 
-		// Insert into your diagnostics table if available
-		$table_name = $wpdb->base_prefix . 'sparxstar_uec_snapshots';
-		$wpdb->insert(
-			$table_name,
+		$client_ip = $this->get_client_ip();
+		$client_ip_hash = hash('sha256', $client_ip);
+		$user_id = get_current_user_id() ?: null;
+		// For fingerprint, we can use visitorId as session_id if no user is logged in
+		$session_id = $visitorId; // Using visitorId as session ID for this specific snapshot
+
+		// Construct client_side_data to hold fingerprint information
+		$client_data_payload = [
+			'type'      => 'fingerprint_data', // Custom type to differentiate in client_side_data
+			'visitorId' => $visitorId,
+			'components' => $components, // Directly store components
+			'userAgent' => $_SERVER['HTTP_USER_AGENT'] ?? '', // Add other relevant client data
+		];
+
+		// Collect server-side and client hint data for a complete snapshot entry
+		$server_data = $this->collect_server_side_data($client_ip);
+		$hints_data = $this->collect_client_hints();
+
+		// Generate a hash of the current fingerprint state for the snapshot_hash
+        $hash_data = [
+            'user_id' => $user_id,
+            'session_id' => $session_id,
+            'server_side' => $server_data,
+            'client_side' => $client_data_payload,
+            'client_hints' => $hints_data,
+        ];
+		$snapshot_hash = hash('sha256', wp_json_encode($hash_data));
+
+
+		// Use the injected SparxstarUECDatabase instance to store the snapshot
+		$result = $this->database->store_snapshot(
 			[
-				'user_id' => get_current_user_id(),
-				'snapshot_type' => 'fingerprint',
-				'snapshot_value' => maybe_serialize([
-					'visitorId' => $visitorId,
-					'components' => $components,
-					'timestamp' => time(),
-					'client_ip' => $_SERVER['REMOTE_ADDR'] ?? '',
-				]),
-				'created_at' => current_time('mysql'),
-			],
-			['%d', '%s', '%s', '%s']
+				'user_id'           => $user_id,
+				'session_id'        => $session_id,
+				'client_ip_hash'    => $client_ip_hash,
+				'snapshot_hash'     => $snapshot_hash,
+				'server_data'       => $server_data,
+				'client_data'       => $client_data_payload, // Store fingerprint data here
+				'client_hints'      => $hints_data,
+			]
 		);
 
-		return new \WP_REST_Response([
-			'status' => 'success',
-			'visitorId' => $visitorId,
-		], 200);
+		if (is_wp_error($result)) {
+			// The store_snapshot method now returns WP_Error on failure
+			return $result;
+		}
+
+		return new \WP_REST_Response(
+			[
+				'status'    => 'success',
+				'visitorId' => $visitorId,
+				'action'    => $result['status'], // 'inserted' or 'updated'
+				'id'        => $result['id'],     // The ID of the database entry
+			],
+			200
+		);
 	}
 
 	/**

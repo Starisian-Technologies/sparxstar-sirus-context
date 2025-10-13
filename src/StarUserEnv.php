@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 namespace Starisian\SparxstarUEC;
 
-use Starisian\SparxstarUEC\api\SparxstarUECAPI;
+use Starisian\SparxstarUEC\core\SparxstarUECSnapshotRepository;
 use Starisian\SparxstarUEC\includes\SparxstarUECCacheHelper;
 
 if (!defined('ABSPATH')) {
@@ -228,7 +228,7 @@ final class StarUserEnv
 		}
 		// Use the appropriate identifier for the database lookup.
 
-		$from_db = SparxstarUECAPI::get_instance()->get_latest_snapshot_from_db($resolved_user_id, $session_id);
+		$from_db = SparxstarUECSnapshotRepository::get($resolved_user_id, $session_id);
 		if ($from_db !== null) {
 			SparxstarUECCacheHelper::set($cache_key, $from_db);
 			self::$snapshot_cache = $from_db;

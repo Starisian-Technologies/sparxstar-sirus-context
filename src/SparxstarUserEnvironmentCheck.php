@@ -12,10 +12,11 @@ namespace Starisian\SparxstarUEC;
 if (!defined('ABSPATH')) {
 	exit;
 }
-
-use Starisian\SparxstarUEC\api\SparxstarUECAPI;
+use Starisian\SparxstarUEC\core\SparxstarUECDatabase;
+use Starisian\SparxstarUEC\api\SparxstarUECRESTController;
+use Starisian\SparxstarUEC\core\SparxstarUECSnapshotRepository;
 use Starisian\SparxstarUEC\core\SparxstarUECAssetManager;
-use Starisian\SparxstarUEC\services\SparxstarUECGeoIPService;
+use Starisian\SparxstarUEC\includes\SparxstarUECSessionManager;
 use Starisian\SparxstarUEC\admin\SparxstarUECAdmin;
 use Exception;
 
@@ -34,12 +35,13 @@ class SparxstarUserEnvironmentCheck
 	/**
 	 * REST API handler used to persist environment snapshots.
 	 */
-	private ?SparxstarUECAPI $api = null;
+	private ?SparxstarUECRESTController $api = null;
 	/**
 	 * Manages registration and localization of scripts and styles.
 	 */
+	private ?SparxstarUECSnapshotRepository $repository = null;
 	private ?SparxstarUECAssetManager $asset_manager = null;
-	private ?SparxstarUECGeoIPService $geoip = null;
+	private ?SparxstarUECSessionManager $session_manager = null;
 	private ?SparxstarUECAdmin $admin = null;
 
 	/**
@@ -65,19 +67,30 @@ class SparxstarUserEnvironmentCheck
 	public function spx_uec_init(): void
 	{
 		try {
-			error_log('Instantiating SparxstarUECAPI');
-			$this->api = SparxstarUECAPI::get_instance();
+			global $wpdb; // Access the global WordPress database object
+
+			// 1. Initialize the database handler
+			$sparxstar_uec_database = new SparxstarUECDatabase( $wpdb );
+
+			// 2. Initialize the REST API controller (SparxstarUECRESTController)
+			// Pass the database handler as a dependency to its constructor.
+			error_log('Instantiating SparxstarUECRESTController');
+			$this->api = new SparxstarUECRESTController( $sparxstar_uec_database );
+			error_log('Instantiating SparxstarUECSnapshotRepository');
+			$this->repository = new SparxstarUECSnapshotRepository($sparxstar_uec_database);
 			error_log('Instantiating SparxstarUECAssetManager');
 			$this->asset_manager = new SparxstarUECAssetManager();
-			error_log('Instantiating SparxstarUECGeoIPService');
-			$this->geoip = new SparxstarUECGeoIPService();
+			error_log('Instantiating SparxstarUECSessionManager');
+			$this->session_manager = new SparxstarUECSessionManager();
 			error_log('Instantiating SparxstarUECAdmin');
 			$this->admin = new SparxstarUECAdmin();
 			error_log('Registering hooks');
-			self::register_hooks();
+			$this->register_hooks();
 		} catch (Exception $e) {
 			error_log('Error initializing SparxstarUserEnvironmentCheck: ' . esc_html($e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine()));
 		}
+		$trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+		error_log('[UEC INIT CALLED] ' . json_encode(array_column($trace, 'function')));
 	}
 
 	/**
@@ -87,6 +100,7 @@ class SparxstarUserEnvironmentCheck
 	{
 		add_action('init', array($this, 'load_textdomain'));
 		add_action('send_headers', array($this, 'add_client_hints_header'));
+		add_action( 'rest_api_init', [ $this->api, 'register_routes' ] ); 
 	}
 
 	/**

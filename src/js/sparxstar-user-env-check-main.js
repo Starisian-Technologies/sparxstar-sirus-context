@@ -29,9 +29,18 @@
     };
 
     // ---------- Env data from PHP ----------
-    const { nonce, rest_url, i18n } = window.sparxstarUserEnvData || {};
     if (!window.sparxstarUserEnvData) { Logger.error('sparxstarUserEnvData not found'); return; }
-    if (!nonce || !rest_url)  { Logger.error('Missing REST config'); return; }
+    
+    // Destructure the localized data
+    const { nonce, rest_urls, i18n } = window.sparxstarUserEnvData;
+    const log_rest_url = rest_urls ? rest_urls.log : null; // Use the specific 'log' URL
+    const fingerprint_rest_url = rest_urls ? rest_urls.fingerprint : null; // Also get the fingerprint URL
+
+    if (!nonce || !log_rest_url)  {
+        Logger.error('Missing REST config for log endpoint', { nonce: nonce, log_rest_url: log_rest_url });
+        return;
+    }
+    // The problematic `const rsp = await fetch(log_rest_url, ...)` block was here. It has been removed.
 
     // ---------- Session ID (stable in sessionStorage, robust fallback) ----------
     let sessionId;
@@ -138,20 +147,43 @@
     // ---------- Env snapshot (now reads from SPARXSTAR.State) ----------
     function collectEnvData() {
         const State = window.SPARXSTAR.State;
+        // Assume you have SPARXSTAR.SparxstarUserEnv.getVisitorId() returning the FingerprintJS visitor ID
+        const visitorId = window.SPARXSTAR.SparxstarUserEnv.getVisitorId ? window.SPARXSTAR.SparxstarUserEnv.getVisitorId() : null;
+
         return {
-            sessionId: State.sessionId,
-            userAgent: State.userAgent,
-            language: navigator.language || navigator.userLanguage,
-            screen: {
-                width: window.screen.width, height: window.screen.height,
-                availWidth: window.screen.availWidth, availHeight: window.screen.availHeight,
-                pixelDepth: window.screen.pixelDepth, devicePixelRatio: window.devicePixelRatio || 1
+            identifiers: { // Matches 'identifiers.visitor_id' and 'identifiers.session_id'
+                visitor_id: visitorId,
+                session_id: State.sessionId, // This should come from your session ID logic
             },
-            device: State.device.full,
-            network: State.network.full,
-            features: collectFeatures(),
-            privacy: collectPrivacy(),
-            compatible: isBrowserCompatible()
+            client_side_data: { // Matches 'client_side_data.device.type' etc.
+                userAgent: State.userAgent,
+                // These nested structures are crucial for get_value_from_array
+                os: { name: State.device.os_name }, // Assuming State.device provides an os_name
+                client: { name: State.device.browser_name }, // Assuming State.device provides a browser_name
+                language: navigator.language || navigator.userLanguage,
+                screen: {
+                    width: window.screen.width, height: window.screen.height,
+                    availWidth: window.screen.availWidth, availHeight: window.screen.availHeight,
+                    pixelDepth: window.screen.pixelDepth, devicePixelRatio: window.devicePixelRatio || 1
+                },
+                device: { // This structure should match what server-side expects for 'device.type'
+                    full: State.device.full, // The full detector data if needed
+                    type: State.device.type, // e.g., 'desktop', 'mobile'
+                    // ... other device properties (like os_name, browser_name if not duplicated)
+                },
+                network: { // This structure should match what server-side expects for 'network.effectiveType'
+                    full: State.network.full, // Full network data
+                    effectiveType: State.network.effectiveType, // e.g., '4g', '3g'
+                    online: State.network.online,
+                    rtt: State.network.rtt,
+                    downlink: State.network.downlink,
+                    saveData: State.network.saveData,
+                },
+                features: collectFeatures(),
+                privacy: collectPrivacy(),
+                compatible: isBrowserCompatible()
+            },
+            // The server will add 'server_side_data'
         };
     }
 
@@ -167,32 +199,60 @@
         if (mic.status === 'fulfilled' && mic.value) data.micPermission = mic.value.state;
         if (battery.status === 'fulfilled' && battery.value) data.battery = { level: battery.value.level, charging: battery.value.charging };
 
-        if (data.privacy.doNotTrack || data.privacy.gpc) {
+        // The previous logic for doNotTrack / gpc was potentially removing too much data.
+        // It's commented out for now to ensure all data is sent to the server for processing,
+        // as privacy handling should primarily be server-side based on the full snapshot.
+        /*
+        if (data.client_side_data.privacy.doNotTrack || data.client_side_data.privacy.gpc) {
             data = {
-                sessionId: data.sessionId,
-                privacy: data.privacy,
-                userAgent: data.userAgent,
-                compatible: data.compatible,
-                features: data.features,
-                device: data.device,
-                network: data.network
+                identifiers: data.identifiers,
+                client_side_data: {
+                    privacy: data.client_side_data.privacy,
+                    userAgent: data.client_side_data.userAgent,
+                    compatible: data.client_side_data.compatible,
+                    features: data.client_side_data.features,
+                    device: data.client_side_data.device,
+                    network: data.client_side_data.network
+                }
             };
         }
+        */
         return data;
     }
 
     // ---------- Sanitize + Send ----------
     function sanitizeData(data) {
         const sanitized = { ...data };
-        ['inputs','formData','cookies','localStorage'].forEach(f => { if (sanitized[f]) delete sanitized[f]; });
-        if (sanitized.userAgent) sanitized.userAgent = sanitized.userAgent.replace(/\b\d{2,}\.\d+\.\d+\.\d+\b/g, 'x.x.x.x');
-        if (sanitized.latitude && sanitized.longitude) {
-            sanitized.latitude  = Math.round(sanitized.latitude  * 100) / 100;
-            sanitized.longitude = Math.round(sanitized.longitude * 100) / 100;
+        // Deep clone client_side_data to avoid modifying the original
+        if (sanitized.client_side_data) {
+            sanitized.client_side_data = { ...sanitized.client_side_data };
         }
-        if (sanitized.network && typeof sanitized.network === 'object') {
-            const keep = ['online','type','effectiveType','rtt','downlink','downlinkMax','saveData'];
-            sanitized.network = Object.fromEntries(Object.entries(sanitized.network).filter(([k]) => keep.includes(k)));
+
+        // Apply sanitization to client_side_data where appropriate
+        if (sanitized.client_side_data) {
+            // Remove sensitive fields that should not be stored directly if they were accidentally included
+            ['inputs','formData','cookies','localStorage'].forEach(f => {
+                if (sanitized.client_side_data[f]) delete sanitized.client_side_data[f];
+            });
+
+            // Sanitize userAgent if present in client_side_data
+            if (sanitized.client_side_data.userAgent) {
+                sanitized.client_side_data.userAgent = sanitized.client_side_data.userAgent.replace(/\b\d{2,}\.\d+\.\d+\.\d+\b/g, 'x.x.x.x');
+            }
+
+            // Sanitize geo-coordinates if present (though these should come from server-side GeoIP)
+            if (sanitized.client_side_data.latitude && sanitized.client_side_data.longitude) {
+                sanitized.client_side_data.latitude  = Math.round(sanitized.client_side_data.latitude  * 100) / 100;
+                sanitized.client_side_data.longitude = Math.round(sanitized.client_side_data.longitude * 100) / 100;
+            }
+
+            // Filter network data to only keep specific keys
+            if (sanitized.client_side_data.network && typeof sanitized.client_side_data.network === 'object') {
+                const keep = ['online','type','effectiveType','rtt','downlink','downlinkMax','saveData'];
+                sanitized.client_side_data.network = Object.fromEntries(
+                    Object.entries(sanitized.client_side_data.network).filter(([k]) => keep.includes(k))
+                );
+            }
         }
         return sanitized;
     }
@@ -202,7 +262,8 @@
         if (lastSend && (Date.now() - parseInt(lastSend, 10) < 5000)) return; // 5s rate limit
         const body = sanitizeData(payload);
         try {
-            const rsp = await fetch(rest_url, {
+            // Use log_rest_url which is correctly defined in the outer IIFE scope
+            const rsp = await fetch(log_rest_url, {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {
@@ -212,9 +273,9 @@
                 },
                 body: JSON.stringify(body)
             });
-            if (!rsp.ok) throw new Error(`HTTP ${rsp.status}`);
+            if (!rsp.ok) throw new Error(`HTTP ${rsp.status} - ${rsp.statusText}`);
             const json = await rsp.json();
-            Logger.info('Diagnostics sent', { snapshot_id: json.snapshot_id });
+            Logger.info('Diagnostics sent', { status: json.status, action: json.action || 'updated', id: json.id || 'N/A' });
             LS.set('lastSendTime', Date.now().toString());
         } catch (e) {
             Logger.error('Diagnostics send failed', { error: e.message });
@@ -232,17 +293,22 @@
 
     function initializeConsentListener() {
         if (!window.wp_consent_api) return;
-        document.addEventListener('wp_listen_for_consent_change', (event) => {
+        document.addEventListener('wp_listen_for_consent_change', async (event) => { // Added async here
             const { consent_changed, new_consent } = event.detail || {};
             if (consent_changed && new_consent && new_consent.includes('statistics')) {
-                runDiagnosticsOncePerDay();
+                await runDiagnosticsOncePerDay(); // Added await here
             }
         });
     }
 
     // ---------- Boot ----------
-    document.addEventListener('DOMContentLoaded', () => {
-        if (!nonce || !rest_url || !i18n) { Logger.error('Missing localization data'); return; }
+    document.addEventListener('DOMContentLoaded', async () => { // MARKED ASYNC
+        // Check for essential localized data. log_rest_url is already checked above.
+        // We ensure `rest_urls` object exists and `i18n` exists.
+        if (!rest_urls || !i18n) {
+            Logger.error('Missing critical localization data for DOMContentLoaded', { rest_urls: !!rest_urls, i18n: !!i18n });
+            return;
+        }
 
         // Hydrate central state (requires DeviceDetector & NetworkMonitor loaded)
         if (window.SPARXSTAR?.initializeState) {
@@ -258,10 +324,10 @@
         window.addEventListener('online', hideOfflineBanner);
 
         // Immediate lightweight snapshot each page load
-        sendDiagnostics(collectEnvData());
+        await sendDiagnostics(collectEnvData()); // AWAIT THE CALL
 
         // Detailed daily set
-        runDiagnosticsOncePerDay();
+        await runDiagnosticsOncePerDay(); // AWAIT THE CALL
         initializeConsentListener();
     });
 
@@ -273,7 +339,7 @@
         collectDiagnostics,
         sendDiagnostics,
         isBrowserCompatible,
-        getSessionId: () => sessionId
+        getSessionId: () => sessionId,
+        getVisitorId: () => window.SPARXSTAR.State.visitorId // Assuming State.visitorId holds the FPJS ID
     };
-}
-)();
+})();

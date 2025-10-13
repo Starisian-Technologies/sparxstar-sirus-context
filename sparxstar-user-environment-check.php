@@ -56,7 +56,7 @@ register_activation_hook(SPX_ENV_CHECK_PLUGIN_FILE, array(Starisian\SparxstarUEC
 register_deactivation_hook(SPX_ENV_CHECK_PLUGIN_FILE, array(Starisian\SparxstarUEC\core\SparxstarUECInstaller::class, 'spx_uec_deactivate'));
 // Always set test globals so PluginBootstrapTest can assert hook registration
 $GLOBALS['registered_activation_hook'] = [
-        'callback' => [SStarisian\SparxstarUEC\core\parxstarUECInstaller::class, 'spx_uec_activate'],
+        'callback' => [Starisian\SparxstarUEC\core\SparxstarUECInstaller::class, 'spx_uec_activate'],
         'file' => SPX_ENV_CHECK_PLUGIN_FILE
 ];
 $GLOBALS['registered_deactivation_hook'] = [

@@ -7,11 +7,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 use Starisian\SparxstarUEC\StarUserEnv;
-use Starisian\SparxstarUEC\api\SparxstarUECAPI;
+use Starisian\SparxstarUEC\core\SparxstarUECSnapshotRepository;
 
 final class SparxstarUECSessionManager {
 
 	private const SESSION_NAMESPACE = 'sparxstar_uec_data';
+	private const SESSION_USER_VARS = array();
+
+	public function __construct(){
+		// empty
+	}
 
 	/** Set multiple values in the session at once. */
 	public static function set_all( array $data ): void {
@@ -50,17 +55,12 @@ final class SparxstarUECSessionManager {
 			return $default;
 		}
 
-		$path = self::DATA_PATHS[ $key ] ?? null;
+		$path = self::SESSION_USER_VARS[ $key ] ?? null;
 		if ( $path === null ) {
 			return $default;
 		}
-
-		// --- THE FIX ---
-		// 1. Get the Singleton instance of the API class.
-		$api = SparxstarUECAPI::get_instance();
-
-		// 2. Call the public method on that instance.
-		$snapshot = $api->get_latest_snapshot_from_db( $user_id, $session_id );
+		// 2. Call the public method to get the snapshot.
+		$snapshot = SparxstarUECSnapshotRepository::get( $user_id, $session_id );
 		// ---------------
 
 		if ( $snapshot === null ) {

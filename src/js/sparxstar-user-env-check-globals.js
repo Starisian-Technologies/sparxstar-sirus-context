@@ -110,4 +110,12 @@
 	// Expose init + sync so main.js/network.js can call them
 	window.SPARXSTAR.initializeState   = initializeState;
 	window.SPARXSTAR.syncStateToServer = syncStateToServer;
+
+
+	document.addEventListener('sparxstar-fingerprint-ready', (event) => {
+    if (event.detail && event.detail.visitorId) {
+        window.SPARXSTAR.State.visitorId = event.detail.visitorId;
+        Logger.debug('[SPARXSTAR] State updated with visitorId from FingerprintJS.', { visitorId: event.detail.visitorId });
+    }
+});
 })();

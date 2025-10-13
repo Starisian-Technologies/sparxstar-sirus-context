@@ -41,6 +41,15 @@
 
                 console.log('[SparxstarFingerprint] Fingerprint captured:', this.visitorId);
 
+                // --- START OF INSERTED SNIPPET ---
+                // Store visitorId in the global SPARXSTAR.State for other modules
+                if (window.SPARXSTAR && window.SPARXSTAR.State) {
+                    window.SPARXSTAR.State.visitorId = this.visitorId;
+                    // Optional: Add a debug log to confirm storage
+                    // console.debug('[SparxstarFingerprint] visitorId stored in global state.', { visitorId: this.visitorId });
+                }
+                // --- END OF INSERTED SNIPPET ---
+
                 // Broadcast event for other modules (Sky, forms, logger)
                 document.dispatchEvent(new CustomEvent('sparxstar-fingerprint-ready', {
                     detail: { visitorId: this.visitorId, components: result.components }

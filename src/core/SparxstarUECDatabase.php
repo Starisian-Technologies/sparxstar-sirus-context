@@ -13,22 +13,38 @@ if ( ! defined( 'ABSPATH' ) ) {
 use wpdb;
 use WP_Error;
 
-
-
 final class SparxstarUECDatabase {
-
 
 	private const TABLE_NAME              = SPX_ENV_CHECK_DB_TABLE_NAME;
 	private const SNAPSHOT_RETENTION_DAYS = 90;
+	// Define a database version for schema management
+	private const DB_VERSION = '1.1'; // Increment this whenever you change the table schema
 
 	private \wpdb $wpdb;
 
 	public function __construct( \wpdb $wpdb ) {
 		$this->wpdb = $wpdb;
+		$this->maybe_update_table_schema(); // Call the schema check/update during construction
 	}
 
 	/**
+	 * Check and update the table schema if necessary.
+	 * This method ensures the table exists and is up to date based on DB_VERSION.
+	 */
+	private function maybe_update_table_schema(): void {
+		$installed_db_version = get_option( 'sparxstar_uec_db_version', '0.0' );
+
+		// Only run dbDelta if the table hasn't been created or if the schema version is old
+		if ( version_compare( $installed_db_version, self::DB_VERSION, '<' ) ) {
+			$this->create_table(); // dbDelta is inside this method, handling both create and update
+			update_option( 'sparxstar_uec_db_version', self::DB_VERSION );
+		}
+	}
+
+
+	/**
 	 * Create or update the diagnostics snapshot table.
+	 * This method uses dbDelta which handles both creation and schema updates.
 	 */
 	public function create_table(): void {
 		$table_name      = $this->get_table_name();
@@ -52,17 +68,14 @@ final class SparxstarUECDatabase {
         ) {$charset_collate};";
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-		\dbDelta( $sql );
+		\dbDelta( $sql ); // Corrected: ensure backslash for global function
 	}
-	public function update_table(): void {
-		$table_name      = $this->get_table_name();
-		$charset_collate = $this->get_charset_collate();
 
-		$sql = "ALTER TABLE {$table_name} ADD COLUMN client_hints_data JSON NULL;";
-
-		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-		$dbDelta( $sql );
-	}
+	// Removed the separate update_table() method
+	// dbDelta in create_table() is robust enough to handle schema updates
+	// by comparing the SQL with the existing table structure.
+	// If more complex migrations (data transformation) are needed,
+	// a dedicated migration system is usually built.
 
 	public function delete_table(): void {
 		$table_name = $this->get_table_name();
@@ -70,14 +83,16 @@ final class SparxstarUECDatabase {
 		$this->wpdb->query( $sql );
 	}
 
-
-
 	/**
 	 * Delete snapshots older than the retention period.
 	 */
 	public function delete_old_snapshots(): void {
 		$table_name     = $this->get_table_name();
-		$retention_days = self::SNAPSHOT_RETENTION_DAYS;
+		$retention_days = (int) apply_filters( 'sparxstar_env_retention_days', self::SNAPSHOT_RETENTION_DAYS );
+
+		if ( $retention_days <= 0 ) {
+			return;
+		}
 
 		$sql = $this->wpdb->prepare(
 			"DELETE FROM {$table_name} WHERE created_at < DATE_SUB(NOW(), INTERVAL %d DAY)",
@@ -87,14 +102,18 @@ final class SparxstarUECDatabase {
 		$this->wpdb->query( $sql );
 	}
 
-
-
-
 	/**
 	 * Retrieve the newest snapshot for a given user/session or requesting IP.
 	 */
 	public function get_latest_snapshot( string $ip_hash, ?int $user_id = null, ?string $session_id = null ): ?array {
 		$table_name    = $this->get_table_name();
+
+		// Add a check for table existence before querying
+		if ( ! $this->table_exists( $table_name ) ) {
+            error_log( "SparxstarUECDatabase: Table {$table_name} does not exist when trying to get_latest_snapshot." );
+			return null;
+		}
+
 		$where_clauses = array();
 		$params        = array();
 
@@ -141,6 +160,12 @@ final class SparxstarUECDatabase {
 	public function store_snapshot( array $data ): array|\WP_Error {
 		$table_name = $this->get_table_name();
 
+		// Add a check for table existence before inserting
+		if ( ! $this->table_exists( $table_name ) ) {
+            error_log( "SparxstarUECDatabase: Table {$table_name} does not exist when trying to store_snapshot." );
+			return new \WP_Error( 'db_table_missing', 'Database table is missing for snapshots.', array( 'status' => 500 ) );
+		}
+
 		$existing_id = (int) $this->wpdb->get_var(
 			$this->wpdb->prepare( "SELECT id FROM {$table_name} WHERE snapshot_hash = %s", $data['snapshot_hash'] )
 		);
@@ -169,6 +194,8 @@ final class SparxstarUECDatabase {
 		);
 
 		if ( $result === false ) {
+			// Log the specific MySQL error for better debugging
+			error_log( 'SparxstarUECDatabase insert error: ' . $this->wpdb->last_error );
 			return new \WP_Error( 'db_insert_error', 'Could not write snapshot to the database.', array( 'status' => 500 ) );
 		}
 		return array(
@@ -182,6 +209,12 @@ final class SparxstarUECDatabase {
 	 */
 	public function cleanup_old_snapshots(): void {
 		$table_name     = $this->get_table_name();
+
+		if ( ! $this->table_exists( $table_name ) ) {
+            error_log( "SparxstarUECDatabase: Table {$table_name} does not exist when trying to cleanup_old_snapshots." );
+			return;
+		}
+
 		$retention_days = (int) apply_filters( 'sparxstar_env_retention_days', self::SNAPSHOT_RETENTION_DAYS );
 
 		if ( $retention_days <= 0 ) {
@@ -202,5 +235,12 @@ final class SparxstarUECDatabase {
 
 	public function get_charset_collate(): string {
 		return $this->wpdb->get_charset_collate();
+	}
+
+	/**
+	 * Helper function to check if the table exists.
+	 */
+	private function table_exists( string $table_name ): bool {
+		return (bool) $this->wpdb->get_var( $this->wpdb->prepare( "SHOW TABLES LIKE %s", $table_name ) );
 	}
 }
