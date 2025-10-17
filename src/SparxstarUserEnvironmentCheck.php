@@ -105,7 +105,7 @@ class SparxstarUserEnvironmentCheck
                         error_log( 'SparxstarUserEnvironmentCheck: Services instantiated successfully.' );
                         $this->register_hooks();
                 } catch ( Exception $e ) {
-                        error_log( 'Error initializing SparxstarUserEnvironmentCheck: ' . esc_html( $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine() ) );
+                        error_log( 'Error initializing SparxstarUserEnvironmentCheck: ' . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine() );
                         return;
                 }
                 $trace = debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS );
