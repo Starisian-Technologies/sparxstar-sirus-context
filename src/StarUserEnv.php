@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Starisian\SparxstarUEC;
 
 use Starisian\SparxstarUEC\core\SparxstarUECSnapshotRepository;
+use Starisian\SparxstarUEC\includes\SparxstarUECSessionManager;
 use Starisian\SparxstarUEC\includes\SparxstarUECCacheHelper;
 
 if (!defined('ABSPATH')) {
@@ -251,6 +252,10 @@ final class StarUserEnv
 			}
 		}
 		return '0.0.0.0';
+	}
+
+	public static function get_current_user_session_id(){
+		SparxstarUECSessionManager::get_session_id();
 	}
 
 	/**

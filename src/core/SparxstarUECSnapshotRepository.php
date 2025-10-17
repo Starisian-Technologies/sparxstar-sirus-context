@@ -7,26 +7,21 @@ declare(strict_types=1);
 
 namespace Starisian\SparxstarUEC\core;
 
-use Starisian\SparxstarUEC\core\SparxstarUECDatabase;
-use Starisian\SparxstarUEC\includes\SparxstarUECCacheHelper;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+use Starisian\SparxstarUEC\includes\SparxstarUECCacheHelper;
+use Starisian\SparxstarUEC\StarUserEnv;
+
 final class SparxstarUECSnapshotRepository {
-
-	private SparxstarUECDatabase $database;
-
-	public function __construct(SparxstarUECDatabase $database){
-		$this->database = $database;
-	}
 
 	/**
 	 * Retrieve the latest environment snapshot, handling cache and database logic.
 	 */
 	public static function get( ?int $user_id, ?string $session_id ): ?array {
-		$ip_hash = hash( 'sha256', SparxstarUECCacheHelper::get_client_ip() );
+		$ip_hash = hash( 'sha256', StarUserEnv::get_current_visitor_ip() );
 
 		$cache_key       = SparxstarUECCacheHelper::make_key( $user_id, $session_id, $ip_hash );
 		$cached_snapshot = SparxstarUECCacheHelper::get( $cache_key );
@@ -35,8 +30,7 @@ final class SparxstarUECSnapshotRepository {
 			return $cached_snapshot;
 		}
 
-		
-		$db_snapshot = $this->database->get_latest_snapshot( $ip_hash, $user_id, $session_id );
+		$db_snapshot = StarUserEnv::get_full_snapshot($user_id, $session_id);
 
 		if ( $db_snapshot !== null ) {
 			SparxstarUECCacheHelper::set( $cache_key, $db_snapshot );
@@ -48,7 +42,7 @@ final class SparxstarUECSnapshotRepository {
 	 * Flushes the cache for a given user/session.
 	 */
 	public static function flush( ?int $user_id, ?string $session_id ): void {
-		$ip_hash   = hash( 'sha256', SparxstarUECacheHelper::get_client_ip() );
+		$ip_hash   = hash( 'sha256', StarUserEnv::get_current_visitor_ip() );
 		$cache_key = SparxstarUECCacheHelper::make_key( $user_id, $session_id, $ip_hash );
 		SparxstarUECCacheHelper::delete( $cache_key );
 	}

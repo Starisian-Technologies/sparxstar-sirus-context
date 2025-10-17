@@ -39,6 +39,7 @@ class SparxstarUserEnvironmentCheck
 	/**
 	 * Manages registration and localization of scripts and styles.
 	 */
+	private ?SparxstarUECDatabase $database = null;
 	private ?SparxstarUECSnapshotRepository $repository = null;
 	private ?SparxstarUECAssetManager $asset_manager = null;
 	private ?SparxstarUECSessionManager $session_manager = null;
@@ -70,14 +71,14 @@ class SparxstarUserEnvironmentCheck
 			global $wpdb; // Access the global WordPress database object
 
 			// 1. Initialize the database handler
-			$sparxstar_uec_database = new SparxstarUECDatabase( $wpdb );
+			$this->database = new SparxstarUECDatabase( $wpdb );
 
 			// 2. Initialize the REST API controller (SparxstarUECRESTController)
 			// Pass the database handler as a dependency to its constructor.
 			error_log('Instantiating SparxstarUECRESTController');
-			$this->api = new SparxstarUECRESTController( $sparxstar_uec_database );
+			$this->api = new SparxstarUECRESTController( $this->database );
 			error_log('Instantiating SparxstarUECSnapshotRepository');
-			$this->repository = new SparxstarUECSnapshotRepository($sparxstar_uec_database);
+			$this->repository = new SparxstarUECSnapshotRepository();
 			error_log('Instantiating SparxstarUECAssetManager');
 			$this->asset_manager = new SparxstarUECAssetManager();
 			error_log('Instantiating SparxstarUECSessionManager');

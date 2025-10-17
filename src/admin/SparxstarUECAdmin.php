@@ -9,12 +9,12 @@ declare(strict_types=1);
 
 namespace Starisian\SparxstarUEC\admin;
 
-use Starisian\SparxstarUEC\StarUserEnv;
-use Starisian\SparxstarUEC\includes\SparxstarUECSessionManager;
-
 if (!defined('ABSPATH')) {
 	exit;
 }
+
+use Starisian\SparxstarUEC\StarUserEnv;
+use Starisian\SparxstarUEC\includes\SparxstarUECSessionManager;
 
 /**
  * Provides WordPress admin integrations such as settings pages and notices.
@@ -38,10 +38,14 @@ final class SparxstarUECAdmin
 	public function __construct()
 	{
 		if (is_admin()) {
-			add_action('admin_menu', array($this, 'add_admin_menu'));
-			add_action('admin_init', array($this, 'register_settings'));
-			add_action('admin_notices', array($this, 'admin_notices'));
+			$this->register_hooks();
 		}
+	}
+
+	public function register_hooks(): void{
+		add_action('admin_menu', array($this, 'add_admin_menu'));
+		add_action('admin_init', array($this, 'register_settings'));
+		add_action('admin_notices', array($this, 'admin_notices'));
 	}
 
 	/**
@@ -50,8 +54,8 @@ final class SparxstarUECAdmin
 	public function add_admin_menu(): void
 	{
 		add_options_page(
-			esc_html__('SPARXSTAR Env Check Settings', 'sparxstar-user-environment-check'),
-			esc_html__('SPARXSTAR Env Check', 'sparxstar-user-environment-check'),
+			esc_html__('SPARXSTAR UserEnv Settings', 'sparxstar-user-environment-check'),
+			esc_html__('SPARXSTAR UserEnv', 'sparxstar-user-environment-check'),
 			'manage_options',
 			self::PAGE_SLUG,
 			array($this, 'render_settings_page')
@@ -156,14 +160,19 @@ final class SparxstarUECAdmin
 	 */
 	public function render_snapshot_viewer_section(): void
 	{
-		// We need the StarUserEnv class to fetch the snapshot.
-		require_once SPX_ENV_CHECK_PLUGIN_PATH . 'src/StarUserEnv.php';
+		// Ensure the StarUserEnv class is available (prefer autoloading; fallback to file include).
+		if ( ! class_exists( '\\Starisian\\SparxstarUEC\\StarUserEnv' ) ) {
+			$pending = SPX_ENV_CHECK_PLUGIN_PATH . 'src/StarUserEnv.php';
+			if ( is_readable( $pending ) ) {
+				require_once $pending;
+			}
+		}
 
 		// Get the ID of the currently logged-in user.
 		$current_user_id = get_current_user_id();
 
 		// Fetch the snapshot. We pass null for session_id as it's not relevant here.
-		$snapshot = StarUserEnv::get_full_snapshot($current_user_id, SparxstarUECSessionManager::get_session_id());
+		$snapshot = StarUserEnv::get_full_snapshot($current_user_id, StarUserEnv::get_current_user_session_id());
 
 		if ($snapshot === null) {
 			printf(
@@ -177,7 +186,7 @@ final class SparxstarUECAdmin
 		}
 
 		// Pretty-print the JSON for readability.
-		$json_dump = wp_json_encode($snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+		$json_dump = wp_json_encode( $snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
 		if ($json_dump === false) {
 			printf(
 				'<p class="notice notice-error"><strong>%s</strong></p>',
@@ -189,24 +198,116 @@ final class SparxstarUECAdmin
 			return;
 		}
 
+		// --- Debugging: capture environment metrics to help diagnose truncated responses ---
+		$debug_enabled = current_user_can( 'manage_options' );
+		$debug_start   = microtime( true );
+		$json_len      = is_string( $json_dump ) ? strlen( $json_dump ) : 0;
+		$mem_usage     = memory_get_usage( true );
+		$mem_peak      = memory_get_peak_usage( true );
+		$ob_level      = ob_get_level();
+		$zlib          = ini_get( 'zlib.output_compression' );
+		$output_buffering = ini_get( 'output_buffering' );
+		$max_exec      = ini_get( 'max_execution_time' );
+		$headers_sent  = headers_sent();
+		$conn_aborted  = connection_aborted();
+		$conn_status   = connection_status();
+
+		// Log lightweight diagnostics to PHP error log for server-side inspection.
+		if ( $debug_enabled ) {
+			error_log( sprintf( 'SPX-UEC DEBUG START: snapshot_id=%s size=%dB mem=%dB peak=%dB ob_level=%d zlib=%s output_buffering=%s max_exec=%s headers_sent=%s conn_aborted=%d conn_status=%d',
+				isset( $snapshot['id'] ) ? (string) $snapshot['id'] : 'N/A',
+				$json_len,
+				$mem_usage,
+				$mem_peak,
+				$ob_level,
+				$zlib ?: 'off',
+				$output_buffering ?: 'default',
+				$max_exec,
+				$headers_sent ? 'true' : 'false',
+				$conn_aborted,
+				$conn_status
+			) );
+		}
+
 		// Display the data in a preformatted block for easy viewing.
+		// Safely access snapshot fields to avoid notices if keys are missing.
+		$snapshot_id = isset( $snapshot['id'] ) ? (string) $snapshot['id'] : esc_html__( 'N/A', 'sparxstar-user-environment-check' );
+		$updated_at  = isset( $snapshot['updated_at'] ) ? (string) $snapshot['updated_at'] : '';
+
 		printf(
-			'<p>%s <strong>%s</strong>, %s <strong>%s UTC</strong>.</p>',
+			'<p>%s <strong>%s</strong>%s</p>',
 			esc_html__(
 				'This is the most recent data collected by the plugin for your user account. The snapshot ID is',
 				'sparxstar-user-environment-check'
 			),
-			esc_html((string) $snapshot['id']),
-			esc_html__(
-				'last updated on',
-				'sparxstar-user-environment-check'
-			),
-			esc_html((string) $snapshot['updated_at'])
+			esc_html( $snapshot_id ),
+			$updated_at ? ' &middot; ' . esc_html__( 'last updated on', 'sparxstar-user-environment-check' ) . ' <strong>' . esc_html( $updated_at ) . '</strong> UTC' : ''
 		);
 
-		echo '<pre style="' . esc_attr('background-color: #f1f1f1; padding: 15px; border-radius: 4px; max-height: 500px; overflow: auto;') . '"><code>';
-		echo esc_html($json_dump);
+		// If the JSON is extremely large, only show a truncated preview. Large outputs can cause
+		// the web server to close the response early (incomplete chunked encoding).
+		$max_display_bytes = 200000; // ~200 KB
+		$is_truncated      = false;
+		$display_dump      = $json_dump;
+		if ( is_string( $json_dump ) && strlen( $json_dump ) > $max_display_bytes ) {
+			$display_dump = substr( $json_dump, 0, $max_display_bytes );
+			$is_truncated = true;
+		}
+
+		// Show a diagnostics block to help debug truncated responses (visible only to admins).
+		if ( $debug_enabled ) {
+			echo '<details style="margin-bottom:1rem;padding: .5rem .75rem;border:1px solid #ddd;border-radius:4px;background:#fff;">';
+			echo '<summary><strong>' . esc_html__( 'Snapshot diagnostics', 'sparxstar-user-environment-check' ) . '</strong></summary>';
+			echo '<ul style="margin: .5rem 0 0 1rem;">';
+			echo '<li>' . esc_html__( 'Snapshot size (bytes):', 'sparxstar-user-environment-check' ) . ' ' . esc_html( (string) $json_len ) . '</li>';
+			echo '<li>' . esc_html__( 'Memory usage (bytes):', 'sparxstar-user-environment-check' ) . ' ' . esc_html( (string) $mem_usage ) . '</li>';
+			echo '<li>' . esc_html__( 'Memory peak (bytes):', 'sparxstar-user-environment-check' ) . ' ' . esc_html( (string) $mem_peak ) . '</li>';
+			echo '<li>' . esc_html__( 'Output buffering level:', 'sparxstar-user-environment-check' ) . ' ' . esc_html( (string) $ob_level ) . '</li>';
+			echo '<li>' . esc_html__( 'zlib.output_compression:', 'sparxstar-user-environment-check' ) . ' ' . esc_html( $zlib ?: 'off' ) . '</li>';
+			echo '<li>' . esc_html__( 'output_buffering:', 'sparxstar-user-environment-check' ) . ' ' . esc_html( $output_buffering ?: 'default' ) . '</li>';
+			echo '<li>' . esc_html__( 'headers_sent:', 'sparxstar-user-environment-check' ) . ' ' . esc_html( $headers_sent ? 'true' : 'false' ) . '</li>';
+			echo '<li>' . esc_html__( 'connection_aborted:', 'sparxstar-user-environment-check' ) . ' ' . esc_html( (string) $conn_aborted ) . '</li>';
+			echo '<li>' . esc_html__( 'connection_status:', 'sparxstar-user-environment-check' ) . ' ' . esc_html( (string) $conn_status ) . '</li>';
+			echo '</ul>';
+			echo '</details>';
+		}
+
+		$render_start = microtime( true );
+
+		echo '<pre style="' . esc_attr( 'background-color: #f1f1f1; padding: 15px; border-radius: 4px; max-height: 500px; overflow: auto;' ) . '"><code>';
+		echo esc_html( $display_dump );
+		if ( $is_truncated ) {
+			echo "\n\n" . esc_html__( 'The snapshot is large and has been truncated for display. Download the full snapshot via the debug endpoint or enable a smaller capture window in settings.', 'sparxstar-user-environment-check' );
+		}
 		echo '</code></pre>';
+
+		// Compute rendering timings and additional diagnostics
+		$render_end = microtime( true );
+		$total_time = $render_end - $debug_start;
+		$render_time = $render_end - $render_start;
+		$ob_length = function_exists( 'ob_get_length' ) ? ob_get_length() : null;
+
+		if ( $debug_enabled ) {
+			// Append the timing info visibly
+			echo '<p><em>' . esc_html__( 'Rendering diagnostics:', 'sparxstar-user-environment-check' ) . '</em></p>';
+			echo '<ul style="font-size:90%;">';
+			echo '<li>' . esc_html__( 'JSON length (bytes):', 'sparxstar-user-environment-check' ) . ' ' . esc_html( (string) $json_len ) . '</li>';
+			echo '<li>' . esc_html__( 'Encode+prep time (s):', 'sparxstar-user-environment-check' ) . ' ' . esc_html( (string) number_format( $render_start - $debug_start, 4 ) ) . '</li>';
+			echo '<li>' . esc_html__( 'Render time (s):', 'sparxstar-user-environment-check' ) . ' ' . esc_html( (string) number_format( $render_time, 4 ) ) . '</li>';
+			echo '<li>' . esc_html__( 'Total time (s):', 'sparxstar-user-environment-check' ) . ' ' . esc_html( (string) number_format( $total_time, 4 ) ) . '</li>';
+			echo '<li>' . esc_html__( 'Output buffer length (bytes):', 'sparxstar-user-environment-check' ) . ' ' . esc_html( $ob_length !== null ? (string) $ob_length : 'n/a' ) . '</li>';
+			echo '</ul>';
+
+			// Also log to the error log for server-side correlation.
+			error_log( sprintf( 'SPX-UEC DEBUG END: snapshot_id=%s json_len=%d encode_prep_s=%.4f render_s=%.4f total_s=%.4f ob_length=%s',
+				isset( $snapshot['id'] ) ? (string) $snapshot['id'] : 'N/A',
+				$json_len,
+				( $render_start - $debug_start ),
+				$render_time,
+				$total_time,
+				$ob_length !== null ? (string) $ob_length : 'n/a'
+			) );
+		}
 	}
 
 	public function render_snapshot_viewer_description(): void
