@@ -48,7 +48,7 @@
       "composer/installers": true
     }
   },
-    "repositories": [
+  "repositories": [
     {
       "type": "composer",
       "url": "https://wpackagist.org"
@@ -58,7 +58,7 @@
     "phpcs": "phpcs --standard=phpcs.xml",
     "phpcbf": "phpcbf --standard=phpcs.xml",
     "phpstan": "phpstan analyse",
-    "makepot": "wp i18n make-pot" ,
+    "makepot": "wp i18n make-pot",
     "lint": "vendor/bin/phpcs --standard=phpcs.xml.dist --extensions=php --report=full src/",
     "lint:fix": "vendor/bin/phpcbf --standard=phpcs.xml.dist --extensions=php src/",
     "analyze": "vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --memory-limit=1G",
@@ -81,9 +81,9 @@
       "@comments:fix"
     ]
   },
-"extra": {
+  "extra": {
     "installer-paths": {
       "vendor/{$name}/": ["type:wordpress-plugin"]
     }
-  },
+  }
 }
