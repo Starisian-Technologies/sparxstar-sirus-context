@@ -3,7 +3,7 @@ import commonjs from '@rollup/plugin-commonjs';
 import terser from '@rollup/plugin-terser';
 
 export default {
-    input: 'src/js/starmus-integrator.js',
+    input: 'src/js/sparxstar-integrator.js',
 
     output: {
         file: 'assets/js/sparxstar-user-environment-check-app.bundle.min.js',

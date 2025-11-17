@@ -2,41 +2,47 @@
   "name": "sparxstar-user-environment-check",
   "version": "1.0.0",
   "private": true,
-  "description": "WordPress plugin utilities for collecting browser and environment diagnostics.",
+  "description": "WordPress plugin for browser, device, and environment diagnostics using a modern ES Module architecture.",
   "license": "SEE LICENSE IN LICENSE.md",
+  "author": "Starisian Technologies",
   "scripts": {
-    "lint": "npm run lint:js && npm run lint:css",
-    "lint:js": "npx --yes eslint@8.57.0 \"src/js/**/*.js\"",
-    "lint:js:fix": "npx --yes eslint@8.57.0 \"src/js/**/*.js\" --fix",
-    "lint:css": "npx --yes stylelint@16.8.0 \"src/css/**/*.css\"",
-    "lint:css:fix": "npx --yes stylelint@16.8.0 \"src/css/**/*.css\" --fix",
-    "format": "npm run lint:js:fix && npm run lint:css:fix",
-    "build:css": "postcss src/css/sparxstar-user-env-check.css -o assets/css/sparxstar-user-environment-check-styles.min.css",
+    "lint:js": "eslint src/js/",
+    "lint:css": "stylelint src/css/",
+    "lint": "pnpm run lint:js && pnpm run lint:css",
+    "format": "eslint src/js/ --fix && stylelint src/css/ --fix",
+    "clean": "rm -rf assets",
+    "validate": "node validate-build.cjs",
+
+"build:css": "postcss src/css/sparxstar-user-environment-check.css -o assets/css/sparxstar-user-environment-check.min.css",
+
     "build:js": "rollup -c roll-up.config.mjs",
-    "build:hash": "node build-starmus.cjs assets/css/sparxstar-user-environment-check-styles.min.css assets/js/sparxstar-user-environment-check-app.bundle.min.js",
-    "version:sync": "node sync-version.js",
-    "build": "pnpm run clean && pnpm run build:vendor && pnpm run build:css && pnpm run build:js && pnpm run build:hash && pnpm run version:sync",
-    "build:vendor": "esbuild src/js/vendor/fingerprintjs/fingerprintjs.min.js --bundle --minify --outfile=assets/js/vendor/fingerprintjs/fingerprintjs.min.js --format=iife",
-    "clean": "rm -rf assets/css/*.min.css assets/js/*.min.js assets/js/vendor/fingerprintjs/*.min.js",
-    "validate-build": "node validate-build.cjs"
+    "build": "pnpm run validate && pnpm run clean && mkdir -p assets/js && pnpm run build:css && pnpm run build:js",
+    "version:sync": "node sync-version.js"
   },
   "devDependencies": {
-    "@fingerprintjs/fingerprintjs": "github:fingerprintjs/fingerprintjs",
-    "@rollup/plugin-commonjs": "^26.0.3",
+    "@rollup/plugin-commonjs": "^29.0.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^0.4.4",
-    "esbuild": "^0.27.0",
+    "cssnano": "^7.1.2",
     "eslint": "^9.39.1",
+    "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.32.0",
+    "postcss": "^8.5.6",
+    "postcss-cli": "^11.0.1",
     "rollup": "^4.53.2",
     "stylelint": "^16.25.0",
-    "stylelint-config-standard": "latest"
+    "stylelint-config-standard": "^39.0.1"
   },
   "dependencies": {
-    "csso": "^5.0.5",
-    "device-detector-js": "latest",
-    "fingerprintjs": "^0.5.3",
-    "terser": "^5.44.1"
+    "@fingerprintjs/fingerprintjs": "^5.0.1",
+    "device-detector-js": "^3.0.3"
   },
-  "packageManager": "pnpm@10.22.0"
+  "packageManager": "pnpm@8.6.0",
+  "pnpm": {
+    "overrides": {
+      "rollup@>=4.0.0 <4.22.4": ">=4.22.4",
+      "semver@>=7.0.0 <7.5.2": ">=7.5.2",
+      "glob@>=10.3.7 <=11.0.3": ">=11.1.0"
+    }
+  }
 }

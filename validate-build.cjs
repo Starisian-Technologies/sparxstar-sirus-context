@@ -9,7 +9,7 @@ const requiredFiles = [
   'src/js/sparxstar-sync.js',
   'src/js/sparxstar-ui.js',
   'src/js/sparxstar-integrator.js',
-  'src/css/sparxstar-user-env-check.css'
+  'src/css/sparxstar-user-environment-check.css'
 ];
 
 let ok = true;

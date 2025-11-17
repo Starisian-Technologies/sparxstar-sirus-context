@@ -4,7 +4,16 @@
  * @description Hardened master orchestrator for the Sparxstar User Environment Check plugin.
  * Runs technical pipeline (always), statistics-gated identifiers pipeline, enforces
  * immutability, rate-limits sync, and dispatches the final environment-ready event.
+ *
+ * This file is the Rollup entry point. It pulls in the side-effect modules so the bundle
+ * contains the full SPARXSTAR environment system.
  */
+import './sparxstar-state.js';
+import './sparxstar-collector.js';
+import './sparxstar-profile.js';
+import './sparxstar-sync.js';
+import './sparxstar-ui.js';
+
 (function (window, document) {
     'use strict';
 
@@ -60,11 +69,13 @@
     }
 
     async function initialize() {
-        const SPX       = window.SPARXSTAR || {};
-        const State     = SPX.State;
-        const Collectors= SPX.Collectors;
-        const Profile   = SPX.Profile;
-        const Sync      = SPX.Sync;
+        window.SPARXSTAR = window.SPARXSTAR || {};
+
+        const SPX        = window.SPARXSTAR;
+        const State      = SPX.State;
+        const Collectors = SPX.Collectors;
+        const Profile    = SPX.Profile;
+        const Sync       = SPX.Sync;
 
         if (!State || !Collectors || !Profile || !Sync) {
             log('Missing core modules. Aborting initialization.', {

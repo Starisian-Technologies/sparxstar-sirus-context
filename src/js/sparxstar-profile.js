@@ -64,8 +64,8 @@
      * @returns {object} The derived profile object.
      */
     function deriveProfile(rawTechnicalData) {
-        const performance    = rawTechnicalData && rawTechnicalData.performance || {};
-        const network        = rawTechnicalData && rawTechnicalData.network || {};
+        const performance    = (rawTechnicalData && rawTechnicalData.performance) || {};
+        const network        = (rawTechnicalData && rawTechnicalData.network) || {};
         const deviceClass    = classifyDevice(performance);
         const networkProfile = classifyNetwork(network);
         const overallProfile = synthesizeProfile(deviceClass, networkProfile);

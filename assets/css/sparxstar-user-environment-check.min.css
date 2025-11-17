@@ -1,0 +1,164 @@
+/**
+ * @file
+ * CSS for the Sparxstar User Environment Check banner.
+ *
+ * @package Starisian/Sparxstar/UEC
+ * @version 1.1.0
+ */
+
+.sparxstar-userenv-banner {
+	position: fixed;
+	bottom: 20px;
+	left: 50%;
+	transform: translateX(-50%);
+	max-width: 640px;
+	width: calc(100% - 40px);
+	background: rgba(35, 40, 45, 0.9);
+	backdrop-filter: blur(10px);
+	-webkit-backdrop-filter: blur(10px);
+	color: #f9f9f9;
+	padding: 16px 60px 16px 20px;
+	z-index: 99999;
+	box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+	border-radius: 12px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	font-size: 15px;
+	line-height: 1.5;
+	animation: sparxstar-userenv-slideup 0.4s ease-out;
+}
+
+.sparxstar-userenv-banner p {
+	margin: 0;
+	padding: 0;
+}
+
+.sparxstar-userenv-banner a {
+	color: #00c6ff;
+	font-weight: 500;
+	text-decoration: none;
+	transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+.sparxstar-userenv-banner a:hover {
+	color: #66e0ff;
+	text-decoration: underline;
+}
+.sparxstar-userenv-banner a:focus {
+	outline: 2px solid #00c6ff;
+	outline-offset: 2px;
+	border-radius: 4px;
+}
+
+/* Dismiss button (Only for the browser update banner) */
+.sparxstar-userenv-dismiss {
+	position: absolute;
+	top: 50%;
+	right: 18px;
+	transform: translateY(-50%);
+	background: rgba(255,255,255,0.1);
+	border: none;
+	border-radius: 50%;
+	color: #fff;
+	font-size: 20px;
+	line-height: 1;
+	cursor: pointer;
+	width: 32px;
+	height: 32px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: background 0.2s ease, transform 0.15s ease;
+}
+.sparxstar-userenv-dismiss:hover {
+	background: rgba(255,255,255,0.25);
+	transform: translateY(-50%) scale(1.1);
+}
+.sparxstar-userenv-dismiss:focus {
+	outline: 2px solid #00c6ff;
+	outline-offset: 2px;
+	background: rgba(255,255,255,0.25);
+	transform: translateY(-50%) scale(1.1);
+}
+
+/* --- NEW STYLES FOR OFFLINE BANNER --- */
+
+/**
+ * Offline Banner Styles
+ *
+ * Extends the base banner with a different color to indicate
+ * a network status change.
+ */
+.sparxstar-userenv-banner-offline {
+	/* Use a different background color to signify a status/warning */
+	background: rgba(139, 69, 69, 0.9); /* A muted, dark red */
+
+	/* Adjust padding since there's no dismiss button on the right */
+	padding-right: 20px;
+}
+
+/* Animation */
+@keyframes sparxstar-userenv-slideup {
+	from { opacity: 0; transform: translate(-50%, 20px); }
+	to   { opacity: 1; transform: translate(-50%, 0); }
+}
+/**
+ * Base styles for Sparxstar User Environment Check UI banners.
+ * These are intentionally minimal so they don't fight site themes.
+ */
+
+.sparxstar-banner {
+    position: fixed;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    box-sizing: border-box;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.sparxstar-banner__content {
+    max-width: 960px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    pointer-events: auto;
+}
+
+/* Offline banner */
+
+.sparxstar-banner--offline {
+    top: 0;
+}
+
+.sparxstar-banner--offline .sparxstar-banner__content {
+    background: #3b0d0c;
+    color: #fff;
+}
+
+/* Upgrade banner */
+
+.sparxstar-banner--upgrade {
+    bottom: 0;
+}
+
+.sparxstar-banner--upgrade .sparxstar-banner__content {
+    background: #1c3d5a;
+    color: #fff;
+}
+
+.sparxstar-banner a {
+    color: inherit;
+    text-decoration: underline;
+}
+
+.sparxstar-banner strong {
+    font-weight: 600;
+}
+
+/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9jc3Mvc3BhcnhzdGFyLXVzZXItZW52aXJvbm1lbnQtY2hlY2suY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBIiwiZmlsZSI6InNwYXJ4c3Rhci11c2VyLWVudmlyb25tZW50LWNoZWNrLm1pbi5jc3MiLCJzb3VyY2VzQ29udGVudCI6WyIvKipcbiAqIEBmaWxlXG4gKiBDU1MgZm9yIHRoZSBTcGFyeHN0YXIgVXNlciBFbnZpcm9ubWVudCBDaGVjayBiYW5uZXIuXG4gKlxuICogQHBhY2thZ2UgU3RhcmlzaWFuL1NwYXJ4c3Rhci9VRUNcbiAqIEB2ZXJzaW9uIDEuMS4wXG4gKi9cblxuLnNwYXJ4c3Rhci11c2VyZW52LWJhbm5lciB7XG5cdHBvc2l0aW9uOiBmaXhlZDtcblx0Ym90dG9tOiAyMHB4O1xuXHRsZWZ0OiA1MCU7XG5cdHRyYW5zZm9ybTogdHJhbnNsYXRlWCgtNTAlKTtcblx0bWF4LXdpZHRoOiA2NDBweDtcblx0d2lkdGg6IGNhbGMoMTAwJSAtIDQwcHgpO1xuXHRiYWNrZ3JvdW5kOiByZ2JhKDM1LCA0MCwgNDUsIDAuOSk7XG5cdGJhY2tkcm9wLWZpbHRlcjogYmx1cigxMHB4KTtcblx0LXdlYmtpdC1iYWNrZHJvcC1maWx0ZXI6IGJsdXIoMTBweCk7XG5cdGNvbG9yOiAjZjlmOWY5O1xuXHRwYWRkaW5nOiAxNnB4IDYwcHggMTZweCAyMHB4O1xuXHR6LWluZGV4OiA5OTk5OTtcblx0Ym94LXNoYWRvdzogMCA4cHggMjRweCByZ2JhKDAsMCwwLDAuNCk7XG5cdGJvcmRlci1yYWRpdXM6IDEycHg7XG5cdGRpc3BsYXk6IGZsZXg7XG5cdGFsaWduLWl0ZW1zOiBjZW50ZXI7XG5cdGp1c3RpZnktY29udGVudDogc3BhY2UtYmV0d2Vlbjtcblx0Zm9udC1zaXplOiAxNXB4O1xuXHRsaW5lLWhlaWdodDogMS41O1xuXHRhbmltYXRpb246IHNwYXJ4c3Rhci11c2VyZW52LXNsaWRldXAgMC40cyBlYXNlLW91dDtcbn1cblxuLnNwYXJ4c3Rhci11c2VyZW52LWJhbm5lciBwIHtcblx0bWFyZ2luOiAwO1xuXHRwYWRkaW5nOiAwO1xufVxuXG4uc3BhcnhzdGFyLXVzZXJlbnYtYmFubmVyIGEge1xuXHRjb2xvcjogIzAwYzZmZjtcblx0Zm9udC13ZWlnaHQ6IDUwMDtcblx0dGV4dC1kZWNvcmF0aW9uOiBub25lO1xuXHR0cmFuc2l0aW9uOiBjb2xvciAwLjJzIGVhc2UsIHRleHQtZGVjb3JhdGlvbiAwLjJzIGVhc2U7XG59XG4uc3BhcnhzdGFyLXVzZXJlbnYtYmFubmVyIGE6aG92ZXIge1xuXHRjb2xvcjogIzY2ZTBmZjtcblx0dGV4dC1kZWNvcmF0aW9uOiB1bmRlcmxpbmU7XG59XG4uc3BhcnhzdGFyLXVzZXJlbnYtYmFubmVyIGE6Zm9jdXMge1xuXHRvdXRsaW5lOiAycHggc29saWQgIzAwYzZmZjtcblx0b3V0bGluZS1vZmZzZXQ6IDJweDtcblx0Ym9yZGVyLXJhZGl1czogNHB4O1xufVxuXG4vKiBEaXNtaXNzIGJ1dHRvbiAoT25seSBmb3IgdGhlIGJyb3dzZXIgdXBkYXRlIGJhbm5lcikgKi9cbi5zcGFyeHN0YXItdXNlcmVudi1kaXNtaXNzIHtcblx0cG9zaXRpb246IGFic29sdXRlO1xuXHR0b3A6IDUwJTtcblx0cmlnaHQ6IDE4cHg7XG5cdHRyYW5zZm9ybTogdHJhbnNsYXRlWSgtNTAlKTtcblx0YmFja2dyb3VuZDogcmdiYSgyNTUsMjU1LDI1NSwwLjEpO1xuXHRib3JkZXI6IG5vbmU7XG5cdGJvcmRlci1yYWRpdXM6IDUwJTtcblx0Y29sb3I6ICNmZmY7XG5cdGZvbnQtc2l6ZTogMjBweDtcblx0bGluZS1oZWlnaHQ6IDE7XG5cdGN1cnNvcjogcG9pbnRlcjtcblx0d2lkdGg6IDMycHg7XG5cdGhlaWdodDogMzJweDtcblx0ZGlzcGxheTogZmxleDtcblx0YWxpZ24taXRlbXM6IGNlbnRlcjtcblx0anVzdGlmeS1jb250ZW50OiBjZW50ZXI7XG5cdHRyYW5zaXRpb246IGJhY2tncm91bmQgMC4ycyBlYXNlLCB0cmFuc2Zvcm0gMC4xNXMgZWFzZTtcbn1cbi5zcGFyeHN0YXItdXNlcmVudi1kaXNtaXNzOmhvdmVyIHtcblx0YmFja2dyb3VuZDogcmdiYSgyNTUsMjU1LDI1NSwwLjI1KTtcblx0dHJhbnNmb3JtOiB0cmFuc2xhdGVZKC01MCUpIHNjYWxlKDEuMSk7XG59XG4uc3BhcnhzdGFyLXVzZXJlbnYtZGlzbWlzczpmb2N1cyB7XG5cdG91dGxpbmU6IDJweCBzb2xpZCAjMDBjNmZmO1xuXHRvdXRsaW5lLW9mZnNldDogMnB4O1xuXHRiYWNrZ3JvdW5kOiByZ2JhKDI1NSwyNTUsMjU1LDAuMjUpO1xuXHR0cmFuc2Zvcm06IHRyYW5zbGF0ZVkoLTUwJSkgc2NhbGUoMS4xKTtcbn1cblxuLyogLS0tIE5FVyBTVFlMRVMgRk9SIE9GRkxJTkUgQkFOTkVSIC0tLSAqL1xuXG4vKipcbiAqIE9mZmxpbmUgQmFubmVyIFN0eWxlc1xuICpcbiAqIEV4dGVuZHMgdGhlIGJhc2UgYmFubmVyIHdpdGggYSBkaWZmZXJlbnQgY29sb3IgdG8gaW5kaWNhdGVcbiAqIGEgbmV0d29yayBzdGF0dXMgY2hhbmdlLlxuICovXG4uc3BhcnhzdGFyLXVzZXJlbnYtYmFubmVyLW9mZmxpbmUge1xuXHQvKiBVc2UgYSBkaWZmZXJlbnQgYmFja2dyb3VuZCBjb2xvciB0byBzaWduaWZ5IGEgc3RhdHVzL3dhcm5pbmcgKi9cblx0YmFja2dyb3VuZDogcmdiYSgxMzksIDY5LCA2OSwgMC45KTsgLyogQSBtdXRlZCwgZGFyayByZWQgKi9cblxuXHQvKiBBZGp1c3QgcGFkZGluZyBzaW5jZSB0aGVyZSdzIG5vIGRpc21pc3MgYnV0dG9uIG9uIHRoZSByaWdodCAqL1xuXHRwYWRkaW5nLXJpZ2h0OiAyMHB4O1xufVxuXG4vKiBBbmltYXRpb24gKi9cbkBrZXlmcmFtZXMgc3BhcnhzdGFyLXVzZXJlbnYtc2xpZGV1cCB7XG5cdGZyb20geyBvcGFjaXR5OiAwOyB0cmFuc2Zvcm06IHRyYW5zbGF0ZSgtNTAlLCAyMHB4KTsgfVxuXHR0byAgIHsgb3BhY2l0eTogMTsgdHJhbnNmb3JtOiB0cmFuc2xhdGUoLTUwJSwgMCk7IH1cbn1cbi8qKlxuICogQmFzZSBzdHlsZXMgZm9yIFNwYXJ4c3RhciBVc2VyIEVudmlyb25tZW50IENoZWNrIFVJIGJhbm5lcnMuXG4gKiBUaGVzZSBhcmUgaW50ZW50aW9uYWxseSBtaW5pbWFsIHNvIHRoZXkgZG9uJ3QgZmlnaHQgc2l0ZSB0aGVtZXMuXG4gKi9cblxuLnNwYXJ4c3Rhci1iYW5uZXIge1xuICAgIHBvc2l0aW9uOiBmaXhlZDtcbiAgICBsZWZ0OiAwO1xuICAgIHJpZ2h0OiAwO1xuICAgIHotaW5kZXg6IDk5OTk7XG4gICAgYm94LXNpemluZzogYm9yZGVyLWJveDtcbiAgICBwYWRkaW5nOiAwLjc1cmVtIDFyZW07XG4gICAgZm9udC1zaXplOiAwLjlyZW07XG4gICAgbGluZS1oZWlnaHQ6IDEuNDtcbiAgICBkaXNwbGF5OiBmbGV4O1xuICAgIGp1c3RpZnktY29udGVudDogY2VudGVyO1xuICAgIHBvaW50ZXItZXZlbnRzOiBub25lO1xufVxuXG4uc3BhcnhzdGFyLWJhbm5lcl9fY29udGVudCB7XG4gICAgbWF4LXdpZHRoOiA5NjBweDtcbiAgICB3aWR0aDogMTAwJTtcbiAgICBib3gtc2l6aW5nOiBib3JkZXItYm94O1xuICAgIHBhZGRpbmc6IDAuNXJlbSAwLjc1cmVtO1xuICAgIGJvcmRlci1yYWRpdXM6IDRweDtcbiAgICBwb2ludGVyLWV2ZW50czogYXV0bztcbn1cblxuLyogT2ZmbGluZSBiYW5uZXIgKi9cblxuLnNwYXJ4c3Rhci1iYW5uZXItLW9mZmxpbmUge1xuICAgIHRvcDogMDtcbn1cblxuLnNwYXJ4c3Rhci1iYW5uZXItLW9mZmxpbmUgLnNwYXJ4c3Rhci1iYW5uZXJfX2NvbnRlbnQge1xuICAgIGJhY2tncm91bmQ6ICMzYjBkMGM7XG4gICAgY29sb3I6ICNmZmY7XG59XG5cbi8qIFVwZ3JhZGUgYmFubmVyICovXG5cbi5zcGFyeHN0YXItYmFubmVyLS11cGdyYWRlIHtcbiAgICBib3R0b206IDA7XG59XG5cbi5zcGFyeHN0YXItYmFubmVyLS11cGdyYWRlIC5zcGFyeHN0YXItYmFubmVyX19jb250ZW50IHtcbiAgICBiYWNrZ3JvdW5kOiAjMWMzZDVhO1xuICAgIGNvbG9yOiAjZmZmO1xufVxuXG4uc3BhcnhzdGFyLWJhbm5lciBhIHtcbiAgICBjb2xvcjogaW5oZXJpdDtcbiAgICB0ZXh0LWRlY29yYXRpb246IHVuZGVybGluZTtcbn1cblxuLnNwYXJ4c3Rhci1iYW5uZXIgc3Ryb25nIHtcbiAgICBmb250LXdlaWdodDogNjAwO1xufVxuIl19 */

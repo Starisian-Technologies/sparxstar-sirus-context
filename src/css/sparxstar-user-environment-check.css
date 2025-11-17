@@ -102,3 +102,61 @@
 	from { opacity: 0; transform: translate(-50%, 20px); }
 	to   { opacity: 1; transform: translate(-50%, 0); }
 }
+/**
+ * Base styles for Sparxstar User Environment Check UI banners.
+ * These are intentionally minimal so they don't fight site themes.
+ */
+
+.sparxstar-banner {
+    position: fixed;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    box-sizing: border-box;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.sparxstar-banner__content {
+    max-width: 960px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    pointer-events: auto;
+}
+
+/* Offline banner */
+
+.sparxstar-banner--offline {
+    top: 0;
+}
+
+.sparxstar-banner--offline .sparxstar-banner__content {
+    background: #3b0d0c;
+    color: #fff;
+}
+
+/* Upgrade banner */
+
+.sparxstar-banner--upgrade {
+    bottom: 0;
+}
+
+.sparxstar-banner--upgrade .sparxstar-banner__content {
+    background: #1c3d5a;
+    color: #fff;
+}
+
+.sparxstar-banner a {
+    color: inherit;
+    text-decoration: underline;
+}
+
+.sparxstar-banner strong {
+    font-weight: 600;
+}

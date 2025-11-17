@@ -1,5 +1,5 @@
 /**
- * @file sparxstar-collectors.js
+ * @file sparxstar-collector.js
  * @version 2.0.0
  * @description Memoized, resilient asynchronous collectors for environment data.
  * Separates a technical (always-on) pipeline from a statistics-gated identifiers pipeline.
@@ -61,11 +61,11 @@
         const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
         const current = {
             isOnline: navigator.onLine,
-            type: conn && conn.type || 'unknown',
-            effectiveType: conn && conn.effectiveType || 'unknown',
-            rtt: conn && conn.rtt || null,
-            downlink: conn && conn.downlink || null,
-            saveData: conn && !!conn.saveData
+            type: (conn && conn.type) || 'unknown',
+            effectiveType: (conn && conn.effectiveType) || 'unknown',
+            rtt: (conn && conn.rtt) || null,
+            downlink: (conn && conn.downlink) || null,
+            saveData: !!(conn && conn.saveData)
         };
         log('Network collected', current);
         return current;
