@@ -15,7 +15,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // 1. Define Constants
-
+// =========================================================================
+//  1. BOOTSTRAP GUARD & CORE CONSTANTS
+// =========================================================================
+if ( defined( 'SPX_ENV_CHECK_LOADED' ) ) {
+    return;
+}
+define( 'SPX_ENV_CHECK_LOADED', true );
 /**
  * Absolute path to the current plugin file.
  */
@@ -51,31 +57,44 @@ if ( ! defined( 'SPX_ENV_CHECK_DB_TABLE_NAME' ) ) {
 	define( 'SPX_ENV_CHECK_DB_TABLE_NAME', 'sparxstar_env_snapshots' );
 }
 
+if( ! defined( 'SPX_ENV_CHECK_DELETE_ON_UNINSTALL')) {
+	define( 'SPX_ENV_CHECK_DELETE_ON_UNINSTALL', false );
+}
 
-// Add autoload for any composer dependencies when installed.
+
+// =========================================================================
+//  2. COMPOSER AUTOLOADER
+// =========================================================================
+$autoloader = SPX_ENV_CHECK_PLUGIN_PATH . 'vendor/autoload.php';
+if ( file_exists( $autoloader ) ) {
+	require_once $autoloader;
+}
+
+// =========================================================================
+//  3. LIFECYCLE HOOKS (ACTIVATION, DEACTIVATION, UNINSTALL)
+// =========================================================================
 /**
- * Full path to the Composer autoloader when dependencies are bundled.
- *
- * @var string $spx_autoload
+ * Uninstall handler for permanent cleanup.
+ * This must be a standalone function or a static method.
  */
-$spx_autoload = SPX_ENV_CHECK_PLUGIN_PATH . 'vendor/autoload.php';
-if ( file_exists( $spx_autoload ) ) {
-	require_once $spx_autoload;
+function spx_uec_on_uninstall(): void {
+    if ( ! current_user_can( 'activate_plugins' ) ) {
+        return;
+    }
+    // Include the dedicated uninstall script for cleanup tasks.
+    $uninstall_file = SPX_ENV_CHECK_PLUGIN_PATH . 'uninstall.php';
+    if ( file_exists( $uninstall_file ) ) {
+        require_once $uninstall_file;
+    }
+    flush_rewrite_rules();
 }
 
 // 3. Register Activation & Deactivation Hooks
 // This points to the newly named SparxstarUECInstaller class.
-register_activation_hook( SPX_ENV_CHECK_PLUGIN_FILE, array( Starisian\SparxstarUEC\core\SparxstarUECInstaller::class, 'spx_uec_activate' ) );
-register_deactivation_hook( SPX_ENV_CHECK_PLUGIN_FILE, array( Starisian\SparxstarUEC\core\SparxstarUECInstaller::class, 'spx_uec_deactivate' ) );
-// Always set test globals so PluginBootstrapTest can assert hook registration
-$GLOBALS['registered_activation_hook']   = array(
-		'callback' => array( Starisian\SparxstarUEC\core\SparxstarUECInstaller::class, 'spx_uec_activate' ),
-		'file'     => SPX_ENV_CHECK_PLUGIN_FILE,
-);
-$GLOBALS['registered_deactivation_hook'] = array(
-		'callback' => array( Starisian\SparxstarUEC\core\SparxstarUECInstaller::class, 'spx_uec_deactivate' ),
-		'file'     => SPX_ENV_CHECK_PLUGIN_FILE,
-);
+register_activation_hook( SPX_ENV_CHECK_PLUGIN_FILE, [ 'Starisian\SparxstarUEC\core\SparxstarUECInstaller', 'spx_uec_activate' ] );
+register_deactivation_hook( SPX_ENV_CHECK_PLUGIN_FILE, [ 'Starisian\SparxstarUEC\core\SparxstarUECInstaller', 'spx_uec_deactivate' ] );
+register_uninstall_hook( SPX_ENV_CHECK_PLUGIN_FILE, 'spx_uec_on_uninstall' );
+
 
 /**
  * Bootstrap the orchestrator once all plugins are loaded.
@@ -83,6 +102,6 @@ $GLOBALS['registered_deactivation_hook'] = array(
 add_action(
 	'plugins_loaded',
 	function () {
-		Starisian\SparxstarUEC\SparxstarUserEnvironmentCheck::spx_uec_get_instance()->spx_uec_init();
+		Starisian\SparxstarUEC\SparxstarUserEnvironmentCheck::spx_uec_get_instance();
 	}
 );

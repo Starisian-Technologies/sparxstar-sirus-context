@@ -76,14 +76,6 @@ class SparxstarUserEnvironmentCheck
 	 */
         private function __construct()
         {
-                // Intentionally left empty.
-        }
-
-        /**
-         * Initialize all runtime services and register primary hooks.
-         */
-        public function spx_uec_init(): void
-        {
                 try {
                         global $wpdb; // Access the global WordPress database object
 
@@ -111,6 +103,7 @@ class SparxstarUserEnvironmentCheck
                 $trace = debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS );
                 error_log( '[UEC INIT CALLED] ' . json_encode( array_column( $trace, 'function' ) ) );
         }
+
 
 	/**
 	 * Attach WordPress hooks owned by the bootstrapper.

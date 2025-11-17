@@ -254,10 +254,9 @@ final class StarUserEnv
 		return '0.0.0.0';
 	}
 
-	public static function get_current_user_session_id(){
-		SparxstarUECSessionManager::get_session_id();
-	}
-
+	public static function get_current_user_session_id(): ?string {
+    return SparxstarUECSessionManager::get_session_id();
+}
 	/**
 	 * Retrieves the entire raw snapshot for debugging or full-data use cases.
 	 */
