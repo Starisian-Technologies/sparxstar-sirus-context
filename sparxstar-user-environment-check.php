@@ -106,6 +106,14 @@ register_uninstall_hook( SPX_ENV_CHECK_PLUGIN_FILE, 'spx_uec_on_uninstall' );
 add_action(
 	'plugins_loaded',
 	function () {
+		// Additional guard to prevent multiple initializations
+		if ( did_action( 'sparxstar_uec_initialized' ) ) {
+			return;
+		}
+		
 		Starisian\SparxstarUEC\SparxstarUserEnvironmentCheck::spx_uec_get_instance();
-	}
+		
+		do_action( 'sparxstar_uec_initialized' );
+	},
+	10
 );

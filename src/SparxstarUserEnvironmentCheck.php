@@ -63,16 +63,17 @@ final class SparxstarUserEnvironmentCheck
 	/**
 	 * Retrieve the singleton instance and bootstrap the plugin.
 	 */
-       /**
-     * Retrieve the singleton instance and bootstrap the plugin.
-     */
-    public static function spx_uec_get_instance(): SparxstarUserEnvironmentCheck
-    {
-        if (self::$instance === null) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
+	public static function spx_uec_get_instance(): SparxstarUserEnvironmentCheck
+	{
+		if (self::$instance !== null) {
+			StarLogger::debug( 'SparxstarUserEnvironmentCheck', 'Returning existing singleton instance' );
+			return self::$instance;
+		}
+		
+		StarLogger::debug( 'SparxstarUserEnvironmentCheck', 'Creating new singleton instance' );
+		self::$instance = new self();
+		return self::$instance;
+	}
 
 	/**
 	 * Wire the plugin components together.
