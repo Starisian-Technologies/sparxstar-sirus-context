@@ -1,4 +1,8 @@
 <?php
+/**
+ * Repository for retrieving snapshots from the database.
+ * Version 2.0: Aligned with fingerprint-first identity architecture.
+ */
 declare(strict_types=1);
 
 namespace Starisian\SparxstarUEC\core;
@@ -7,50 +11,88 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-use Starisian\SparxstarUEC\includes\SparxstarUECSessionManager;
 use Starisian\SparxstarUEC\helpers\StarLogger;
-use Starisian\SparxstarUEC\StarUserEnv;
-
 
 final class SparxstarUECSnapshotRepository {
 
-	public static function get( ?int $user_id, ?string $session_id ): ?array {
+	/**
+	 * Retrieve the latest snapshot for a given stable device identity.
+	 *
+	 * @param string|null $fingerprint The device's stable fingerprint.
+	 * @param string|null $device_hash The device's stable hardware hash.
+	 * @return array|null The complete snapshot data or null if not found.
+	 */
+	public static function get( ?string $fingerprint, ?string $device_hash ): ?array {
+		// A valid fingerprint and device_hash are required to find a record.
+		if ( empty( $fingerprint ) || empty( $device_hash ) ) {
+			return null;
+		}
+
 		try {
 			global $wpdb;
 			$db = new SparxstarUECDatabase( $wpdb );
 
-			$ip_hash = hash( 'sha256', StarUserEnv::get_current_visitor_ip() );
-			$snapshot_row = $db->get_latest_snapshot( $ip_hash, $user_id, $session_id );
+			// Query the database using the new primary identity vectors.
+			$snapshot_row = $db->get_latest_snapshot( $fingerprint, $device_hash );
 
 			if ( ! $snapshot_row ) {
 				return null;
 			}
 
-			// Merge into a single array for the consumer (StarUserEnv)
-			return [
-				'server_side_data'  => $snapshot_row['server_side_data'] ?? [],
-				'client_side_data'  => $snapshot_row['client_side_data'] ?? [],
-				'client_hints_data' => $snapshot_row['client_hints_data'] ?? [],
-				'user_id'           => $snapshot_row['user_id'],
-				'session_id'        => $snapshot_row['session_id'],
-				'updated_at'        => $snapshot_row['updated_at'],
-			];
+			// The full payload is now in a single JSON column.
+			// Rehydrate the data into the format the application expects.
+			$data = $snapshot_row['snapshot_data'] ?? [];
+
+			// Overwrite with the authoritative root-level data from the DB row
+			// to ensure the returned data is always the absolute latest.
+			$data['user_id']        = $snapshot_row['user_id'];
+			$data['session_id']     = $snapshot_row['session_id'];
+			$data['fingerprint_id'] = $snapshot_row['fingerprint']; // Expose the stable IDs
+			$data['device_hash_id'] = $snapshot_row['device_hash'];
+			$data['created_at']     = $snapshot_row['created_at'];
+			$data['updated_at']     = $snapshot_row['updated_at'];
+
+			return $data;
+
 		} catch ( \Exception $e ) {
-			StarLogger::error( 'SparxstarUECSnapshotRepository', $e, array( 'method' => 'get', 'user_id' => $user_id, 'session_id' => $session_id ) );
+			StarLogger::error(
+				'SparxstarUECSnapshotRepository',
+				$e,
+				[
+					'method'      => 'get',
+					'fingerprint' => $fingerprint,
+					'device_hash' => $device_hash,
+				]
+			);
 			return null;
 		}
 	}
 
-	public static function flush( ?int $user_id, ?string $session_id ): void {
+	/**
+	 * Flush any cache layers for a specific device identity.
+	 * (Placeholder for future object caching).
+	 *
+	 * @param string|null $fingerprint
+	 * @param string|null $device_hash
+	 */
+	public static function flush( ?string $fingerprint, ?string $device_hash ): void {
 		try {
-			global $wpdb;
-			$db = new SparxstarUECDatabase( $wpdb );
-
-			$ip_hash = hash( 'sha256', StarUserEnv::get_current_visitor_ip() );
-
-			// For now, no cache layer is needed here — if you re-enable object cache, hook it here.
+			// This method's signature is updated for consistency with the new identity model.
+			// When object caching is implemented (e.g., using WP_Object_Cache), the cache
+			// key should be derived from the fingerprint and device_hash to invalidate the correct entry.
+			// Example:
+			// $cache_key = 'uec_snapshot_' . md5( $fingerprint . $device_hash );
+			// wp_cache_delete( $cache_key, 'sparxstar_uec' );
 		} catch ( \Exception $e ) {
-			StarLogger::error( 'SparxstarUECSnapshotRepository', $e, array( 'method' => 'flush', 'user_id' => $user_id, 'session_id' => $session_id ) );
+			StarLogger::error(
+				'SparxstarUECSnapshotRepository',
+				$e,
+				[
+					'method'      => 'flush',
+					'fingerprint' => $fingerprint,
+					'device_hash' => $device_hash,
+				]
+			);
 		}
 	}
 }

@@ -1,8 +1,7 @@
 /**
  * @file sparxstar-sync.js
- * @version 2.0.0
- * @description Resilient server communication for snapshots, preferring `sendBeacon`
- * with a `fetch` fallback (keepalive) for maximum reliability (Cloudflare-friendly).
+ * @version 2.1.0
+ * @description Resilient server communication for UEC snapshots (fingerprint + device hash + session).
  */
 (function (window) {
     'use strict';
@@ -20,26 +19,23 @@
         }
     };
 
-    function sendData(endpointUrl, payload) {
-        if (!endpointUrl || !nonce) {
-            log('Missing endpoint URL or nonce; snapshot not sent.', { endpointUrl, hasNonce: !!nonce });
-            return;
-        }
+    function send(endpointUrl, payload) {
+        if (!endpointUrl) return log('Missing endpoint URL.');
+        if (!nonce)       return log('Missing nonce.');
 
         const json = JSON.stringify(payload || {});
         const blob = new Blob([json], { type: 'application/json' });
 
-        // Prefer sendBeacon for "fire-and-forget" diagnostics.
+        // Prefer navigator.sendBeacon
         if (navigator.sendBeacon) {
             const ok = navigator.sendBeacon(endpointUrl, blob);
             if (ok) {
-                log('Snapshot sent via sendBeacon.', { endpointUrl });
+                log('Sent via sendBeacon.', { endpointUrl });
                 return;
             }
-            log('sendBeacon returned false, falling back to fetch.', { endpointUrl });
+            log('sendBeacon failed → falling back to fetch.');
         }
 
-        // Fallback: fetch with keepalive.
         fetch(endpointUrl, {
             method: 'POST',
             body: blob,
@@ -49,27 +45,63 @@
                 'X-WP-Nonce': nonce
             },
             keepalive: true
-        }).then(() => {
-            log('Snapshot sent via fetch.', { endpointUrl });
-        }).catch((e) => {
-            log('Fetch fallback failed.', e.message);
-        });
+        })
+            .then(() => log('Sent via fetch.', { endpointUrl }))
+            .catch(err => log('Fetch failed.', err.message));
     }
 
-    async function sendTechnicalSnapshot(technicalData) {
+    /**
+     * TECHNICAL SNAPSHOT PAYLOAD FORMAT
+     *
+     * {
+     *   fingerprint: "...",
+     *   device_hash: "...",
+     *   session_id: "...",
+     *   data: {
+     *      userAgent, screen, features, privacy, network, device, client, os, language, ...
+     *   }
+     * }
+     */
+    function sendTechnicalSnapshot(fingerprint, deviceHash, sessionId, technicalData) {
         if (!restUrls.technical) {
-            log('No technical endpoint configured.');
-            return;
+            return log('Technical endpoint missing.');
         }
-        sendData(restUrls.technical, { technical: technicalData });
+
+        const payload = {
+            fingerprint: fingerprint || '',
+            device_hash: deviceHash || '',
+            session_id: sessionId || '',
+            data: technicalData || {}
+        };
+
+        send(restUrls.technical, payload);
     }
 
-    async function sendIdentifyingSnapshot(identifiersData) {
+    /**
+     * IDENTIFYING SNAPSHOT PAYLOAD FORMAT
+     *
+     * {
+     *   fingerprint: "...",
+     *   device_hash: "...",
+     *   session_id: "...",
+     *   identifiers: {
+     *       cookie_id, local_id, timezone, battery, storage, etc...
+     *   }
+     * }
+     */
+    function sendIdentifyingSnapshot(fingerprint, deviceHash, sessionId, identifiersData) {
         if (!restUrls.identifiers) {
-            log('No identifiers endpoint configured.');
-            return;
+            return log('Identifiers endpoint missing.');
         }
-        sendData(restUrls.identifiers, { identifiers: identifiersData });
+
+        const payload = {
+            fingerprint: fingerprint || '',
+            device_hash: deviceHash || '',
+            session_id: sessionId || '',
+            identifiers: identifiersData || {}
+        };
+
+        send(restUrls.identifiers, payload);
     }
 
     window.SPARXSTAR.Sync = {

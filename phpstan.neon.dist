@@ -4,12 +4,9 @@ parameters:
 
   paths:
     - ./src
-   
 
-  autoload_files:
-    - ./vendor/autoload.php
-
-  baseline: phpstan-baseline.neon
+  bootstrapFiles:
+    - phpstan-bootstrap.php
 
   treatPhpDocTypesAsCertain: false
 
@@ -19,10 +16,10 @@ parameters:
     - node_modules/*
     - assets/*
 
-  checkMissingIterableValueType: false
-  checkGenericClassInNonGenericObjectType: false
-
   ignoreErrors:
     - '#Call to an undefined method (WP_|apply_filters|do_action|get_option|update_option|get_post).*#'
-    - '#Access to an undefined property (WP_|\\$post|\\$wpdb).*#'
+    - '#Access to an undefined property (WP_|\\\$post|\\\$wpdb).*#'
     - '#Function get_(option|post|term).* not found.#'
+
+includes:
+  - phpstan-baseline.neon

@@ -12,6 +12,8 @@ declare(strict_types=1);
 
 namespace Starisian\SparxstarUEC\cron;
 
+use Starisian\SparxstarUEC\helpers\StarLogger;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }

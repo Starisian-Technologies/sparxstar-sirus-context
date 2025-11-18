@@ -62,4 +62,17 @@
       <property name="text_domain" type="array">
         <element value="sparxstar"/>
       </property>
-    <
+    </properties>
+  </rule>
+
+  <!-- Exclude some overly strict rules for modern PHP -->
+  <rule ref="WordPress.Files.FileName">
+    <properties>
+      <property name="strict_class_file_names" value="false"/>
+    </properties>
+  </rule>
+
+  <!-- Allow short array syntax -->
+  <rule ref="Generic.Arrays.DisallowLongArraySyntax"/>
+
+</ruleset>

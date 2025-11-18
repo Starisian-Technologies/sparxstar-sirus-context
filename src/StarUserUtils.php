@@ -60,11 +60,38 @@ final class StarUserUtils {
 	private const SESSION_KEY = 'sparxstar_env_snapshot';
 
 	/**
+	 * Return the stable plugin fingerprint used by JS + DB.
+	 */
+	public static function getFingerprint(): string {
+		// Try to read the JS-generated fingerprint from request headers
+		$header = self::get_server_value( 'HTTP_X_SPX_FINGERPRINT' );
+		if ( $header !== '' ) {
+			return sanitize_text_field( $header );
+		}
+
+		// Fallback to legacy (IP-based) fingerprint
+		return hash( 'sha256', self::getClientIP() ?: 'unknown' );
+	}
+
+	/**
+	 * Return stable device hash used as second identity key.
+	 */
+	public static function getDeviceHash(): string {
+		$header = self::get_server_value( 'HTTP_X_SPX_DEVICE_HASH' );
+		if ( $header !== '' ) {
+			return sanitize_text_field( $header );
+		}
+
+		// Fallback for backward compatibility
+		return hash( 'sha1', self::getUserAgent() . ':' . self::getClientIP() );
+	}
+
+	/**
 	 * Retrieve the latest stored snapshot for a user/session.
 	 */
 	public static function get_snapshot( ?int $user_id = null, ?string $session_id = null ): ?array {
 		$resolved_user_id = $user_id ?? ( get_current_user_id() ?: null );
-		$fingerprint      = hash( 'sha256', self::getClientIP() ?: 'unknown' );
+		$fingerprint      = self::getFingerprint();
 
 		return SparxstarUECCacheHelper::get_snapshot(
 			$resolved_user_id,
@@ -78,7 +105,7 @@ final class StarUserUtils {
 	 */
 	public static function flush_cache( ?int $user_id = null, ?string $session_id = null ): void {
 		$resolved_user_id = $user_id ?? ( get_current_user_id() ?: null );
-		$fingerprint      = hash( 'sha256', self::getClientIP() ?: 'unknown' );
+		$fingerprint      = self::getFingerprint();
 
 		SparxstarUECCacheHelper::delete_snapshot(
 			$resolved_user_id,

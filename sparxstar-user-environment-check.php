@@ -47,7 +47,14 @@ if ( ! defined( 'SPX_ENV_CHECK_VERSION' ) ) {
  * Text domain identifier used for translations.
  */
 if ( ! defined( 'SPX_ENV_CHECK_TEXT_DOMAIN' ) ) {
-	define( 'SPX_ENV_CHECK_TEXT_DOMAIN', 'sparxstar-user-environment-check' );
+	define( 'SPX_ENV_CHECK_TEXT_DOMAIN', 'sparxstar_user_environment_check' );
+}
+
+/**
+ * Database table name for storing environment snapshots.
+ */
+if ( ! defined( 'SPX_ENV_CHECK_DB_TABLE_NAME' ) ) {
+	define( 'SPX_ENV_CHECK_DB_TABLE_NAME', 'Sparxstar_User_Environment' );
 }
 
 /**
