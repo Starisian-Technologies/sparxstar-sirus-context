@@ -25,7 +25,7 @@ use Starisian\SparxstarUEC\includes\SparxstarUECSessionManager;
 /**
  * Orchestrates plugin services and exposes shared dependencies.
  */
-class SparxstarUserEnvironmentCheck
+final class SparxstarUserEnvironmentCheck
 {
 
 
@@ -62,14 +62,16 @@ class SparxstarUserEnvironmentCheck
 	/**
 	 * Retrieve the singleton instance and bootstrap the plugin.
 	 */
-        public static function spx_uec_get_instance(): SparxstarUserEnvironmentCheck
-        {
-                if ( self::$instance === null ) {
-                        self::$instance = new self();
-                }
-
-		return self::$instance;
-	}
+       /**
+     * Retrieve the singleton instance and bootstrap the plugin.
+     */
+    public static function spx_uec_get_instance(): SparxstarUserEnvironmentCheck
+    {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
 
 	/**
 	 * Wire the plugin components together.
@@ -80,10 +82,10 @@ class SparxstarUserEnvironmentCheck
                         global $wpdb; // Access the global WordPress database object
 
                         // 1. Initialize the database handler
-			$this->database = new SparxstarUECDatabase( $wpdb );
-
-			// 2. Initialize the REST API controller (SparxstarUECRESTController)
-			// Pass the database handler as a dependency to its constructor.
+            			$this->database = new SparxstarUECDatabase( $wpdb );
+            
+            			// 2. Initialize the REST API controller (SparxstarUECRESTController)
+            			// Pass the database handler as a dependency to its constructor.
                         error_log( 'Instantiating SparxstarUECRESTController' );
                         $this->api = new SparxstarUECRESTController( $this->database );
                         error_log( 'Instantiating SparxstarUECSnapshotRepository' );
