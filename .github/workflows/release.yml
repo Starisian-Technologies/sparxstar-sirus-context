@@ -82,6 +82,15 @@ jobs:
       - name: Ensure .distignore exists
         run: test -f .distignore || { echo ".distignore is missing"; exit 1; }
 
+      # NEW STEP: Ensure vendor exists and is packaged
+      - name: Ensure vendor directory is preserved for ZIP
+        run: |
+          if [ ! -d "vendor" ]; then
+            echo "Vendor directory missing — Composer install did not create it."
+            exit 1
+          fi
+          echo "Vendor directory found."
+
       - name: Build plugin ZIP
         run: |
           SLUG="sparxstar-user-environment-check"
