@@ -85,26 +85,13 @@ class StarLogger
 
     protected static function getLogFilePath(): ?string {
         if (self::$log_file_path === null) {
-            if (!function_exists('wp_upload_dir')) {
-                return null;
+            // Use WordPress default debug.log location
+            if (defined('WP_CONTENT_DIR')) {
+                self::$log_file_path = WP_CONTENT_DIR . '/debug.log';
+            } else {
+                // Fallback if WP_CONTENT_DIR is not defined
+                self::$log_file_path = ABSPATH . 'wp-content/debug.log';
             }
-
-            $upload_dir_info = wp_upload_dir();
-            if (false === $upload_dir_info['basedir']) {
-                return null;
-            }
-
-            $log_dir = $upload_dir_info['basedir'] . '/star-logs';
-            if (!is_dir($log_dir)) {
-                if (!wp_mkdir_p($log_dir)) {
-                    error_log('StarLogger: Failed to create log directory: ' . $log_dir);
-                    return null;
-                }
-                file_put_contents($log_dir . '/.htaccess', 'Deny from all');
-                file_put_contents($log_dir . '/index.html', '');
-            }
-
-            self::$log_file_path = $log_dir . '/star-' . date('Y-m-d') . '.log';
         }
         return self::$log_file_path;
     }
@@ -114,18 +101,9 @@ class StarLogger
     }
 
     public static function clearOldLogs(int $days = 30): int {
-        $upload_dir_info = wp_upload_dir();
-        $log_dir = $upload_dir_info['basedir'] . '/star-logs';
-        if (!is_dir($log_dir)) return 0;
-
-        $deleted = 0;
-        foreach (glob($log_dir . '/star-*.log') as $file) {
-            if (filemtime($file) < strtotime("-{$days} days")) {
-                @unlink($file);
-                $deleted++;
-            }
-        }
-        return $deleted;
+        // Since we're now using the default debug.log, this method is not applicable
+        // The debug.log should be managed by WordPress or server log rotation
+        return 0;
     }
 
     /*==============================================================
