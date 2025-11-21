@@ -52,12 +52,14 @@ final class SparxstarUECAssetManager
      */
     public static function enqueue_frontend(): void
     {
-        $base_uri  = plugins_url('assets/js', dirname(__FILE__, 2));
-        $base_path = plugin_dir_path(dirname(__FILE__, 2)) . 'assets/js/';
-
         // Determine if we're in development mode
         $is_dev = (defined('WP_DEBUG') && WP_DEBUG)
             || (defined('WP_ENVIRONMENT_TYPE') && WP_ENVIRONMENT_TYPE === 'development');
+
+        // Dev mode uses src/js, prod mode uses assets/js
+        $js_dir = $is_dev ? 'src/js' : 'assets/js';
+        $base_uri  = plugins_url($js_dir, dirname(__FILE__, 2));
+        $base_path = plugin_dir_path(dirname(__FILE__, 2)) . $js_dir . '/';
 
         if ($is_dev) {
             self::enqueue_dev_mode($base_uri);
@@ -178,12 +180,23 @@ final class SparxstarUECAssetManager
      */
     private static function enqueue_frontend_styles(): void
     {
-        $base_uri  = plugins_url('assets/css', dirname(__FILE__, 2));
-        $base_path = plugin_dir_path(dirname(__FILE__, 2)) . 'assets/css/';
+        // Determine if we're in development mode
+        $is_dev = (defined('WP_DEBUG') && WP_DEBUG)
+            || (defined('WP_ENVIRONMENT_TYPE') && WP_ENVIRONMENT_TYPE === 'development');
 
-        $style_file = file_exists("{$base_path}sparxstar-user-environment-check.min.css")
-            ? 'sparxstar-user-environment-check.min.css'
-            : 'sparxstar-user-environment-check.css';
+        // Dev mode uses src/css, prod mode uses assets/css
+        $css_dir = $is_dev ? 'src/css' : 'assets/css';
+        $base_uri  = plugins_url($css_dir, dirname(__FILE__, 2));
+        $base_path = plugin_dir_path(dirname(__FILE__, 2)) . $css_dir . '/';
+
+        // In dev mode, use unminified file; in prod mode, prefer minified
+        if ($is_dev) {
+            $style_file = 'sparxstar-user-environment-check.css';
+        } else {
+            $style_file = file_exists("{$base_path}sparxstar-user-environment-check.min.css")
+                ? 'sparxstar-user-environment-check.min.css'
+                : 'sparxstar-user-environment-check.css';
+        }
 
         wp_enqueue_style(
             self::STYLE_HANDLE,
