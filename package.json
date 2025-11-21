@@ -12,15 +12,14 @@
     "format": "eslint src/js/ --fix && stylelint src/css/ --fix",
     "clean": "rm -rf assets",
     "validate": "node validate-build.cjs",
-
-"build:css": "postcss src/css/sparxstar-user-environment-check.css -o assets/css/sparxstar-user-environment-check.min.css",
-
+    "build:css": "postcss src/css/sparxstar-user-environment-check.css -o assets/css/sparxstar-user-environment-check.min.css",
     "build:js": "rollup -c roll-up.config.mjs",
     "build": "pnpm run validate && pnpm run clean && mkdir -p assets/js && pnpm run build:css && pnpm run build:js",
     "version:sync": "node sync-version.js"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^29.0.0",
+    "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^0.4.4",
     "cssnano": "^7.1.2",
@@ -42,6 +41,7 @@
     "overrides": {
       "rollup@>=4.0.0 <4.22.4": ">=4.22.4",
       "semver": ">=7.5.2",
-      "glob": ">=11.1.0"    }
+      "glob": ">=11.1.0"
+    }
   }
 }
