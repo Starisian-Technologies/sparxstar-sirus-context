@@ -63,12 +63,22 @@ if (! defined('SPX_ENV_CHECK_DB_TABLE_NAME')) {
 	define('SPX_ENV_CHECK_DB_TABLE_NAME', 'Sparxstar_User_Environment');
 }
 
+// --- Logger Configuration ---
+if (! defined('STARLOGGER_LOG_LEVEL')) {
+    define('STARLOGGER_LOG_LEVEL', 'debug');
+}
+if (! defined('STARLOGGER_LOG_FILE')) {
+    define('STARLOGGER_LOG_FILE', '');
+}
+
 /**
  * Whether to delete all plugin data on uninstall.
  */
 if (! defined('SPX_ENV_CHECK_DELETE_ON_UNINSTALL')) {
 	define('SPX_ENV_CHECK_DELETE_ON_UNINSTALL', false);
 }
+
+
 
 
 // =========================================================================
@@ -85,8 +95,23 @@ if (! file_exists($autoloader)) {
 		esc_html__('Plugin Activation Error', 'sparxstar_user_environment_check'),
 		array('back_link' => true)
 	);
+} else {
+	require_once $autoloader;
+
+	 // Bootstrap logger (registers shutdown handler for callback error detection)
+    \Starisian\SparxstarUEC\helpers\StarLogger::boot();
+
+    // APPLY CONFIGURED LOG LEVEL (this was missing)
+    if (defined('STARLOGGER_LOG_LEVEL')) {
+        \Starisian\SparxstarUEC\helpers\StarLogger::setMinLogLevel(STARLOGGER_LOG_LEVEL);
+    }
+
+    if (defined('STARLOGGER_LOG_FILE') && STARLOGGER_LOG_FILE !== '') {
+        \Starisian\SparxstarUEC\helpers\StarLogger::setLogFilePath(STARLOGGER_LOG_FILE);
+    }
+
+
 }
-require_once $autoloader;
 
 
 // =========================================================================

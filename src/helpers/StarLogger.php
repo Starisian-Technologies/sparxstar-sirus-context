@@ -7,7 +7,7 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Centralized, extensible error and debug logger for Star.
+ * Centralized, extensible error and debug logger for Starmus.
  * Retains full backward compatibility while adding:
  *  - JSON mode for structured logs
  *  - Correlation ID support
@@ -20,29 +20,77 @@ if (!defined('ABSPATH')) {
  */
 class StarLogger
 {
-    // --- Existing log level constants ---
-    public const DEBUG     = 100;
+    /**
+     * Debug log level - Detailed diagnostic information.
+     *
+     * @var int
+     */
+    public const DEBUG = 100;
 
-    public const INFO      = 200;
+    /**
+     * Info log level - Informational messages.
+     *
+     * @var int
+     */
+    public const INFO = 200;
 
-    public const NOTICE    = 250;
+    /**
+     * Notice log level - Normal but significant condition.
+     *
+     * @var int
+     */
+    public const NOTICE = 250;
 
-    public const WARNING   = 300;
+    /**
+     * Warning log level - Warning conditions.
+     *
+     * @var int
+     */
+    public const WARNING = 300;
 
-    public const ERROR     = 400;
+    /**
+     * Error log level - Error conditions.
+     *
+     * @var int
+     */
+    public const ERROR = 400;
 
-    public const CRITICAL  = 500;
+    /**
+     * Critical log level - Critical conditions.
+     *
+     * @var int
+     */
+    public const CRITICAL = 500;
 
-    public const ALERT     = 550;
+    /**
+     * Alert log level - Action must be taken immediately.
+     *
+     * @var int
+     */
+    public const ALERT = 550;
 
+    /**
+     * Emergency log level - System is unusable.
+     *
+     * @var int
+     */
     public const EMERGENCY = 600;
 
+    /**
+     * Path to the log file.
+     */
     protected static ?string $log_file_path = null;
 
-    protected static int $min_log_level     = self::INFO;
+    /**
+     * Minimum log level to record.
+     */
+    protected static int $min_log_level = self::INFO;
 
-    protected static bool $initialized      = false;
-
+    /**
+     * Mapping of level names to integer values.
+     *
+     * @var array<string, int>
+     */
     protected static array $levels = [
         'debug'     => self::DEBUG,
         'info'      => self::INFO,
@@ -54,37 +102,33 @@ class StarLogger
         'emergency' => self::EMERGENCY,
     ];
 
-    // --- New features ---
-    protected static bool $json_mode         = false;
+    /**
+     * Whether to output logs in JSON format.
+     */
+    protected static bool $json_mode = false;
 
+    /**
+     * Correlation ID for tracking related log entries.
+     */
     protected static ?string $correlation_id = null;
 
-    protected static array $timers           = [];
-
-    /*==============================================================
-     * INITIALIZATION
-     *=============================================================*/
-
-    protected static function init(): void
-    {
-        if (self::$initialized) {
-            return;
-        }
-
-        // Auto-adjust log level based on WordPress debug settings
-        $env_type = function_exists('wp_get_environment_type') ? wp_get_environment_type() : 'production';
-
-        if ((defined('WP_DEBUG') && WP_DEBUG) || $env_type !== 'production') {
-            self::$min_log_level = self::DEBUG;
-        }
-
-        self::$initialized = true;
-    }
+    /**
+     * Execution timers for performance tracking.
+     *
+     * @var array<string, float>
+     */
+    protected static array $timers = [];
 
     /*==============================================================
      * CONFIGURATION
      *=============================================================*/
-
+    /**
+     * Set the minimum log level to record.
+     *
+     * Only messages at or above this level will be logged.
+     *
+     * @param string $level_name Level name (debug, info, warning, error, etc.).
+     */
     public static function setMinLogLevel(string $level_name): void
     {
         $level_name = strtolower($level_name);
@@ -93,26 +137,51 @@ class StarLogger
         }
     }
 
+    /**
+     * Get the current minimum log level.
+     *
+     * @return int The minimum log level integer value.
+     */
     public static function getMinLogLevel(): int
     {
         return self::$min_log_level;
     }
 
+    /**
+     * Set custom log file path.
+     *
+     * @param string $path Absolute path to log file.
+     */
     public static function setLogFilePath(string $path): void
     {
         self::$log_file_path = $path;
     }
 
+    /**
+     * Enable or disable JSON output format.
+     *
+     * @param bool $enabled True to enable JSON mode, false for plain text.
+     */
     public static function enableJsonMode(bool $enabled = true): void
     {
         self::$json_mode = $enabled;
     }
 
+    /**
+     * Set correlation ID for tracking related log entries.
+     *
+     * @param string|null $id Custom ID or null to auto-generate UUID.
+     */
     public static function setCorrelationId(?string $id = null): void
     {
         self::$correlation_id = $id ?? wp_generate_uuid4();
     }
 
+    /**
+     * Get the current correlation ID.
+     *
+     * @return string|null Current correlation ID or null if not set.
+     */
     public static function getCorrelationId(): ?string
     {
         return self::$correlation_id;
@@ -122,57 +191,124 @@ class StarLogger
      * FILE HANDLING
      *=============================================================*/
 
+    /**
+     * Get or create the log file path.
+     *
+     * Creates log directory in WordPress uploads folder if it doesn't exist.
+     * Generates daily log files with format: starmus-YYYY-MM-DD.log
+     * Adds .htaccess and index.html for security.
+     *
+     * @return string|null Log file path or null on failure.
+     */
     protected static function getLogFilePath(): ?string
     {
         if (self::$log_file_path === null) {
-            // Use WordPress default debug.log location
-            if (defined('WP_CONTENT_DIR')) {
-                self::$log_file_path = WP_CONTENT_DIR . '/debug.log';
-            } else {
-                // Fallback if WP_CONTENT_DIR is not defined
-                self::$log_file_path = ABSPATH . 'wp-content/debug.log';
+            if (!function_exists('wp_upload_dir')) {
+                return null;
             }
+
+            $upload_dir_info = wp_upload_dir();
+            if (false === $upload_dir_info['basedir']) {
+                return null;
+            }
+
+            $log_dir = $upload_dir_info['basedir'] . '/starmus-logs';
+            if (!is_dir($log_dir)) {
+                if (!wp_mkdir_p($log_dir)) {
+                    error_log('StarLogger: Failed to create log directory: ' . $log_dir);
+                    return null;
+                }
+
+                file_put_contents($log_dir . '/.htaccess', 'Deny from all');
+                file_put_contents($log_dir . '/index.html', '');
+            }
+
+            self::$log_file_path = $log_dir . '/starmus-' . gmdate('Y-m-d') . '.log';
         }
 
         return self::$log_file_path;
     }
 
+    /**
+     * Get the current log file path.
+     *
+     * @return string|null Current log file path.
+     */
     public static function getCurrentLogFile(): ?string
     {
         return self::getLogFilePath();
     }
 
+    /**
+     * Delete log files older than specified days.
+     *
+     * @param int $days Number of days to keep logs (default 30).
+     * @return int Number of files deleted.
+     */
     public static function clearOldLogs(int $days = 30): int
     {
-        // Since we're now using the default debug.log, this method is not applicable
-        // The debug.log should be managed by WordPress or server log rotation
-        return 0;
+        $upload_dir_info = wp_upload_dir();
+        $log_dir = $upload_dir_info['basedir'] . '/starmus-logs';
+        if (!is_dir($log_dir)) {
+            return 0;
+        }
+
+        $deleted = 0;
+        foreach (glob($log_dir . '/starmus-*.log') as $file) {
+            if (filemtime($file) < strtotime(sprintf('-%d days', $days))) {
+                wp_delete_file($file);
+                $deleted++;
+            }
+        }
+
+        return $deleted;
     }
 
     /*==============================================================
      * CORE LOGGING
      *=============================================================*/
 
+    /**
+     * Convert level name to integer value.
+     *
+     * @param string $level_name Level name (case-insensitive).
+     * @return int Level integer value, defaults to ERROR if unknown.
+     */
     protected static function getLevelInt(string $level_name): int
     {
         return self::$levels[strtolower($level_name)] ?? self::ERROR;
     }
 
+    /**
+     * Convert level integer to name.
+     *
+     * @param int $level_int Level integer value.
+     * @return string Level name in uppercase, 'UNKNOWN' if not found.
+     */
     protected static function getLevelName(int $level_int): string
     {
         foreach (self::$levels as $name => $value) {
             if ($value === $level_int) {
-                return strtoupper((string) $name);
+                return strtoupper($name);
             }
         }
 
         return 'UNKNOWN';
     }
 
+    /**
+     * Sanitize log data to prevent PII exposure.
+     *
+     * Redacts sensitive fields like IP addresses, emails, tokens, etc.
+     * Recursively processes nested arrays.
+     *
+     * @param array<string, mixed> $data Data array to sanitize.
+     * @return array<string, mixed> Sanitized data array.
+     */
     protected static function sanitizeData(array $data): array
     {
         foreach ($data as $k => &$v) {
-            if (is_string($v) && preg_match('/(ip|email|user|token|auth|fingerprint)/i', (string) $k)) {
+            if (is_string($v) && preg_match('/(ip|email|user|token|auth|fingerprint)/i', $k)) {
                 $v = '[REDACTED]';
             } elseif (is_array($v)) {
                 $v = self::sanitizeData($v);
@@ -182,10 +318,21 @@ class StarLogger
         return $data;
     }
 
+    /**
+     * Main logging method with level filtering and formatting.
+     *
+     * Writes log entries to file with timestamp, level, context, and message.
+     * Supports both plain text and JSON formats.
+     * Triggers WordPress action hooks for external integrations.
+     * Automatically redacts PII from extra data.
+     *
+     * @param string               $context Context identifier (class/function name).
+     * @param string|\Throwable    $msg     Message string or Throwable exception.
+     * @param string               $level   Log level name (default 'error').
+     * @param array<string, mixed> $extra   Additional contextual data.
+     */
     public static function log(string $context, $msg, string $level = 'error', array $extra = []): void
     {
-        self::init();
-
         $current_level_int = self::getLevelInt($level);
         if ((!defined('WP_DEBUG_LOG') || !WP_DEBUG_LOG) && $current_level_int < self::ERROR) {
             return;
@@ -195,27 +342,27 @@ class StarLogger
             return;
         }
 
-        $log_file        = self::getLogFilePath();
-        $timestamp       = function_exists('current_time') ? current_time('mysql', true) : gmdate('Y-m-d H:i:s');
-        $level_name      = self::getLevelName($current_level_int);
+        $log_file = self::getLogFilePath();
+        $timestamp = function_exists('current_time') ? current_time('mysql', true) : gmdate('Y-m-d H:i:s');
+        $level_name = self::getLevelName($current_level_int);
         $message_content = self::formatMessageContent($msg);
-        $trace_content   = $msg instanceof \Throwable ? $msg->getTraceAsString() : '';
+        $trace_content = $msg instanceof \Throwable ? $msg->getTraceAsString() : '';
 
         $entry_data = [
-            'timestamp'      => $timestamp,
-            'level'          => $level_name,
-            'context'        => $context,
-            'message'        => $message_content,
-            'trace'          => $trace_content,
+            'timestamp' => $timestamp,
+            'level' => $level_name,
+            'context' => $context,
+            'message' => $message_content,
+            'trace' => $trace_content,
             'correlation_id' => self::$correlation_id,
-            'extra'          => self::sanitizeData($extra),
+            'extra' => self::sanitizeData($extra),
         ];
 
         // --- JSON mode ---
         if (self::$json_mode) {
             $log_entry = json_encode($entry_data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
         } else {
-            $prefix    = self::$correlation_id ? '[' . self::$correlation_id . '] ' : '';
+            $prefix = self::$correlation_id ? '[' . self::$correlation_id . '] ' : '';
             $log_entry = sprintf(
                 "%s[%s] %s: [%s] %s%s\n",
                 $prefix,
@@ -235,12 +382,21 @@ class StarLogger
         }
 
         // --- Hook for external observers or alerts ---
-        do_action('star_log_event', $level_name, $context, $msg, $extra);
+        do_action('starmus_log_event', $level_name, $context, $msg, $extra);
         if (in_array($level_name, ['ERROR', 'CRITICAL', 'ALERT', 'EMERGENCY'], true)) {
-            do_action('star_logger_alert', $level_name, $context, $msg, $extra);
+            do_action('starmus_logger_alert', $level_name, $context, $msg, $extra);
         }
     }
 
+    /**
+     * Format message content for logging.
+     *
+     * Extracts meaningful information from Throwable objects
+     * (class, message, file, line). Casts other types to string.
+     *
+     * @param mixed $msg Message to format.
+     * @return string Formatted message string.
+     */
     protected static function formatMessageContent($msg): string
     {
         if ($msg instanceof \Throwable) {
@@ -259,7 +415,11 @@ class StarLogger
     /*==============================================================
      * TIMER UTILITIES
      *=============================================================*/
-
+    /**
+     * Start a named execution timer.
+     *
+     * @param string $label Timer label/identifier.
+     */
     public static function timeStart(string $label): void
     {
         self::$timers[$label] = microtime(true);
@@ -300,6 +460,11 @@ class StarLogger
         self::log($context, $msg, 'warning', $extra);
     }
 
+    public static function warn(string $context, $msg, array $extra = []): void
+    {
+        self::log($context, $msg, 'warning', $extra);
+    }
+
     public static function error(string $context, $msg, array $extra = []): void
     {
         self::log($context, $msg, 'error', $extra);
@@ -320,34 +485,42 @@ class StarLogger
         self::log($context, $msg, 'emergency', $extra);
     }
 
-    // Add this to your wp-config.php or your theme's functions.php,
-    // or a custom plugin that you know is active early.
-    // THIS IS FOR DIAGNOSTIC PURPOSES ONLY. Remove after finding the error.
-
-    public function star_catch_callback_errors(): void
+    /*==============================================================
+     * DIAGNOSTIC UTILITIES
+     *=============================================================*/
+    /**
+     * Bootstrap logger and register shutdown handler.
+     *
+     * Call this method early in plugin bootstrap to enable
+     * callback error detection.
+     */
+    public static function boot(): void
     {
-        $error = error_get_last();
-        // E_ERROR includes E_USER_ERROR
-        // Check if the error message matches the one we're looking for
-        if ($error && $error['type'] === E_ERROR && str_contains($error['message'], 'call_user_func_array(): Argument #1 ($callback) must be a valid callback')) {
-            $log_message = sprintf(
-                "Callback Error Caught: Type: %d, Message: %s in %s on line %d\n",
-                $error['type'],
-                $error['message'],
-                $error['file'],
-                $error['line']
-            );
-            error_log($log_message);
-            // You can also try to get more context from the hook system if possible,
-            // but this is advanced and might require modifying WP core or using
-            // very specific hooks that run *before* the error.
-            // The call stack provided by WordPress is usually sufficient.
-        }
+        register_shutdown_function([self::class, 'catchCallbackErrors']);
     }
 
-    public function register_hooks(): void
+    /**
+     * Shutdown handler to catch fatal callback errors.
+     *
+     * Detects call_user_func_array() errors and logs them to debug.log.
+     * Registered automatically when boot() is called.
+     */
+    public static function catchCallbackErrors(): void
     {
-        register_shutdown_function(star_catch_callback_errors(...));
+        $error = error_get_last();
+        if (!$error) {
+            return;
+        }
 
+        if (str_contains($error['message'], 'call_user_func_array')) {
+            error_log(
+                sprintf(
+                    "Callback Error: %s in %s:%d",
+                    $error['message'],
+                    $error['file'],
+                    $error['line']
+                )
+            );
+        }
     }
 }

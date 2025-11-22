@@ -9,14 +9,35 @@
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import DeviceDetector from 'device-detector-js';
 
-// Expose vendor libraries globally for the IIFE modules
+// Expose fingerprint globally
 window.FingerprintJS = FingerprintJS;
 
-// Initialize DeviceDetector and expose it
+// Initialize SPARXSTAR namespace
 window.SPARXSTAR = window.SPARXSTAR || {};
-window.SPARXSTAR.DeviceDetector = DeviceDetector;
 
-// Now import all the IIFE modules (they will execute and attach to window.SPARXSTAR)
+// Wrap DeviceDetector with the getDeviceInfo() API expected by collectors
+class SparxstarDeviceDetector {
+    constructor() {
+        this.detector = new DeviceDetector();
+    }
+
+    getDeviceInfo() {
+        try {
+            const ua = navigator.userAgent || '';
+            return this.detector.parse(ua);
+        } catch (e) {
+            if (window.console && console.warn) {
+                console.warn('[SPARXSTAR DeviceDetector] parse() failed', e && e.message ? e.message : e);
+            }
+            return null;
+        }
+    }
+}
+
+// Expose a single shared instance
+window.SPARXSTAR.DeviceDetector = new SparxstarDeviceDetector();
+
+// Now import all the IIFE modules
 import './sparxstar-state.js';
 import './sparxstar-collector.js';
 import './sparxstar-profile.js';
