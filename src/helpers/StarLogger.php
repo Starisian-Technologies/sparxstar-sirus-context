@@ -1,4 +1,5 @@
 <?php
+
 namespace Starisian\SparxstarUEC\helpers;
 
 if (!defined('ABSPATH')) {
@@ -20,18 +21,27 @@ if (!defined('ABSPATH')) {
 class StarLogger
 {
     // --- Existing log level constants ---
-    public const DEBUG = 100;
-    public const INFO = 200;
-    public const NOTICE = 250;
-    public const WARNING = 300;
-    public const ERROR = 400;
-    public const CRITICAL = 500;
-    public const ALERT = 550;
+    public const DEBUG     = 100;
+
+    public const INFO      = 200;
+
+    public const NOTICE    = 250;
+
+    public const WARNING   = 300;
+
+    public const ERROR     = 400;
+
+    public const CRITICAL  = 500;
+
+    public const ALERT     = 550;
+
     public const EMERGENCY = 600;
 
     protected static ?string $log_file_path = null;
-    protected static int $min_log_level = self::INFO;
-    protected static bool $initialized = false;
+
+    protected static int $min_log_level     = self::INFO;
+
+    protected static bool $initialized      = false;
 
     protected static array $levels = [
         'debug'     => self::DEBUG,
@@ -45,22 +55,25 @@ class StarLogger
     ];
 
     // --- New features ---
-    protected static bool $json_mode = false;
+    protected static bool $json_mode         = false;
+
     protected static ?string $correlation_id = null;
-    protected static array $timers = [];
+
+    protected static array $timers           = [];
 
     /*==============================================================
      * INITIALIZATION
      *=============================================================*/
 
-    protected static function init(): void {
+    protected static function init(): void
+    {
         if (self::$initialized) {
             return;
         }
 
         // Auto-adjust log level based on WordPress debug settings
         $env_type = function_exists('wp_get_environment_type') ? wp_get_environment_type() : 'production';
-        
+
         if ((defined('WP_DEBUG') && WP_DEBUG) || $env_type !== 'production') {
             self::$min_log_level = self::DEBUG;
         }
@@ -72,30 +85,36 @@ class StarLogger
      * CONFIGURATION
      *=============================================================*/
 
-    public static function setMinLogLevel(string $level_name): void {
+    public static function setMinLogLevel(string $level_name): void
+    {
         $level_name = strtolower($level_name);
         if (isset(self::$levels[$level_name])) {
             self::$min_log_level = self::$levels[$level_name];
         }
     }
 
-    public static function getMinLogLevel(): int {
+    public static function getMinLogLevel(): int
+    {
         return self::$min_log_level;
     }
 
-    public static function setLogFilePath(string $path): void {
+    public static function setLogFilePath(string $path): void
+    {
         self::$log_file_path = $path;
     }
 
-    public static function enableJsonMode(bool $enabled = true): void {
+    public static function enableJsonMode(bool $enabled = true): void
+    {
         self::$json_mode = $enabled;
     }
 
-    public static function setCorrelationId(?string $id = null): void {
+    public static function setCorrelationId(?string $id = null): void
+    {
         self::$correlation_id = $id ?? wp_generate_uuid4();
     }
 
-    public static function getCorrelationId(): ?string {
+    public static function getCorrelationId(): ?string
+    {
         return self::$correlation_id;
     }
 
@@ -103,7 +122,8 @@ class StarLogger
      * FILE HANDLING
      *=============================================================*/
 
-    protected static function getLogFilePath(): ?string {
+    protected static function getLogFilePath(): ?string
+    {
         if (self::$log_file_path === null) {
             // Use WordPress default debug.log location
             if (defined('WP_CONTENT_DIR')) {
@@ -113,14 +133,17 @@ class StarLogger
                 self::$log_file_path = ABSPATH . 'wp-content/debug.log';
             }
         }
+
         return self::$log_file_path;
     }
 
-    public static function getCurrentLogFile(): ?string {
+    public static function getCurrentLogFile(): ?string
+    {
         return self::getLogFilePath();
     }
 
-    public static function clearOldLogs(int $days = 30): int {
+    public static function clearOldLogs(int $days = 30): int
+    {
         // Since we're now using the default debug.log, this method is not applicable
         // The debug.log should be managed by WordPress or server log rotation
         return 0;
@@ -130,64 +153,69 @@ class StarLogger
      * CORE LOGGING
      *=============================================================*/
 
-    protected static function getLevelInt(string $level_name): int {
+    protected static function getLevelInt(string $level_name): int
+    {
         return self::$levels[strtolower($level_name)] ?? self::ERROR;
     }
 
-    protected static function getLevelName(int $level_int): string {
+    protected static function getLevelName(int $level_int): string
+    {
         foreach (self::$levels as $name => $value) {
             if ($value === $level_int) {
-                return strtoupper($name);
+                return strtoupper((string) $name);
             }
         }
+
         return 'UNKNOWN';
     }
 
-    protected static function sanitizeData(array $data): array {
+    protected static function sanitizeData(array $data): array
+    {
         foreach ($data as $k => &$v) {
-            if (is_string($v) && preg_match('/(ip|email|user|token|auth|fingerprint)/i', $k)) {
+            if (is_string($v) && preg_match('/(ip|email|user|token|auth|fingerprint)/i', (string) $k)) {
                 $v = '[REDACTED]';
             } elseif (is_array($v)) {
                 $v = self::sanitizeData($v);
             }
         }
+
         return $data;
     }
 
-    public static function log(string $context, $msg, string $level = 'error', array $extra = []): void {
+    public static function log(string $context, $msg, string $level = 'error', array $extra = []): void
+    {
         self::init();
-        
+
         $current_level_int = self::getLevelInt($level);
-        if (!defined('WP_DEBUG_LOG') || !WP_DEBUG_LOG) {
-            if ($current_level_int < self::ERROR) {
-                return;
-            }
+        if ((!defined('WP_DEBUG_LOG') || !WP_DEBUG_LOG) && $current_level_int < self::ERROR) {
+            return;
         }
+
         if ($current_level_int < self::$min_log_level) {
             return;
         }
 
-        $log_file = self::getLogFilePath();
-        $timestamp = function_exists('current_time') ? current_time('mysql', true) : gmdate('Y-m-d H:i:s');
-        $level_name = self::getLevelName($current_level_int);
+        $log_file        = self::getLogFilePath();
+        $timestamp       = function_exists('current_time') ? current_time('mysql', true) : gmdate('Y-m-d H:i:s');
+        $level_name      = self::getLevelName($current_level_int);
         $message_content = self::formatMessageContent($msg);
-        $trace_content = $msg instanceof \Throwable ? $msg->getTraceAsString() : '';
+        $trace_content   = $msg instanceof \Throwable ? $msg->getTraceAsString() : '';
 
         $entry_data = [
-            'timestamp' => $timestamp,
-            'level' => $level_name,
-            'context' => $context,
-            'message' => $message_content,
-            'trace' => $trace_content,
+            'timestamp'      => $timestamp,
+            'level'          => $level_name,
+            'context'        => $context,
+            'message'        => $message_content,
+            'trace'          => $trace_content,
             'correlation_id' => self::$correlation_id,
-            'extra' => self::sanitizeData($extra),
+            'extra'          => self::sanitizeData($extra),
         ];
 
         // --- JSON mode ---
         if (self::$json_mode) {
             $log_entry = json_encode($entry_data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
         } else {
-            $prefix = self::$correlation_id ? '[' . self::$correlation_id . '] ' : '';
+            $prefix    = self::$correlation_id ? '[' . self::$correlation_id . '] ' : '';
             $log_entry = sprintf(
                 "%s[%s] %s: [%s] %s%s\n",
                 $prefix,
@@ -195,7 +223,7 @@ class StarLogger
                 $level_name,
                 $context,
                 $message_content,
-                $trace_content ? "\nStack trace:\n" . $trace_content : ''
+                $trace_content !== '' && $trace_content !== '0' ? "\nStack trace:\n" . $trace_content : ''
             );
         }
 
@@ -213,16 +241,18 @@ class StarLogger
         }
     }
 
-    protected static function formatMessageContent($msg): string {
+    protected static function formatMessageContent($msg): string
+    {
         if ($msg instanceof \Throwable) {
             return sprintf(
                 '%s: %s in %s:%d',
-                get_class($msg),
+                $msg::class,
                 $msg->getMessage(),
                 $msg->getFile(),
                 $msg->getLine()
             );
         }
+
         return (string) $msg;
     }
 
@@ -230,40 +260,76 @@ class StarLogger
      * TIMER UTILITIES
      *=============================================================*/
 
-    public static function timeStart(string $label): void {
+    public static function timeStart(string $label): void
+    {
         self::$timers[$label] = microtime(true);
     }
 
-    public static function timeEnd(string $label, string $context = 'Timer'): void {
-        if (!isset(self::$timers[$label])) return;
+    public static function timeEnd(string $label, string $context = 'Timer'): void
+    {
+        if (!isset(self::$timers[$label])) {
+            return;
+        }
+
         $duration = round((microtime(true) - self::$timers[$label]) * 1000, 2);
         unset(self::$timers[$label]);
-        self::debug($context, "$label completed in {$duration}ms");
+        self::debug($context, sprintf('%s completed in %sms', $label, $duration));
     }
 
     /*==============================================================
      * CONVENIENCE WRAPPERS (unchanged signatures)
      *=============================================================*/
 
-    public static function debug(string $context, $msg, array $extra = []): void { self::log($context, $msg, 'debug', $extra); }
-    public static function info(string $context, $msg, array $extra = []): void { self::log($context, $msg, 'info', $extra); }
-    public static function notice(string $context, $msg, array $extra = []): void { self::log($context, $msg, 'notice', $extra); }
-    public static function warning(string $context, $msg, array $extra = []): void { self::log($context, $msg, 'warning', $extra); }
-    public static function error(string $context, $msg, array $extra = []): void { self::log($context, $msg, 'error', $extra); }
-    public static function critical(string $context, $msg, array $extra = []): void { self::log($context, $msg, 'critical', $extra); }
-    public static function alert(string $context, $msg, array $extra = []): void { self::log($context, $msg, 'alert', $extra); }
-    public static function emergency(string $context, $msg, array $extra = []): void { self::log($context, $msg, 'emergency', $extra); }
+    public static function debug(string $context, $msg, array $extra = []): void
+    {
+        self::log($context, $msg, 'debug', $extra);
+    }
 
+    public static function info(string $context, $msg, array $extra = []): void
+    {
+        self::log($context, $msg, 'info', $extra);
+    }
+
+    public static function notice(string $context, $msg, array $extra = []): void
+    {
+        self::log($context, $msg, 'notice', $extra);
+    }
+
+    public static function warning(string $context, $msg, array $extra = []): void
+    {
+        self::log($context, $msg, 'warning', $extra);
+    }
+
+    public static function error(string $context, $msg, array $extra = []): void
+    {
+        self::log($context, $msg, 'error', $extra);
+    }
+
+    public static function critical(string $context, $msg, array $extra = []): void
+    {
+        self::log($context, $msg, 'critical', $extra);
+    }
+
+    public static function alert(string $context, $msg, array $extra = []): void
+    {
+        self::log($context, $msg, 'alert', $extra);
+    }
+
+    public static function emergency(string $context, $msg, array $extra = []): void
+    {
+        self::log($context, $msg, 'emergency', $extra);
+    }
 
     // Add this to your wp-config.php or your theme's functions.php,
-// or a custom plugin that you know is active early.
-// THIS IS FOR DIAGNOSTIC PURPOSES ONLY. Remove after finding the error.
+    // or a custom plugin that you know is active early.
+    // THIS IS FOR DIAGNOSTIC PURPOSES ONLY. Remove after finding the error.
 
-public function star_catch_callback_errors() {
-    $error = error_get_last();
-    if ( $error && $error['type'] === E_ERROR ) { // E_ERROR includes E_USER_ERROR
+    public function star_catch_callback_errors(): void
+    {
+        $error = error_get_last();
+        // E_ERROR includes E_USER_ERROR
         // Check if the error message matches the one we're looking for
-        if ( strpos( $error['message'], 'call_user_func_array(): Argument #1 ($callback) must be a valid callback' ) !== false ) {
+        if ($error && $error['type'] === E_ERROR && str_contains($error['message'], 'call_user_func_array(): Argument #1 ($callback) must be a valid callback')) {
             $log_message = sprintf(
                 "Callback Error Caught: Type: %d, Message: %s in %s on line %d\n",
                 $error['type'],
@@ -271,18 +337,17 @@ public function star_catch_callback_errors() {
                 $error['file'],
                 $error['line']
             );
-            error_log( $log_message );
-
+            error_log($log_message);
             // You can also try to get more context from the hook system if possible,
             // but this is advanced and might require modifying WP core or using
             // very specific hooks that run *before* the error.
             // The call stack provided by WordPress is usually sufficient.
         }
     }
-}
 
-public function register_hooks(): void{
-    register_shutdown_function( 'star_catch_callback_errors' );
+    public function register_hooks(): void
+    {
+        register_shutdown_function(star_catch_callback_errors(...));
 
-}
+    }
 }

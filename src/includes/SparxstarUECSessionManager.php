@@ -5,130 +5,134 @@ declare(strict_types=1);
 namespace Starisian\SparxstarUEC\includes;
 
 if (! defined('ABSPATH')) {
-	exit;
+    exit;
 }
 
-use Starisian\SparxstarUEC\core\SparxstarUECSnapshotRepository;
 use Starisian\SparxstarUEC\helpers\StarLogger;
 
 final class SparxstarUECSessionManager
 {
+    private const SESSION_NAMESPACE = 'sparxstar_uec_data';
 
-	private const SESSION_NAMESPACE = 'sparxstar_uec_data';
-	private const SESSION_USER_VARS = array();
 
-	public function __construct()
-	{
-		// empty
-	}
+    public function __construct()
+    {
+        // empty
+    }
 
-	/** Set multiple values in the session at once. */
-	public static function set_all(array $data): void
-	{
-		try {
-			if (empty($data)) {
-				return;
-			}
-			self::ensure_session();
-			foreach ($data as $key => $value) {
-				$_SESSION[self::SESSION_NAMESPACE][$key] = $value;
-			}
-		} catch (\Exception $e) {
-			StarLogger::error('SparxstarUECSessionManager', $e, array('method' => 'set_all'));
-		}
-	}
+    /** Set multiple values in the session at once. */
+    public static function set_all(array $data): void
+    {
+        try {
+            if ($data === []) {
+                return;
+            }
 
-	/** Get a single value from the session. */
-	public static function get(string $key, ?string $default = null): ?string
-	{
-		try {
-			self::ensure_session();
-			return $_SESSION[self::SESSION_NAMESPACE][$key] ?? $default;
-		} catch (\Exception $e) {
-			StarLogger::error('SparxstarUECSessionManager', $e, array('method' => 'get', 'key' => $key));
-			return $default;
-		}
-	}
+            self::ensure_session();
+            foreach ($data as $key => $value) {
+                $_SESSION[self::SESSION_NAMESPACE][$key] = $value;
+            }
+        } catch (\Exception $exception) {
+            StarLogger::error('SparxstarUECSessionManager', $exception, ['method' => 'set_all']);
+        }
+    }
 
-	private static function ensure_session(): void
-	{
-		try {
-			if (session_status() !== PHP_SESSION_ACTIVE && ! headers_sent()) {
-				session_start(
-					array(
-						'name'            => 'spxenv',
-						'cookie_httponly' => true,
-						'cookie_samesite' => 'Lax',
-					)
-				);
-			}
-			if (! isset($_SESSION[self::SESSION_NAMESPACE])) {
-				$_SESSION[self::SESSION_NAMESPACE] = array();
-			}
-		} catch (\Exception $e) {
-			StarLogger::error('SparxstarUECSessionManager', $e, array('method' => 'ensure_session'));
-		}
-	}
+    /** Get a single value from the session. */
+    public static function get(string $key, ?string $default = null): ?string
+    {
+        try {
+            self::ensure_session();
+            return $_SESSION[self::SESSION_NAMESPACE][$key] ?? $default;
+        } catch (\Exception $exception) {
+            StarLogger::error('SparxstarUECSessionManager', $exception, ['method' => 'get', 'key' => $key]);
+            return $default;
+        }
+    }
 
-	/**
-	 * Looks up a value for ANY USER/SESSION by querying the historical database record.
-	 */
-	public static function lookup(string $key, ?int $user_id, ?string $session_id, ?string $default = null): ?string
-	{
-		// SESSION_USER_VARS is currently empty - this is a stub for future functionality
-		// Early return since this feature is not yet implemented
-		return $default;
-	}
-	/**
-	 * Retrieve the active PHP session identifier when available.
-	 */
-	public static function get_session_id(): string
-	{
-		try {
-			self::ensure_session(); // Make sure the session is active before checking
-			return session_status() === PHP_SESSION_ACTIVE ? (string) session_id() : '';
-		} catch (\Exception $e) {
-			StarLogger::error('SparxstarUECSessionManager', $e, array('method' => 'get_session_id'));
-			return '';
-		}
-	}
+    private static function ensure_session(): void
+    {
+        try {
+            if (session_status() !== PHP_SESSION_ACTIVE && ! headers_sent()) {
+                session_start(
+                    [
+                        'name'            => 'spxenv',
+                        'cookie_httponly' => true,
+                        'cookie_samesite' => 'Lax',
+                    ]
+                );
+            }
 
-	/**
-	 * Clear the snapshot creation flag to allow re-generation.
-	 * Used when admin views settings but no snapshot exists.
-	 */
-	public static function clear_snapshot_flag(): void
-	{
-		try {
-			self::ensure_session();
-			unset($_SESSION[self::SESSION_NAMESPACE]['spx_snapshot_created']);
-			StarLogger::debug(
-				'SparxstarUECSessionManager',
-				'Snapshot creation flag cleared - next frontend visit will generate snapshot.'
-			);
-		} catch (\Exception $e) {
-			StarLogger::error('SparxstarUECSessionManager', $e, array('method' => 'clear_snapshot_flag'));
-		}
-	}
+            if (! isset($_SESSION[self::SESSION_NAMESPACE])) {
+                $_SESSION[self::SESSION_NAMESPACE] = [];
+            }
+        } catch (\Exception $exception) {
+            StarLogger::error('SparxstarUECSessionManager', $exception, ['method' => 'ensure_session']);
+        }
+    }
 
-	public static function get_value_from_array(array $array, string $path, ?string $default = null): ?string
-	{
-		try {
-			$keys = explode('.', $path);
-			foreach ($keys as $key) {
-				if (empty($array) || ! is_array($array) || ! array_key_exists($key, $array)) {
-					return $default;
-				}
-				$array = $array[$key];
-			}
-			// Only return scalar values as strings; otherwise return default.
-			if (is_scalar($array)) {
-				return (string) $array;
-			}
-			return $default;
-		} catch (\Exception $e) {
-			StarLogger::error('SparxstarUECSessionManager', $e, array('method' => 'get_value_from_array', 'path' => $path));
-			return $default;
-		}
-	}
+    /**
+     * Looks up a value for ANY USER/SESSION by querying the historical database record.
+     */
+    public static function lookup(string $key, ?int $user_id, ?string $session_id, ?string $default = null): ?string
+    {
+        // SESSION_USER_VARS is currently empty - this is a stub for future functionality
+        // Early return since this feature is not yet implemented
+        return $default;
+    }
+
+    /**
+     * Retrieve the active PHP session identifier when available.
+     */
+    public static function get_session_id(): string
+    {
+        try {
+            self::ensure_session(); // Make sure the session is active before checking
+            return session_status() === PHP_SESSION_ACTIVE ? (string) session_id() : '';
+        } catch (\Exception $exception) {
+            StarLogger::error('SparxstarUECSessionManager', $exception, ['method' => 'get_session_id']);
+            return '';
+        }
+    }
+
+    /**
+     * Clear the snapshot creation flag to allow re-generation.
+     * Used when admin views settings but no snapshot exists.
+     */
+    public static function clear_snapshot_flag(): void
+    {
+        try {
+            self::ensure_session();
+            unset($_SESSION[self::SESSION_NAMESPACE]['spx_snapshot_created']);
+            StarLogger::debug(
+                'SparxstarUECSessionManager',
+                'Snapshot creation flag cleared - next frontend visit will generate snapshot.'
+            );
+        } catch (\Exception $exception) {
+            StarLogger::error('SparxstarUECSessionManager', $exception, ['method' => 'clear_snapshot_flag']);
+        }
+    }
+
+    public static function get_value_from_array(array $array, string $path, ?string $default = null): ?string
+    {
+        try {
+            $keys = explode('.', $path);
+            foreach ($keys as $key) {
+                if (empty($array) || ! is_array($array) || ! array_key_exists($key, $array)) {
+                    return $default;
+                }
+
+                $array = $array[$key];
+            }
+
+            // Only return scalar values as strings; otherwise return default.
+            if (is_scalar($array)) {
+                return (string) $array;
+            }
+
+            return $default;
+        } catch (\Exception $exception) {
+            StarLogger::error('SparxstarUECSessionManager', $exception, ['method' => 'get_value_from_array', 'path' => $path]);
+            return $default;
+        }
+    }
 }

@@ -1,0 +1,24 @@
+{
+    "source": {
+        "include": [
+            "src/js"
+        ],
+        "includePattern": ".+\\.js$",
+        "excludePattern": "(node_modules/|vendor/|assets/)"
+    },
+    "opts": {
+        "encoding": "utf8",
+        "destination": "./docs/js",
+        "recurse": true,
+        "template": "default",
+        "readme": "none"
+    },
+    "plugins": [],
+    "tags": {
+        "allowUnknownTags": true,
+        "dictionaries": [
+            "jsdoc",
+            "closure"
+        ]
+    }
+}

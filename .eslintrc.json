@@ -2,16 +2,24 @@
   "root": true,
   "env": {
     "browser": true,
-    "es2021": true
+    "es2022": true
   },
-  "extends": ["eslint:recommended"],
+  "extends": [
+    "eslint:recommended",
+    "plugin:import/recommended",
+    "prettier"
+  ],
   "parserOptions": {
-    "ecmaVersion": 2021,
-    "sourceType": "script"
+    "ecmaVersion": 2022,
+    "sourceType": "module"
   },
   "globals": {
     "wp": "readonly",
-    "jQuery": "readonly"
+    "jQuery": "readonly",
+    "window": "readonly",
+    "document": "readonly",
+    "navigator": "readonly",
+    "console": "readonly"
   },
   "ignorePatterns": [
     "node_modules/",
@@ -22,7 +30,14 @@
   ],
   "rules": {
     "no-console": "off",
-    "no-unused-vars": ["warn", { "args": "none", "vars": "all" }],
-    "no-undef": "error"
+    "no-unused-vars": [
+      "warn",
+      {
+        "args": "none",
+        "vars": "all"
+      }
+    ],
+    "no-undef": "error",
+    "import/no-unresolved": "off"
   }
 }
