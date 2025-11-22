@@ -2,7 +2,7 @@
 
 /**
  * Repository for retrieving snapshots from the database.
- * Version 2.0: Aligned with fingerprint-first identity architecture.
+ * Version 2.1: Added Admin-specific retrieval methods.
  */
 declare(strict_types=1);
 
@@ -18,6 +18,7 @@ final class SparxstarUECSnapshotRepository
 {
     /**
      * Retrieve the latest snapshot for a given stable device identity.
+     * USE CASE: Frontend verification (Current User).
      *
      * @param string|null $fingerprint The device's stable fingerprint.
      * @param string|null $device_hash The device's stable hardware hash.
@@ -34,27 +35,13 @@ final class SparxstarUECSnapshotRepository
             global $wpdb;
             $db = new SparxstarUECDatabase($wpdb);
 
-            // Query the database using the new primary identity vectors.
             $snapshot_row = $db->get_latest_snapshot($fingerprint, $device_hash);
 
             if (! $snapshot_row) {
                 return null;
             }
 
-            // The full payload is now in a single JSON column.
-            // Rehydrate the data into the format the application expects.
-            $data = $snapshot_row['snapshot_data'] ?? [];
-
-            // Overwrite with the authoritative root-level data from the DB row
-            // to ensure the returned data is always the absolute latest.
-            $data['user_id']        = $snapshot_row['user_id'];
-            $data['session_id']     = $snapshot_row['session_id'];
-            $data['fingerprint_id'] = $snapshot_row['fingerprint']; // Expose the stable IDs
-            $data['device_hash_id'] = $snapshot_row['device_hash'];
-            $data['created_at']     = $snapshot_row['created_at'];
-            $data['updated_at']     = $snapshot_row['updated_at'];
-
-            return $data;
+            return self::hydrate($snapshot_row);
 
         } catch (\Exception $exception) {
             StarLogger::error(
@@ -71,16 +58,84 @@ final class SparxstarUECSnapshotRepository
     }
 
     /**
-     * Flush any cache layers for a specific device identity.
-     * (Placeholder for future object caching).
+     * Retrieve the latest snapshot by User ID.
+     * USE CASE: Admin Area Snapshot Viewer.
+     * 
+     * This bypasses the need for the Admin to have the User's fingerprint.
+     *
+     * @param int $user_id The WordPress User ID.
+     * @return array|null The complete snapshot data or null if not found.
      */
-    public static function flush(): void
+    public static function get_by_user_id(int $user_id): ?array
     {
-        // This method's signature is updated for consistency with the new identity model.
-        // When object caching is implemented (e.g., using WP_Object_Cache), the cache
-        // key should be derived from the fingerprint and device_hash to invalidate the correct entry.
-        // Example:
-        // $cache_key = 'uec_snapshot_' . md5( $fingerprint . $device_hash );
-        // wp_cache_delete( $cache_key, 'sparxstar_uec' );
+        if ($user_id <= 0) {
+            return null;
+        }
+
+        try {
+            global $wpdb;
+            // Ensure your Database class has a method to fetch by user_id
+            // or write raw SQL here if the method doesn't exist yet.
+            // Assuming standard table structure:
+            $table_name = $wpdb->prefix . 'sparxstar_uec_snapshots'; // Check your actual table name
+            
+            $query = $wpdb->prepare(
+                "SELECT * FROM $table_name WHERE user_id = %d ORDER BY created_at DESC LIMIT 1",
+                $user_id
+            );
+
+            $snapshot_row = $wpdb->get_row($query, ARRAY_A);
+
+            if (! $snapshot_row) {
+                return null;
+            }
+
+            return self::hydrate($snapshot_row);
+
+        } catch (\Exception $exception) {
+            StarLogger::error(
+                'SparxstarUECSnapshotRepository',
+                $exception,
+                ['method' => 'get_by_user_id', 'user_id' => $user_id]
+            );
+            return null;
+        }
+    }
+
+    /**
+     * Helper to rehydrate row data into the expected array format.
+     */
+    private static function hydrate(array $snapshot_row): array
+    {
+        // The full payload is now in a single JSON column.
+        $data = json_decode($snapshot_row['snapshot_data'] ?? '{}', true);
+        if (!is_array($data)) {
+            $data = [];
+        }
+
+        // Overwrite with authoritative root-level data
+        $data['user_id']        = $snapshot_row['user_id'];
+        $data['session_id']     = $snapshot_row['session_id'];
+        $data['fingerprint_id'] = $snapshot_row['fingerprint'];
+        $data['device_hash_id'] = $snapshot_row['device_hash'];
+        $data['created_at']     = $snapshot_row['created_at'];
+        $data['updated_at']     = $snapshot_row['updated_at'];
+
+        return $data;
+    }
+
+    /**
+     * Flush cache layers.
+     * Updated to accept arguments to prevent fatal errors if called with parameters.
+     *
+     * @param string|null $fingerprint Optional fingerprint to target flush.
+     * @param string|null $device_hash Optional hash to target flush.
+     */
+    public static function flush(?string $fingerprint = null, ?string $device_hash = null): void
+    {
+        if ($fingerprint && $device_hash && function_exists('wp_cache_delete')) {
+             $cache_key = 'uec_snapshot_' . md5($fingerprint . $device_hash);
+             wp_cache_delete($cache_key, 'sparxstar_uec');
+        }
     }
 }

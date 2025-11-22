@@ -2,6 +2,7 @@
 
 /**
  * SPARXSTAR User Environment Check - Admin Settings (Minimal, Stable)
+ * Version 2.2: Updated to fetch snapshots by User ID instead of Browser Session.
  */
 
 declare(strict_types=1);
@@ -13,6 +14,8 @@ if (! defined('ABSPATH')) {
 }
 
 use Starisian\SparxstarUEC\helpers\StarLogger;
+// Import the Repository so we can use the new User ID lookup
+use Starisian\SparxstarUEC\core\SparxstarUECSnapshotRepository; 
 
 final class SparxstarUECAdmin
 {
@@ -118,7 +121,7 @@ final class SparxstarUECAdmin
 
             add_settings_section(
                 'sparxstar_uec_snapshot_viewer_section',
-                esc_html__('Raw Snapshot Dump', 'sparxstar-user-environment-check'),
+                esc_html__('Latest User Snapshot', 'sparxstar-user-environment-check'),
                 $this->render_snapshot_viewer_section(...),
                 self::PAGE_SLUG
             );
@@ -135,17 +138,17 @@ final class SparxstarUECAdmin
 
         ob_start();
         ?>
-		<div class="wrap">
-			<h1><?php esc_html_e('SPARXSTAR User Environment Check Settings', 'sparxstar-user-environment-check'); ?></h1>
-			<form action="options.php" method="post">
-				<?php
-                        settings_fields('sparxstar_uec_options_group');
-        do_settings_sections(self::PAGE_SLUG);
-        submit_button(esc_html__('Save Settings', 'sparxstar-user-environment-check'));
-        ?>
-			</form>
-		</div>
-	<?php
+        <div class="wrap">
+            <h1><?php esc_html_e('SPARXSTAR User Environment Check Settings', 'sparxstar-user-environment-check'); ?></h1>
+            <form action="options.php" method="post">
+                <?php
+                settings_fields('sparxstar_uec_options_group');
+                do_settings_sections(self::PAGE_SLUG);
+                submit_button(esc_html__('Save Settings', 'sparxstar-user-environment-check'));
+                ?>
+            </form>
+        </div>
+        <?php
         echo ob_get_clean();
     }
 
@@ -154,13 +157,13 @@ final class SparxstarUECAdmin
     {
         $provider = get_option(self::OPTION_KEY_PROVIDER, 'none');
         ?>
-		<select name="<?php echo esc_attr(self::OPTION_KEY_PROVIDER); ?>">
-			<option value="none" <?php selected($provider, 'none'); ?>><?php esc_html_e('None (Disabled)', 'sparxstar-user-environment-check'); ?></option>
-			<option value="ipinfo" <?php selected($provider, 'ipinfo'); ?>><?php esc_html_e('ipinfo.io (API)', 'sparxstar-user-environment-check'); ?></option>
-			<option value="maxmind" <?php selected($provider, 'maxmind'); ?>><?php esc_html_e('MaxMind GeoIP2 (Local Database)', 'sparxstar-user-environment-check'); ?></option>
-		</select>
-		<p class="description"><?php esc_html_e('Select your preferred GeoIP lookup provider.', 'sparxstar-user-environment-check'); ?></p>
-<?php
+        <select name="<?php echo esc_attr(self::OPTION_KEY_PROVIDER); ?>">
+            <option value="none" <?php selected($provider, 'none'); ?>><?php esc_html_e('None (Disabled)', 'sparxstar-user-environment-check'); ?></option>
+            <option value="ipinfo" <?php selected($provider, 'ipinfo'); ?>><?php esc_html_e('ipinfo.io (API)', 'sparxstar-user-environment-check'); ?></option>
+            <option value="maxmind" <?php selected($provider, 'maxmind'); ?>><?php esc_html_e('MaxMind GeoIP2 (Local Database)', 'sparxstar-user-environment-check'); ?></option>
+        </select>
+        <p class="description"><?php esc_html_e('Select your preferred GeoIP lookup provider.', 'sparxstar-user-environment-check'); ?></p>
+        <?php
     }
 
     /** ipinfo.io API key input */
@@ -189,37 +192,30 @@ final class SparxstarUECAdmin
         echo '<p class="description">' . esc_html__('Required only if using MaxMind provider. Absolute path to GeoLite2-City.mmdb or GeoIP2-City.mmdb file.', 'sparxstar-user-environment-check') . '</p>';
     }
 
-    /** Raw snapshot dump (for debugging) */
+    /** 
+     * Raw snapshot dump (for debugging)
+     * UPDATED: Now fetches by User ID to fix "Admin First" bug.
+     */
     public function render_snapshot_viewer_section(): void
     {
         try {
-            // Fetch snapshot using v2.0 identity model (fingerprint + device_hash)
-            // Pass null for both user_id and session_id to use current visitor's identity
-            $snapshot = \Starisian\SparxstarUEC\StarUserUtils::get_full_snapshot();
+            // FIX: Fetch by User ID instead of Browser Fingerprint.
+            // The admin area doesn't have the fingerprint, but we know the User ID.
+            $user_id = get_current_user_id();
+            $snapshot = SparxstarUECSnapshotRepository::get_by_user_id($user_id);
 
             if ($snapshot === null || $snapshot === []) {
-                try {
-                    $fingerprint = \Starisian\SparxstarUEC\StarUserUtils::getFingerprint();
-                    $device_hash = \Starisian\SparxstarUEC\StarUserUtils::getDeviceHash();
-
-                    echo '<div class="notice notice-info inline">';
-                    echo '<p><strong>' . esc_html__('No snapshot available for the current browser.', 'sparxstar-user-environment-check') . '</strong></p>';
-                    echo '<p>' . esc_html__("Visit your website's front-end to trigger a snapshot, then return here to view it.", 'sparxstar-user-environment-check') . '</p>';
-                    echo '<p>' . esc_html__('Identity: Fingerprint = ', 'sparxstar-user-environment-check') . '<code>' . esc_html($fingerprint) . '</code>, ';
-                    echo esc_html__('Device Hash = ', 'sparxstar-user-environment-check') . '<code>' . esc_html($device_hash) . '</code></p>';
-                    echo '</div>';
-                } catch (\Throwable $identity_error) {
-                    StarLogger::error('SparxstarUECAdmin', $identity_error, ['method' => 'render_snapshot_viewer_section', 'context' => 'identity_resolution']);
-                    echo '<div class="notice notice-warning inline">';
-                    echo '<p><strong>' . esc_html__('No snapshot available.', 'sparxstar-user-environment-check') . '</strong></p>';
-                    echo '<p>' . esc_html__('Error retrieving identity information: ', 'sparxstar-user-environment-check') . esc_html($identity_error->getMessage()) . '</p>';
-                    echo '</div>';
-                }
+                // If no snapshot exists for this user ID, it means they haven't visited the frontend yet.
+                echo '<div class="notice notice-info inline">';
+                echo '<p><strong>' . esc_html__('No snapshot found for your User ID.', 'sparxstar-user-environment-check') . '</strong></p>';
+                echo '<p>' . esc_html__("Please visit the website's front-end once to generate a snapshot.", 'sparxstar-user-environment-check') . '</p>';
+                echo '<p><em>' . esc_html__('Once you visit the front-end, the system will record your device profile, and it will appear here.', 'sparxstar-user-environment-check') . '</em></p>';
+                echo '</div>';
                 return;
             }
 
             try {
-                echo '<div class="notice notice-success inline"><p><strong>' . esc_html__('Snapshot found for current browser:', 'sparxstar-user-environment-check') . '</strong></p></div>';
+                echo '<div class="notice notice-success inline"><p><strong>' . esc_html__('Latest snapshot for your User Account:', 'sparxstar-user-environment-check') . '</strong></p></div>';
                 echo '<pre style="background:#f1f1f1; padding:10px; max-height:400px; overflow:auto; border:1px solid #ddd; border-radius:4px;">';
                 echo esc_html(print_r($snapshot, true));
                 echo '</pre>';
