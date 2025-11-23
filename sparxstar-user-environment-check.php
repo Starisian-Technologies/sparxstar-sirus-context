@@ -98,18 +98,10 @@ if (! file_exists($autoloader)) {
 } else {
 	require_once $autoloader;
 
-	 // Bootstrap logger (registers shutdown handler for callback error detection)
-    \Starisian\SparxstarUEC\helpers\StarLogger::boot();
-
     // APPLY CONFIGURED LOG LEVEL (this was missing)
     if (defined('STARLOGGER_LOG_LEVEL')) {
         \Starisian\SparxstarUEC\helpers\StarLogger::setMinLogLevel(STARLOGGER_LOG_LEVEL);
     }
-
-    if (defined('STARLOGGER_LOG_FILE') && STARLOGGER_LOG_FILE !== '') {
-        \Starisian\SparxstarUEC\helpers\StarLogger::setLogFilePath(STARLOGGER_LOG_FILE);
-    }
-
 
 }
 

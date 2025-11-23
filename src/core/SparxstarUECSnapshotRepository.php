@@ -80,7 +80,7 @@ final class SparxstarUECSnapshotRepository
             $table_name = $wpdb->prefix . 'sparxstar_uec_snapshots'; // Check your actual table name
             
             $query = $wpdb->prepare(
-                "SELECT * FROM $table_name WHERE user_id = %d ORDER BY created_at DESC LIMIT 1",
+                sprintf('SELECT * FROM %s WHERE user_id = %%d ORDER BY created_at DESC LIMIT 1', $table_name),
                 $user_id
             );
 
