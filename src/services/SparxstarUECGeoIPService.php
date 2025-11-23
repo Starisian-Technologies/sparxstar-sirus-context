@@ -61,12 +61,7 @@ final class SparxstarUECGeoIPService
 
             return $location_data;
         } catch (\Throwable $throwable) {
-            StarLogger::log('SparxstarUECGeoIPService', 'error', $throwable->getMessage(), [
-                'method' => 'lookup',
-                'ip_address' => $ip_address,
-                'exception' => $throwable::class,
-                'trace' => $throwable->getTraceAsString()
-            ]);
+            StarLogger::log('SparxstarUECGeoIPService', $throwable);
             return null;
         }
     }
@@ -112,12 +107,7 @@ final class SparxstarUECGeoIPService
                 'timezone'    => sanitize_text_field($data['timezone'] ?? ''),
             ];
         } catch (\Throwable $throwable) {
-            StarLogger::log('SparxstarUECGeoIPService', 'error', $throwable->getMessage(), [
-                'method' => 'lookup_ipinfo',
-                'ip_address' => $ip_address,
-                'exception' => $throwable::class,
-                'trace' => $throwable->getTraceAsString()
-            ]);
+            StarLogger::log('SparxstarUECGeoIPService', $throwable);
             return null;
         }
     }
@@ -168,12 +158,7 @@ final class SparxstarUECGeoIPService
                 return null;
             }
 
-            StarLogger::log('SparxstarUECGeoIPService', 'error', $throwable->getMessage(), [
-                'method' => 'lookup_maxmind',
-                'ip_address' => $ip_address,
-                'exception' => $throwable::class,
-                'trace' => $throwable->getTraceAsString()
-            ]);
+            StarLogger::log('SparxstarUECGeoIPService', $throwable);
             return null;
         }
     }

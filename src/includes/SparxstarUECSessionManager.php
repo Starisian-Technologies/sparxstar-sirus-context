@@ -33,11 +33,7 @@ final class SparxstarUECSessionManager
                 $_SESSION[self::SESSION_NAMESPACE][$key] = $value;
             }
         } catch (\Throwable $throwable) {
-            StarLogger::log('SparxstarUECSessionManager', 'error', $throwable->getMessage(), [
-                'method' => 'set_all',
-                'exception' => $throwable::class,
-                'trace' => $throwable->getTraceAsString()
-            ]);
+            StarLogger::log('SparxstarUECSessionManager', $throwable);
         }
     }
 
@@ -48,12 +44,7 @@ final class SparxstarUECSessionManager
             self::ensure_session();
             return $_SESSION[self::SESSION_NAMESPACE][$key] ?? $default;
         } catch (\Throwable $throwable) {
-            StarLogger::log('SparxstarUECSessionManager', 'error', $throwable->getMessage(), [
-                'method' => 'get',
-                'key' => $key,
-                'exception' => $throwable::class,
-                'trace' => $throwable->getTraceAsString()
-            ]);
+            StarLogger::log('SparxstarUECSessionManager', $throwable);
             return $default;
         }
     }
@@ -75,11 +66,7 @@ final class SparxstarUECSessionManager
                 $_SESSION[self::SESSION_NAMESPACE] = [];
             }
         } catch (\Throwable $throwable) {
-            StarLogger::log('SparxstarUECSessionManager', 'error', $throwable->getMessage(), [
-                'method' => 'ensure_session',
-                'exception' => $throwable::class,
-                'trace' => $throwable->getTraceAsString()
-            ]);
+            StarLogger::log('SparxstarUECSessionManager', $throwable);
         }
     }
 
@@ -102,11 +89,7 @@ final class SparxstarUECSessionManager
             self::ensure_session(); // Make sure the session is active before checking
             return session_status() === PHP_SESSION_ACTIVE ? (string) session_id() : '';
         } catch (\Throwable $throwable) {
-            StarLogger::log('SparxstarUECSessionManager', 'error', $throwable->getMessage(), [
-                'method' => 'get_session_id',
-                'exception' => $throwable::class,
-                'trace' => $throwable->getTraceAsString()
-            ]);
+            StarLogger::log('SparxstarUECSessionManager', $throwable);
             return '';
         }
     }
@@ -122,11 +105,7 @@ final class SparxstarUECSessionManager
             unset($_SESSION[self::SESSION_NAMESPACE]['spx_snapshot_created']);
             StarLogger::log('SparxstarUECSessionManager', 'debug', 'Snapshot creation flag cleared - next frontend visit will generate snapshot.');
         } catch (\Throwable $throwable) {
-            StarLogger::log('SparxstarUECSessionManager', 'error', $throwable->getMessage(), [
-                'method' => 'clear_snapshot_flag',
-                'exception' => $throwable::class,
-                'trace' => $throwable->getTraceAsString()
-            ]);
+            StarLogger::log('SparxstarUECSessionManager', $throwable);
         }
     }
 
@@ -149,12 +128,7 @@ final class SparxstarUECSessionManager
 
             return $default;
         } catch (\Throwable $throwable) {
-            StarLogger::log('SparxstarUECSessionManager', 'error', $throwable->getMessage(), [
-                'method' => 'get_value_from_array',
-                'path' => $path,
-                'exception' => $throwable::class,
-                'trace' => $throwable->getTraceAsString()
-            ]);
+            StarLogger::log('SparxstarUECSessionManager', $throwable);
             return $default;
         }
     }

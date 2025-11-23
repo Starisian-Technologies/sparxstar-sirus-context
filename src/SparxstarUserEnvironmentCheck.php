@@ -214,7 +214,7 @@ final class SparxstarUserEnvironmentCheck
      * @since 0.1.0
      * @throws LogicException If someone tries to clone the object.
      */
-    public function __clone()
+    public function __clone(): void
     {
         throw new LogicException('Cloning of ' . esc_html(self::class) . ' is not allowed.');
     }
@@ -225,7 +225,7 @@ final class SparxstarUserEnvironmentCheck
      * @since 0.1.0
      * @throws LogicException If someone tries to unserialize the object.
      */
-    public function __wakeup()
+    public function __wakeup(): void
     {
         throw new LogicException('Unserializing of ' . esc_html(self::class) . ' is not allowed.');
     }

@@ -44,13 +44,7 @@ final class SparxstarUECSnapshotRepository
 
             return self::hydrate($snapshot_row);
         } catch (\Throwable $throwable) {
-            StarLogger::log('SparxstarUECSnapshotRepository', 'error', $throwable->getMessage(), [
-                'method' => 'get',
-                'fingerprint' => $fingerprint,
-                'device_hash' => $device_hash,
-                'exception' => $throwable::class,
-                'trace' => $throwable->getTraceAsString()
-            ]);
+            StarLogger::log('SparxstarUECSnapshotRepository', $throwable);
             return null;
         }
     }
@@ -90,12 +84,7 @@ final class SparxstarUECSnapshotRepository
 
             return self::hydrate($snapshot_row);
         } catch (\Throwable $throwable) {
-            StarLogger::log('SparxstarUECSnapshotRepository', 'error', $throwable->getMessage(), [
-                'method' => 'get_by_user_id',
-                'user_id' => $user_id,
-                'exception' => $throwable::class,
-                'trace' => $throwable->getTraceAsString()
-            ]);
+            StarLogger::log('SparxstarUECSnapshotRepository', $throwable);
             return null;
         }
     }

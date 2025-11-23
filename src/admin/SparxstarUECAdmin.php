@@ -45,11 +45,7 @@ final class SparxstarUECAdmin
                 $this->render_settings_page(...)
             );
         } catch (\Throwable $throwable) {
-            StarLogger::log('SparxstarUECAdmin', 'error', $throwable->getMessage(), [
-                'method' => 'add_admin_menu',
-                'exception' => $throwable::class,
-                'trace' => $throwable->getTraceAsString()
-            ]);
+            StarLogger::log('SparxstarUECAdmin', $throwable);
         }
     }
 
@@ -130,11 +126,7 @@ final class SparxstarUECAdmin
                 self::PAGE_SLUG
             );
         } catch (\Throwable $throwable) {
-            StarLogger::log('SparxstarUECAdmin', 'error', $throwable->getMessage(), [
-                'method' => 'register_settings',
-                'exception' => $throwable::class,
-                'trace' => $throwable->getTraceAsString()
-            ]);
+            StarLogger::log('SparxstarUECAdmin', $throwable);
         }
     }
 
