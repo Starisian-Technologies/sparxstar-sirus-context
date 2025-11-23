@@ -10,19 +10,11 @@ if (!defined('ABSPATH')) {
 
 /**
  * Modern asset loader for Sparxstar User Environment Check plugin.
- *
- * Features:
- * - Always loads bundled/minified production assets
- * - Vendor scripts (FingerprintJS, DeviceDetector) are bundled via Rollup
- * - Run `pnpm run build` after updating vendor dependencies
- * - Admin Mode: Optional panel scripts for settings UI
- *
- * @version 4.0.0
+ * Version 4.0.1: Fixed REST API namespace and JS localization keys.
  */
 final class SparxstarUECAssetManager
 {
-    private const VERSION     = '4.0.0';
-
+    private const VERSION     = '4.0.1';
     private const TEXT_DOMAIN = 'sparxstar-user-environment-check';
 
     // --- Bootstrap Handle ---
@@ -30,7 +22,6 @@ final class SparxstarUECAssetManager
 
     // --- Style Handles ---
     private const STYLE_HANDLE       = 'sparxstar-user-environment-check-styles';
-
     private const ADMIN_STYLE_HANDLE = 'sparxstar-uec-admin';
 
     public static function init(): void
@@ -41,7 +32,6 @@ final class SparxstarUECAssetManager
 
     /**
      * Load frontend scripts - always uses production bundle.
-     * Vendor dependencies are bundled via Rollup build process.
      */
     public static function enqueue_frontend(): void
     {
@@ -50,23 +40,28 @@ final class SparxstarUECAssetManager
         $bundle      = 'sparxstar-user-environment-check-app.bundle.min.js';
         $bundle_path = $base_path . $bundle;
 
+        // 1. Enqueue the Bundle
         wp_enqueue_script(
             self::HANDLE_BOOTSTRAP,
             sprintf('%s/%s', $base_uri, $bundle),
-            [],
+            [], // No external dependencies (they are bundled)
             file_exists($bundle_path) ? filemtime($bundle_path) : self::VERSION,
-            true
+            true // Load in footer
         );
 
-        // Localize configuration data for the bootstrap script
-        wp_localize_script(self::HANDLE_BOOTSTRAP, 'sparxstarUserEnvData', self::get_localization_data());
+        // 2. Attach Data (FIXED: Keys now match JS expectations)
+        wp_localize_script(
+            self::HANDLE_BOOTSTRAP, 
+            'sparxstarUserEnvData', 
+            self::get_localization_data()
+        );
 
-        // Enqueue frontend stylesheet
+        // 3. Enqueue Styles
         self::enqueue_frontend_styles();
     }
 
     /**
-     * Enqueue frontend stylesheet - always uses production minified CSS.
+     * Enqueue frontend stylesheet.
      */
     private static function enqueue_frontend_styles(): void
     {
@@ -89,14 +84,11 @@ final class SparxstarUECAssetManager
 
     /**
      * Admin screen loader.
-     * - Lightweight, NO heavy collectors
-     * - Provides UI consistency in UEC settings page
      */
     public static function enqueue_admin(): void
     {
         $screen = get_current_screen();
 
-        // Only load on our plugin's admin pages
         if (!$screen || !str_contains((string) $screen->id, 'sparxstar')) {
             return;
         }
@@ -104,7 +96,6 @@ final class SparxstarUECAssetManager
         $base_uri  = plugins_url('assets', dirname(__FILE__, 2));
         $base_path = plugin_dir_path(dirname(__FILE__, 2)) . 'assets/';
 
-        // Admin stylesheet
         $admin_css = file_exists($base_path . 'css/sparxstar-user-environment-check-admin.css')
             ? 'css/sparxstar-user-environment-check-admin.css'
             : 'css/sparxstar-user-environment-check.css';
@@ -118,7 +109,6 @@ final class SparxstarUECAssetManager
                 : self::VERSION
         );
 
-        // Admin script (if exists)
         if (file_exists($base_path . 'js/sparxstar-admin.js')) {
             wp_enqueue_script(
                 self::ADMIN_STYLE_HANDLE,
@@ -131,16 +121,20 @@ final class SparxstarUECAssetManager
     }
 
     /**
-     * Gathers all necessary server-side data to be passed to client-side scripts.
+     * Gathers all necessary server-side data.
+     * FIXED: Matches JS keys and Controller Namespace.
      *
      * @return array The data to be localized.
      */
     private static function get_localization_data(): array
     {
         return [
-            'rest' => [
-                'technical'   => esc_url_raw(rest_url('star-sparxstar-user-environment-check/v1/log')),
-                'identifiers' => esc_url_raw(rest_url('star-sparxstar-user-environment-check/v1/identity')),
+            // FIX 1: Key changed from 'rest' to 'rest_urls' to match JS
+            'rest_urls' => [
+                // FIX 2: Namespace changed to 'star-uec/v1' to match Controller
+                // FIX 3: Both point to '/log' as that is the unified endpoint
+                'technical'   => esc_url_raw(rest_url('star-uec/v1/log')),
+                'identifiers' => esc_url_raw(rest_url('star-uec/v1/log')),
             ],
             'nonce'      => wp_create_nonce('wp_rest'),
             'debug'      => defined('WP_DEBUG') && WP_DEBUG,
