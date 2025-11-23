@@ -6,54 +6,66 @@
 
 ## Description
 
-Centralized, extensible error and debug logger for Star.
-Retains full backward compatibility while adding:
- - JSON mode for structured logs
- - Correlation ID support
- - Execution timers
- - PII masking for safe logs
- - Alert hooks for external integrations
- - Log rotation & maintenance helpers
-@version 0.8.5
+Centralized logger for SPARXSTAR UEC.
+Version 1.0.0: Standardized. Writes strictly to wp-content/debug.log via error_log().
 
-## Methods
+## Properties
 
-### `init()`
+### `$min_log_level`
 
-Centralized, extensible error and debug logger for Star.
-Retains full backward compatibility while adding:
- - JSON mode for structured logs
- - Correlation ID support
- - Execution timers
- - PII masking for safe logs
- - Alert hooks for external integrations
- - Log rotation & maintenance helpers
-@version 0.8.5
+Centralized logger for SPARXSTAR UEC.
+Version 1.0.0: Standardized. Writes strictly to wp-content/debug.log via error_log().
 /
 class StarLogger
 {
-    // --- Existing log level constants ---
-    public const DEBUG     = 100;
+    public const DEBUG = 100;
 
-    public const INFO      = 200;
+    public const INFO = 200;
 
-    public const NOTICE    = 250;
+    public const NOTICE = 250;
 
-    public const WARNING   = 300;
+    public const WARNING = 300;
 
-    public const ERROR     = 400;
+    public const ERROR = 400;
 
-    public const CRITICAL  = 500;
+    public const CRITICAL = 500;
 
-    public const ALERT     = 550;
+    public const ALERT = 550;
 
     public const EMERGENCY = 600;
 
-    protected static ?string $log_file_path = null;
+    /**
+Minimum log level to record.
 
-    protected static int $min_log_level     = self::INFO;
+## Methods
 
-    protected static bool $initialized      = false;
+### `setMinLogLevel(string $level_name)`
+
+Centralized logger for SPARXSTAR UEC.
+Version 1.0.0: Standardized. Writes strictly to wp-content/debug.log via error_log().
+/
+class StarLogger
+{
+    public const DEBUG = 100;
+
+    public const INFO = 200;
+
+    public const NOTICE = 250;
+
+    public const WARNING = 300;
+
+    public const ERROR = 400;
+
+    public const CRITICAL = 500;
+
+    public const ALERT = 550;
+
+    public const EMERGENCY = 600;
+
+    /**
+Minimum log level to record.
+/
+    protected static int $min_log_level = self::INFO;
 
     protected static array $levels = [
         'debug'     => self::DEBUG,
@@ -66,14 +78,23 @@ class StarLogger
         'emergency' => self::EMERGENCY,
     ];
 
-    // --- New features ---
-    protected static bool $json_mode         = false;
+    protected static bool $json_mode = false;
 
     protected static ?string $correlation_id = null;
 
-    protected static array $timers           = [];
+    protected static array $timers = [];
 
     /*==============================================================
-INITIALIZATION
+CONFIGURATION
 =============================================================
+
+### `setLogFilePath(string $path)`
+
+Legacy method kept for backward compatibility.
+Does nothing as we now rely on standard WP debug.log.
+
+### `log(string $context, $msg, string $level = 'error', array $extra = [])`
+
+Main logging method.
+Writes directly to PHP error_log (standard WP debug.log).
 

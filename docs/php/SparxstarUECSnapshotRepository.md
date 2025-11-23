@@ -9,7 +9,7 @@
 ### `get(?string $fingerprint, ?string $device_hash)`
 
 Repository for retrieving snapshots from the database.
-Version 2.0: Aligned with fingerprint-first identity architecture.
+Version 2.1: Added Admin-specific retrieval methods.
 /
 declare(strict_types=1);
 
@@ -25,12 +25,28 @@ final class SparxstarUECSnapshotRepository
 {
     /**
 Retrieve the latest snapshot for a given stable device identity.
+USE CASE: Frontend verification (Current User).
 @param string|null $fingerprint The device's stable fingerprint.
 @param string|null $device_hash The device's stable hardware hash.
 @return array|null The complete snapshot data or null if not found.
 
-### `flush()`
+### `get_by_user_id(int $user_id)`
 
-Flush any cache layers for a specific device identity.
-(Placeholder for future object caching).
+Retrieve the latest snapshot by User ID.
+USE CASE: Admin Area Snapshot Viewer.
+
+This bypasses the need for the Admin to have the User's fingerprint.
+@param int $user_id The WordPress User ID.
+@return array|null The complete snapshot data or null if not found.
+
+### `hydrate(array $snapshot_row)`
+
+Helper to rehydrate row data into the expected array format.
+
+### `flush(?string $fingerprint = null, ?string $device_hash = null)`
+
+Flush cache layers.
+Updated to accept arguments to prevent fatal errors if called with parameters.
+@param string|null $fingerprint Optional fingerprint to target flush.
+@param string|null $device_hash Optional hash to target flush.
 

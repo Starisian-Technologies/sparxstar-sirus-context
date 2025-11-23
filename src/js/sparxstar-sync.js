@@ -1,7 +1,10 @@
 /**
  * @file sparxstar-sync.js
- * @version 2.1.0
- * @description Resilient server communication for UEC snapshots (fingerprint + device hash + session).
+ * @version 2.2.0
+ * @description Resilient server communication.
+ * FIXES:
+ * 1. Authenticated requests (credentials: 'same-origin') for Admin View.
+ * 2. Payload structure aligned with PHP Controller v2.1 (nested client_side_data).
  */
 (function (window) {
     'use strict';
@@ -24,82 +27,86 @@
         if (!nonce)       return log('Missing nonce.');
 
         const json = JSON.stringify(payload || {});
-        const blob = new Blob([json], { type: 'application/json' });
-
-        // Prefer navigator.sendBeacon
-        if (navigator.sendBeacon) {
-            const ok = navigator.sendBeacon(endpointUrl, blob);
-            if (ok) {
-                log('Sent via sendBeacon.', { endpointUrl });
-                return;
-            }
-            log('sendBeacon failed → falling back to fetch.');
-        }
 
         fetch(endpointUrl, {
             method: 'POST',
-            body: blob,
-            credentials: 'same-origin',
+            // -------------------------------------------------------
+            // 1. AUTHENTICATION FIX (Admin View)
+            // -------------------------------------------------------
+            credentials: 'same-origin', 
+            
             headers: {
                 'Content-Type': 'application/json',
                 'X-WP-Nonce': nonce
             },
+            body: json,
             keepalive: true
         })
-            .then(() => log('Sent via fetch.', { endpointUrl }))
-            .catch(err => log('Fetch failed.', err.message));
+            .then(response => {
+                if (!response.ok) {
+                    console.error('[SPARXSTAR Sync] Server Error:', response.status, response.statusText);
+                }
+                return response.json();
+            })
+            .then(data => {
+                log('Sent successfully.', { endpointUrl, serverResponse: data });
+            })
+            .catch(err => {
+                console.error('[SPARXSTAR Sync] Fetch failed:', err);
+                log('Fetch failed.', err.message);
+            });
     }
 
     /**
-     * TECHNICAL SNAPSHOT PAYLOAD FORMAT
-     *
-     * {
-     *   fingerprint: "...",
-     *   device_hash: "...",
-     *   session_id: "...",
-     *   data: {
-     *      userAgent, screen, features, privacy, network, device, client, os, language, ...
-     *   }
-     * }
+     * Formats the payload to match the PHP Controller v2.1 structure.
+     * PHP expects: $payload['client_side_data']['identifiers']...
      */
+    function wrapForController(fingerprint, deviceHash, sessionId, customData) {
+        return {
+            client_side_data: {
+                identifiers: {
+                    fingerprint: fingerprint || '',
+                    session_id: sessionId || '',
+                    // Note: Device Hash is recalculated by PHP v2.1 using Client Hints,
+                    // but we send it here for completeness/legacy support.
+                    device_hash: deviceHash || ''
+                },
+                // Merge the specific technical/identity data into the main object
+                ...customData
+            }
+        };
+    }
+
     function sendTechnicalSnapshot(fingerprint, deviceHash, sessionId, technicalData) {
         if (!restUrls.technical) {
             return log('Technical endpoint missing.');
         }
 
-        const payload = {
-            fingerprint: fingerprint || '',
-            device_hash: deviceHash || '',
-            session_id: sessionId || '',
-            data: technicalData || {}
-        };
+        // -------------------------------------------------------
+        // 2. STRUCTURE FIX (PHP Compatibility)
+        // Wrap data in 'client_side_data' so PHP finds it.
+        // -------------------------------------------------------
+        const payload = wrapForController(
+            fingerprint, 
+            deviceHash, 
+            sessionId, 
+            { technical: technicalData || {} }
+        );
 
         send(restUrls.technical, payload);
     }
 
-    /**
-     * IDENTIFYING SNAPSHOT PAYLOAD FORMAT
-     *
-     * {
-     *   fingerprint: "...",
-     *   device_hash: "...",
-     *   session_id: "...",
-     *   identifiers: {
-     *       cookie_id, local_id, timezone, battery, storage, etc...
-     *   }
-     * }
-     */
     function sendIdentifyingSnapshot(fingerprint, deviceHash, sessionId, identifiersData) {
         if (!restUrls.identifiers) {
             return log('Identifiers endpoint missing.');
         }
 
-        const payload = {
-            fingerprint: fingerprint || '',
-            device_hash: deviceHash || '',
-            session_id: sessionId || '',
-            identifiers: identifiersData || {}
-        };
+        const payload = wrapForController(
+            fingerprint, 
+            deviceHash, 
+            sessionId, 
+            { identifiers_extra: identifiersData || {} }
+        );
 
         send(restUrls.identifiers, payload);
     }

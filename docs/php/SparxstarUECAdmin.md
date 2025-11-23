@@ -9,6 +9,7 @@
 ### `add_admin_menu()`
 
 SPARXSTAR User Environment Check - Admin Settings (Minimal, Stable)
+Version 2.2: Updated to fetch snapshots by User ID instead of Browser Session.
 /
 
 declare(strict_types=1);
@@ -20,6 +21,8 @@ if (! defined('ABSPATH')) {
 }
 
 use Starisian\SparxstarUEC\helpers\StarLogger;
+// Import the Repository so we can use the new User ID lookup
+use Starisian\SparxstarUEC\core\SparxstarUECSnapshotRepository; 
 
 final class SparxstarUECAdmin
 {
@@ -62,6 +65,7 @@ MaxMind database path input
 ### `render_snapshot_viewer_section()`
 
 Raw snapshot dump (for debugging)
+UPDATED: Now fetches by User ID to fix "Admin First" bug.
 
 ### `admin_notices()`
 

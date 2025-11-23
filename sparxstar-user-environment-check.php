@@ -160,7 +160,7 @@ add_action(
 		} catch (\Throwable $e) {
 			// Log critical bootstrap error
 			if (class_exists('\Starisian\SparxstarUEC\helpers\StarLogger')) {
-				\Starisian\SparxstarUEC\helpers\StarLogger::error(
+				\Starisian\SparxstarUEC\helpers\StarLogger::log(
 					'Bootstrap',
 					$e,
 					array(

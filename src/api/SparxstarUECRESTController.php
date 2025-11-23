@@ -2,7 +2,7 @@
 
 /**
  * REST controller for handling environment diagnostics.
- * Version 2.0: Aligned with fingerprint-first identity architecture.
+ * Version 2.1: Added deep logging to debug User ID mismatches.
  */
 
 declare(strict_types=1);
@@ -15,6 +15,7 @@ use WP_REST_Response;
 use Starisian\SparxstarUEC\StarUserUtils;
 use Starisian\SparxstarUEC\core\SparxstarUECDatabase;
 use Starisian\SparxstarUEC\services\SparxstarUECGeoIPService;
+use Starisian\SparxstarUEC\helpers\StarLogger; // Import Logger
 
 if (! defined('ABSPATH')) {
     exit;
@@ -44,29 +45,37 @@ final readonly class SparxstarUECRESTController
 
     /**
      * Handle the incoming snapshot payload.
-     * This method is now stateless and relies on the mapper to prepare data
-     * for an "upsert" operation (update or insert) in the database.
      */
     public function handle_log_request(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
         $payload = $request->get_json_params();
         if (! is_array($payload) || $payload === []) {
+            StarLogger::warning('REST', 'Received empty or invalid JSON payload.');
             return new WP_Error('invalid_data', 'Invalid JSON payload.', ['status' => 400]);
         }
 
-        // 1. Enrich the payload with server-side data.
+        // 1. Identify the User
+        $user_id = get_current_user_id(); // Returns 0 if guest, ID if logged in
+        
+        // DEBUG: Log exactly who the server thinks this is
+        StarLogger::info('REST', 'Processing snapshot. Detected User ID: ' . $user_id, [
+            'fingerprint' => $payload['client_side_data']['identifiers']['fingerprint'] ?? 'unknown'
+        ]);
+
+        // 2. Enrich the payload with server-side data.
         $client_ip                    = StarUserUtils::get_current_visitor_ip();
         $payload['server_side_data']  = $this->collect_server_side_data($client_ip);
         $payload['client_hints_data'] = $this->collect_client_hints();
-        $payload['user_id']           = get_current_user_id() ?: null;
+        $payload['user_id']           = $user_id;
 
-        // 2. Normalize the raw payload into the final database structure.
+        // 3. Normalize the raw payload into the final database structure.
         $normalized_data = $this->map_and_normalize_snapshot($payload);
 
-        // 3. Store the data using the new "upsert" logic.
+        // 4. Store the data
         $result = $this->database->store_snapshot($normalized_data);
 
         if (is_wp_error($result)) {
+            StarLogger::error('REST', 'Failed to store snapshot', ['error' => $result->get_error_message()]);
             return $result;
         }
 
@@ -75,6 +84,7 @@ final readonly class SparxstarUECRESTController
                 'status' => 'ok',
                 'action' => $result['status'], // 'inserted' or 'updated'
                 'id'     => $result['id'],
+                'user_detected' => $user_id // Send this back to console for debugging
             ],
             200
         );
@@ -82,7 +92,6 @@ final readonly class SparxstarUECRESTController
 
     /**
      * Transform the raw incoming payload into the canonical database schema.
-     * This is the critical link between the REST endpoint and the database layer.
      */
     private function map_and_normalize_snapshot(array $payload): array
     {
@@ -103,23 +112,23 @@ final readonly class SparxstarUECRESTController
         ]);
         $device_hash = hash('sha256', $h_payload);
 
-        // Return the final, structured data ready for the database.
         return [
             'fingerprint' => $fingerprint,
             'session_id'  => $session_id,
             'device_hash' => $device_hash,
-            'user_id'     => $payload['user_id'],
-            'data'        => $payload, // The complete, raw snapshot for the JSON column
-            'updated_at'  => gmdate('Y-m-d H:i:s'),    // UTC normalized timestamp
+            'user_id'     => (int) $payload['user_id'],
+            'data'        => $payload,
+            'updated_at'  => gmdate('Y-m-d H:i:s'),
         ];
     }
 
-    // --- No changes needed for the helper methods below ---
+    // --- Helper Methods ---
 
     public function check_permissions(WP_REST_Request $request): bool|WP_Error
     {
         $nonce = $request->get_header('X-WP-Nonce');
         if (! $nonce || ! wp_verify_nonce($nonce, 'wp_rest')) {
+            StarLogger::warning('REST', 'Permission check failed: Invalid Nonce.');
             return new WP_Error('invalid_nonce', 'Invalid security token.', ['status' => 403]);
         }
 
@@ -131,7 +140,6 @@ final readonly class SparxstarUECRESTController
         $geoip_service = new SparxstarUECGeoIPService();
         $geo_data      = $geoip_service->lookup($client_ip);
 
-        // Structure geolocation as individual JSON nodes for easier querying
         $geolocation = [];
         if (is_array($geo_data) && $geo_data !== []) {
             $geolocation = [

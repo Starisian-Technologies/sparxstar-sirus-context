@@ -19,6 +19,7 @@ if (! defined('ABSPATH')) {
 }
 
 use Exception;
+use Throwable;
 use LogicException;
 use Starisian\SparxstarUEC\helpers\StarLogger;
 use Starisian\SparxstarUEC\admin\SparxstarUECAdmin;
@@ -49,6 +50,7 @@ if (! defined('ABSPATH')) {
 }
 
 use Exception;
+use Throwable;
 use LogicException;
 use Starisian\SparxstarUEC\helpers\StarLogger;
 use Starisian\SparxstarUEC\admin\SparxstarUECAdmin;
@@ -88,6 +90,7 @@ if (! defined('ABSPATH')) {
 }
 
 use Exception;
+use Throwable;
 use LogicException;
 use Starisian\SparxstarUEC\helpers\StarLogger;
 use Starisian\SparxstarUEC\admin\SparxstarUECAdmin;

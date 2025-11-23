@@ -15,6 +15,7 @@ if (! defined('ABSPATH')) {
 }
 
 use Exception;
+use Throwable;
 use LogicException;
 use Starisian\SparxstarUEC\helpers\StarLogger;
 use Starisian\SparxstarUEC\admin\SparxstarUECAdmin;
@@ -54,16 +55,16 @@ final class SparxstarUserEnvironmentCheck
             StarLogger::debug('SparxstarUserEnvironmentCheck', 'Creating new singleton instance');
             self::$instance = new self();
             return self::$instance;
-        } catch (Exception $exception) {
-            StarLogger::error(
+        } catch (Throwable $throwable) {
+            StarLogger::log(
                 'SparxstarUserEnvironmentCheck',
-                $exception,
+                $throwable,
                 [
                     'method'  => 'spx_uec_get_instance',
                     'context' => 'singleton_initialization',
                 ]
             );
-            throw $exception; // Re-throw to allow bootstrap to handle
+            throw $throwable; // Re-throw to allow bootstrap to handle
         }
     }
 
@@ -84,8 +85,8 @@ final class SparxstarUserEnvironmentCheck
 
             StarLogger::info('SparxstarUserEnvironmentCheck', 'Kernel initialized services successfully.');
             $this->register_hooks();
-        } catch (Exception $exception) {
-            StarLogger::error('SparxstarUserEnvironmentCheck', $exception, ['method' => '__construct']);
+        } catch (Throwable $throwable) {
+            StarLogger::log('SparxstarUserEnvironmentCheck', $throwable, ['method' => '__construct']);
             return;
         }
     }
@@ -112,10 +113,10 @@ final class SparxstarUserEnvironmentCheck
             }
 
             StarLogger::debug('SparxstarUserEnvironmentCheck', 'Hooks registered successfully.');
-        } catch (Exception $exception) {
-            StarLogger::error(
+        } catch (Throwable $throwable) {
+            StarLogger::log(
                 'SparxstarUserEnvironmentCheck',
-                $exception,
+                $throwable,
                 [
                     'method'  => 'register_hooks',
                     'context' => 'hook_registration',
@@ -143,10 +144,10 @@ final class SparxstarUserEnvironmentCheck
                     'Textdomain not loaded - translation files may be missing.'
                 );
             }
-        } catch (Exception $exception) {
-            StarLogger::error(
+        } catch (Throwable $throwable) {
+            StarLogger::log(
                 'SparxstarUserEnvironmentCheck',
-                $exception,
+                $throwable,
                 [
                     'method'  => 'load_textdomain',
                     'context' => 'translation_loading',
@@ -183,10 +184,10 @@ final class SparxstarUserEnvironmentCheck
                     . 'Sec-CH-UA-Full-Version, Sec-CH-UA-Platform-Version, Sec-CH-UA-Bitness',
                 false
             );
-        } catch (Exception $exception) {
-            StarLogger::error(
+        } catch (Throwable $throwable) {
+            StarLogger::log(
                 'SparxstarUserEnvironmentCheck',
-                $exception,
+                $throwable,
                 [
                     'method'  => 'add_client_hints_header',
                     'context' => 'header_injection',

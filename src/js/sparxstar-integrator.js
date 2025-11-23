@@ -1,9 +1,9 @@
 /**
  * @file sparxstar-integrator.js
- * @version 3.0.0
- * @description Hardened master orchestrator for the Sparxstar User Environment Check plugin.
- * Runs the technical pipeline (always), the statistics-gated identifiers pipeline,
- * and dispatches the final environment-ready event.
+ * @version 3.1.0
+ * @description Hardened master orchestrator.
+ * UPDATED: Aligned Sync calls with sparxstar-sync.js v2.2 signature
+ * (fingerprint, deviceHash, sessionId, data) to ensure correct JSON formatting.
  */
 (function (window, document) {
     'use strict';
@@ -55,7 +55,7 @@
 
         log('Initialization started.');
 
-        // 0. Optional UI bootstrap (banner, debug panel, etc.).
+        // 0. Optional UI bootstrap
         try {
             if (UI && typeof UI.init === 'function') {
                 UI.init(State);
@@ -65,7 +65,7 @@
             log('UI.init failed', e && e.message ? e.message : e);
         }
 
-        // 1. Compatibility notification (non-blocking, UX only).
+        // 1. Compatibility notification
         if (!isCompatibleBrowser()) {
             log('Compatibility check failed; dispatching upgrade event.');
             try {
@@ -74,21 +74,21 @@
                     composed: true
                 }));
             } catch (e) {
-                log('Failed to dispatch compatibility event', e && e.message ? e.message : e);
+                log('Failed to dispatch compatibility event', e);
             }
         }
 
-        // 2. TECHNICAL PIPELINE (always)
+        // 2. TECHNICAL PIPELINE (always runs)
         log('Collecting technical data...');
         let rawTechnicalData;
         try {
             rawTechnicalData = await Collectors.collectTechnicalData();
         } catch (e) {
-            log('collectTechnicalData failed, aborting', e && e.message ? e.message : e);
+            log('collectTechnicalData failed, aborting', e);
             return;
         }
 
-        // Normalize and freeze the technical branch.
+        // Normalize and freeze
         State.technical = State.technical || {};
         State.technical.raw = Object.freeze({
             network:   rawTechnicalData.network   || {},
@@ -99,20 +99,23 @@
             sessionId: rawTechnicalData.sessionId || null
         });
 
-        // Mirror sessionId into identifiers for consistency.
+        // Extract Session ID for Sync calls
+        const currentSessionId = State.technical.raw.sessionId;
+
+        // Mirror sessionId into identifiers
         State.identifiers = State.identifiers || {};
         if (!State.identifiers.sessionId) {
-            State.identifiers.sessionId = rawTechnicalData.sessionId || null;
+            State.identifiers.sessionId = currentSessionId;
         }
 
         log('Technical raw state frozen.', State.technical.raw);
 
-        // Derive and freeze profile.
+        // Derive Profile
         let profile = {};
         try {
             profile = Profile.deriveProfile(State.technical.raw) || {};
         } catch (e) {
-            log('Profile derivation failed', e && e.message ? e.message : e);
+            log('Profile derivation failed', e);
         }
 
         State.technical.profile = Object.freeze(profile);
@@ -122,13 +125,22 @@
         if (Sync && typeof Sync.sendTechnicalSnapshot === 'function') {
             log('Sending technical snapshot.');
             try {
-                await Sync.sendTechnicalSnapshot(State.technical);
+                // FIX: Pass 4 arguments to match Sync v2.2 signature
+                // (fingerprint, deviceHash, sessionId, data)
+                // Note: Fingerprint is null here (it comes later), but Auth Cookie 
+                // ensures Admin View will still find this record.
+                await Sync.sendTechnicalSnapshot(
+                    null, 
+                    null, 
+                    currentSessionId, 
+                    State.technical
+                );
             } catch (e) {
-                log('sendTechnicalSnapshot failed', e && e.message ? e.message : e);
+                log('sendTechnicalSnapshot failed', e);
             }
         }
 
-        // 3. IDENTIFIERS PIPELINE (statistics consent-gated)
+        // 3. IDENTIFIERS PIPELINE (Consent Gated)
 
         const runIdentifiersPipeline = async () => {
             log('Identifiers pipeline starting.');
@@ -137,13 +149,12 @@
             try {
                 ids = await Collectors.collectIdentifyingData();
             } catch (e) {
-                log('collectIdentifyingData failed', e && e.message ? e.message : e);
+                log('collectIdentifyingData failed', e);
                 return;
             }
 
-            // Build a fresh identifiers object; sessionId carried over.
             const nextIdentifiers = {
-                sessionId: State.identifiers.sessionId || null,
+                sessionId: currentSessionId,
                 visitorId: ids.visitorId || null,
                 deviceDetails: ids.deviceDetails || null,
                 ipAddress: ids.ipAddress || null
@@ -155,32 +166,30 @@
             if (Sync && typeof Sync.sendIdentifyingSnapshot === 'function') {
                 log('Sending identifiers snapshot (statistics consent).');
                 try {
-                    await Sync.sendIdentifyingSnapshot(State.identifiers);
+                    // FIX: Pass 4 arguments to match Sync v2.2 signature
+                    await Sync.sendIdentifyingSnapshot(
+                        State.identifiers.visitorId, // Fingerprint
+                        null,                        // Device Hash (Calculated Server-Side)
+                        currentSessionId,            // Session ID
+                        State.identifiers            // Data
+                    );
                 } catch (e) {
-                    log('sendIdentifyingSnapshot failed', e && e.message ? e.message : e);
+                    log('sendIdentifyingSnapshot failed', e);
                 }
             }
         };
 
-        // Consent discovery.
+        // Consent discovery
         State.privacy = State.privacy || {};
-        State.privacy.consentGiven      = !!State.privacy.consentGiven;
+        State.privacy.consentGiven = !!State.privacy.consentGiven;
         State.privacy.consentCategories = State.privacy.consentCategories || [];
 
         let statsConsent = false;
 
         if (typeof window.wp_has_consent === 'function') {
-            try {
-                statsConsent = !!window.wp_has_consent('statistics');
-            } catch (e) {
-                log('wp_has_consent call failed', e && e.message ? e.message : e);
-            }
+            try { statsConsent = !!window.wp_has_consent('statistics'); } catch (e) {}
         } else if (window.wp_consent_api && typeof window.wp_consent_api.get_consent === 'function') {
-            try {
-                statsConsent = !!window.wp_consent_api.get_consent('statistics');
-            } catch (e) {
-                log('wp_consent_api.get_consent call failed', e && e.message ? e.message : e);
-            }
+            try { statsConsent = !!window.wp_consent_api.get_consent('statistics'); } catch (e) {}
         }
 
         if (statsConsent) {
@@ -193,12 +202,10 @@
             log('Statistics consent not present; identifiers pipeline will wait for change event.');
         }
 
-        // Listen for consent changes (WP Consent API JS event).
+        // Listen for consent changes
         document.addEventListener('wp_listen_for_consent_change', function (event) {
             const detail = event && event.detail;
-            if (!detail || typeof detail !== 'object') {
-                return;
-            }
+            if (!detail || typeof detail !== 'object') return;
 
             Object.keys(detail).forEach(function (category) {
                 const value = detail[category];
@@ -215,7 +222,7 @@
             });
         });
 
-        // 4. FINAL READY EVENT (namespaced, for Starmus & PWA consumers)
+        // 4. FINAL READY EVENT
         log('Dispatching sparxstar:environment-ready event.');
         try {
             document.dispatchEvent(new CustomEvent('sparxstar:environment-ready', {
@@ -227,7 +234,7 @@
                 }
             }));
         } catch (e) {
-            log('Failed to dispatch environment-ready event', e && e.message ? e.message : e);
+            log('Failed to dispatch environment-ready event', e);
         }
 
         log('Initialization complete.');
