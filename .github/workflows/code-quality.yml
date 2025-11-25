@@ -10,7 +10,8 @@ jobs:
   php-quality:
     name: PHP Code Quality
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -47,7 +48,8 @@ jobs:
   js-quality:
     name: JavaScript/CSS Code Quality
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
