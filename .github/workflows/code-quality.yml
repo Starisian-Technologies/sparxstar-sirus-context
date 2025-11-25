@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
       
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@bf6b4fbd49ca58e4608c9c89fba0b8d90bd2a39f
         with:
           php-version: '8.3'
           tools: composer:v2
@@ -58,7 +58,7 @@ jobs:
           node-version: '20'
       
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061
         with:
           version: 8.6.0
       
@@ -96,7 +96,7 @@ jobs:
           fetch-depth: 0
       
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@bf6b4fbd49ca58e4608c9c89fba0b8d90bd2a39f
         with:
           php-version: '8.3'
           tools: composer:v2
@@ -107,7 +107,7 @@ jobs:
           node-version: '20'
       
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061
         with:
           version: 8.6.0
       
@@ -135,7 +135,7 @@ jobs:
         run: pnpm run format || true
       
       - name: Commit and push changes
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@28e16e81777b558cc906c8750092100bbb34c5e3
         with:
           commit_message: "style: auto-fix code quality issues [skip ci]"
           commit_user_name: "github-actions[bot]"
