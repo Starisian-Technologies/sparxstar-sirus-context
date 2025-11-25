@@ -7,28 +7,18 @@
 ## Description
 
 Modern asset loader for Sparxstar User Environment Check plugin.
-Features:
-- Always loads bundled/minified production assets
-- Vendor scripts (FingerprintJS, DeviceDetector) are bundled via Rollup
-- Run `pnpm run build` after updating vendor dependencies
-- Admin Mode: Optional panel scripts for settings UI
-@version 4.0.0
+Version 4.0.1: Fixed REST API namespace and JS localization keys.
 
 ## Methods
 
 ### `enqueue_frontend()`
 
 Modern asset loader for Sparxstar User Environment Check plugin.
-Features:
-- Always loads bundled/minified production assets
-- Vendor scripts (FingerprintJS, DeviceDetector) are bundled via Rollup
-- Run `pnpm run build` after updating vendor dependencies
-- Admin Mode: Optional panel scripts for settings UI
-@version 4.0.0
+Version 4.0.1: Fixed REST API namespace and JS localization keys.
 /
 final class SparxstarUECAssetManager
 {
-    private const VERSION     = '4.0.0';
+    private const VERSION     = '4.0.1';
 
     private const TEXT_DOMAIN = 'sparxstar-user-environment-check';
 
@@ -48,20 +38,18 @@ final class SparxstarUECAssetManager
 
     /**
 Load frontend scripts - always uses production bundle.
-Vendor dependencies are bundled via Rollup build process.
 
 ### `enqueue_frontend_styles()`
 
-Enqueue frontend stylesheet - always uses production minified CSS.
+Enqueue frontend stylesheet.
 
 ### `enqueue_admin()`
 
 Admin screen loader.
-- Lightweight, NO heavy collectors
-- Provides UI consistency in UEC settings page
 
 ### `get_localization_data()`
 
-Gathers all necessary server-side data to be passed to client-side scripts.
+Gathers all necessary server-side data.
+FIXED: Matches JS keys and Controller Namespace.
 @return array The data to be localized.
 

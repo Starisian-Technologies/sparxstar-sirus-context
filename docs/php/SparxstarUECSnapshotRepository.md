@@ -6,47 +6,46 @@
 
 ## Methods
 
-### `get(?string $fingerprint, ?string $device_hash)`
+### `table()`
 
-Repository for retrieving snapshots from the database.
-Version 2.1: Added Admin-specific retrieval methods.
+Repository for retrieving UEC snapshots.
+Version 3.0: Full production build. Supports:
+- Frontend lookups by fingerprint + device_hash
+- Admin lookups by User ID
+- Unified JSON payload column (snapshot_data)
 /
+
 declare(strict_types=1);
 
 namespace Starisian\SparxstarUEC\core;
 
-if (! defined('ABSPATH')) {
+if (!defined('ABSPATH')) {
     exit;
 }
 
+use wpdb;
 use Starisian\SparxstarUEC\helpers\StarLogger;
 
 final class SparxstarUECSnapshotRepository
 {
     /**
-Retrieve the latest snapshot for a given stable device identity.
-USE CASE: Frontend verification (Current User).
-@param string|null $fingerprint The device's stable fingerprint.
-@param string|null $device_hash The device's stable hardware hash.
-@return array|null The complete snapshot data or null if not found.
+Table name helper.
+
+### `get(?string $fingerprint, ?string $device_hash)`
+
+FRONTEND LOOKUP (fingerprint + device hash)
 
 ### `get_by_user_id(int $user_id)`
 
-Retrieve the latest snapshot by User ID.
-USE CASE: Admin Area Snapshot Viewer.
+ADMIN LOOKUP (by WordPress User ID ONLY)
+This is the correct production method.
+The Admin DOES NOT and SHOULD NOT use fingerprint/device.
 
-This bypasses the need for the Admin to have the User's fingerprint.
-@param int $user_id The WordPress User ID.
-@return array|null The complete snapshot data or null if not found.
+### `hydrate(array $row)`
 
-### `hydrate(array $snapshot_row)`
-
-Helper to rehydrate row data into the expected array format.
+Convert DB row → canonical array for Admin / API use.
 
 ### `flush(?string $fingerprint = null, ?string $device_hash = null)`
 
-Flush cache layers.
-Updated to accept arguments to prevent fatal errors if called with parameters.
-@param string|null $fingerprint Optional fingerprint to target flush.
-@param string|null $device_hash Optional hash to target flush.
+Optional cache flush helper.
 

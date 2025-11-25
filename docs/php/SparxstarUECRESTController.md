@@ -30,16 +30,21 @@ if (! defined('ABSPATH')) {
 
 final readonly class SparxstarUECRESTController
 {
-    public function __construct(private SparxstarUECDatabase $database)
-    {
-    }
+    public function __construct(private SparxstarUECDatabase $database) {}
 
     /**
-Register the single, unified REST endpoint for logging snapshots.
+Register REST endpoints for logging snapshots and recorder events.
 
 ### `handle_log_request(WP_REST_Request $request)`
 
 Handle the incoming snapshot payload.
+
+### `handle_recorder_log(WP_REST_Request $request)`
+
+Handle incoming recorder event logs from external plugins.
+
+@param WP_REST_Request $request The incoming request
+@return WP_REST_Response The response
 
 ### `map_and_normalize_snapshot(array $payload)`
 

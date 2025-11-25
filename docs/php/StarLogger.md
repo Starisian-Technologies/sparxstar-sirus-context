@@ -93,7 +93,7 @@ CONFIGURATION
 Legacy method kept for backward compatibility.
 Does nothing as we now rely on standard WP debug.log.
 
-### `log(string $context, $msg, string $level = 'error', array $extra = [])`
+### `log(string $context, mixed $msg, string $level = 'error', array $extra = [])`
 
 Main logging method.
 Writes directly to PHP error_log (standard WP debug.log).

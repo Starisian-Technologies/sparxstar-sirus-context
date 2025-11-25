@@ -10,7 +10,10 @@
 
 STARISIAN TECHNOLOGIES CONFIDENTIAL
 © 2023–2025 Starisian Technologies. All Rights Reserved.
-Unified scheduler that prioritizes Action Scheduler and falls back to WP-Cron.
+Unified scheduler.
+Version 3.1: 
+- Fixes Static Analysis errors regarding Action Scheduler.
+- Prevents "Phantom Schedule" bugs by mapping to standard WP-Cron keys.
 @package Starisian\SparxstarUEC\cron
 /
 
@@ -26,16 +29,18 @@ if (! defined('ABSPATH')) {
 
 final class SparxstarUECScheduler
 {
-    private const CRON_SCHEDULE_KEY = 'sparxstar_uec_custom_interval';
-
     /**
 Schedule a recurring event safely.
+@param string $hook              The action hook to execute.
+@param int    $interval_in_seconds How often to run (e.g., 3600, 86400).
+@param array  $args              Arguments to pass to the hook.
 
 ### `clear(string $hook, array $args = [])`
 
 Clear all queued instances of a hook.
 
-### `register_custom_interval(int $interval_in_seconds)`
+### `get_wp_schedule_key(int $seconds)`
 
-Register a custom WP-Cron interval globally so it’s available before scheduling.
+Helper: Maps raw seconds to standard WordPress schedule keys.
+This avoids the need to dynamically register custom intervals.
 

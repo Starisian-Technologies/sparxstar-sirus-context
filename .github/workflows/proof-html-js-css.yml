@@ -25,12 +25,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Install npm dependencies
-        run: npm install --no-save
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8.6.0
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
       - name: Lint JavaScript (check only)
-        run: npm run lint:js
+        run: pnpm run lint:js
       - name: Lint CSS (check only)
-        run: npm run lint:css
+        run: pnpm run lint:css
       - name: Proof HTML files
         uses: anishathalye/proof-html@acec311c40ea13c9ffa6490e77ac67f52594f403
         with:
@@ -50,12 +54,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Install npm dependencies
-        run: npm install --no-save
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8.6.0
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
       - name: Fix JavaScript and CSS issues
         run: |
-          npm run lint:js:fix
-          npm run lint:css:fix
+          pnpm run lint:js:fix
+          pnpm run lint:css:fix
       - name: Commit and push fixes
         uses: stefanzweifel/git-auto-commit-action@778341af668090896ca464160c2def5d1d1a3eb0
         with:

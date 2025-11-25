@@ -27,15 +27,20 @@ jobs:
       - name: Composer audit
         run: composer audit || echo "Composer audit found vulnerabilities"
 
-      - name: Cache NPM packages
+      - name: Cache pnpm packages
         uses: actions/cache@v3
         with:
-          path: ~/.npm
-          key: npm-${{ hashFiles('package-lock.json') }}
-          restore-keys: npm-
+          path: ~/.pnpm-store
+          key: pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-
 
-      - name: Install NPM dependencies
-        run: npm ci
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8.6.0
 
-      - name: NPM audit
-        run: npm audit --audit-level=moderate || echo "NPM audit found vulnerabilities"
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: pnpm audit
+        run: pnpm audit --audit-level=moderate || echo "pnpm audit found vulnerabilities"

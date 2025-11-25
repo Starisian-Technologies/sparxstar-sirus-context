@@ -65,19 +65,23 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
-          cache: "npm"
+          node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8.6.0
 
       - name: Install JS dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build Assets
-        run: npm run build
+        run: pnpm run build
 
       - name: Verify UEC asset output
         run: |
-          test -f assets/js/device-detector.min.js || { echo "Missing device detector bundle"; exit 1; }
-          test -f assets/js/fingerprintjs/fp.min.js || { echo "Missing fingerprint js"; exit 1; }
+          test -f assets/js/sparxstar-user-environment-check-app.bundle.min.js || { echo "Missing main bundle"; exit 1; }
+          test -f assets/css/sparxstar-user-environment-check.min.css || { echo "Missing CSS bundle"; exit 1; }
 
       - name: Ensure .distignore exists
         run: test -f .distignore || { echo ".distignore is missing"; exit 1; }

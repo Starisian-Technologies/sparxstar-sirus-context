@@ -82,13 +82,16 @@ jobs:
   auto-fix:
     name: Auto-Fix Code Issues
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/universe'
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/universe')
     needs: [php-quality, js-quality]
+    permissions:
+      contents: write
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
       
@@ -137,4 +140,5 @@ jobs:
           commit_message: "style: auto-fix code quality issues [skip ci]"
           commit_user_name: "github-actions[bot]"
           commit_user_email: "github-actions[bot]@users.noreply.github.com"
+          branch: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
           file_pattern: "src/**/*.php src/**/*.js src/**/*.css"
