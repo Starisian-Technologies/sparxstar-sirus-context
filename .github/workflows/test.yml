@@ -4,7 +4,7 @@ permissions:
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [universe, main, develop]
   schedule:
     - cron: "0 2 * * *" # Daily at 2 AM
 
@@ -30,7 +30,7 @@ jobs:
           node-version: "20"
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061
         with:
           version: 8.6.0
 
