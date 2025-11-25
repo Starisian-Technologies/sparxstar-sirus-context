@@ -42,5 +42,6 @@ import './sparxstar-state.js';
 import './sparxstar-collector.js';
 import './sparxstar-profile.js';
 import './sparxstar-sync.js';
+import './sparxstar-recorder.js';
 import './sparxstar-ui.js';
 import './sparxstar-integrator.js';

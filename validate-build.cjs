@@ -7,6 +7,7 @@ const requiredFiles = [
   'src/js/sparxstar-state.js',
   'src/js/sparxstar-profile.js',
   'src/js/sparxstar-sync.js',
+  'src/js/sparxstar-recorder.js',
   'src/js/sparxstar-ui.js',
   'src/js/sparxstar-integrator.js',
   'src/css/sparxstar-user-environment-check.css'

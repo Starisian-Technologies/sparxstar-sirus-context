@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recorder Event System - Test Page</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .section {
+            background: #f5f5f5;
+            border-left: 4px solid #0073aa;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        button {
+            background: #0073aa;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 4px;
+            margin: 5px;
+        }
+
+        button:hover {
+            background: #005a87;
+        }
+
+        .output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin: 10px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .success {
+            color: #4caf50;
+        }
+
+        .error {
+            color: #f44336;
+        }
+
+        .warning {
+            color: #ff9800;
+        }
+
+        .info {
+            color: #2196f3;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🎯 SPARXSTAR Recorder Event System Test</h1>
+
+    <div class="section">
+        <h2>Prerequisites</h2>
+        <p>This test page requires:</p>
+        <ul>
+            <li>✅ WordPress plugin installed and activated</li>
+            <li>✅ <code>WP_DEBUG_LOG</code> enabled in wp-config.php</li>
+            <li>✅ JavaScript bundle loaded on this page</li>
+        </ul>
+        <p><strong>Endpoint:</strong> <code id="endpoint">Not configured</code></p>
+        <p><strong>Nonce:</strong> <code id="nonce">Not configured</code></p>
+    </div>
+
+    <div class="section">
+        <h2>Test Actions</h2>
+        <button onclick="testBasicEvent()">Test Basic Event</button>
+        <button onclick="testErrorEvent()">Test Error Event</button>
+        <button onclick="testPerformanceEvent()">Test Performance Event</button>
+        <button onclick="testStarmusEvent()">Test Starmus Event</button>
+        <button onclick="checkConfiguration()">Check Configuration</button>
+        <button onclick="clearOutput()">Clear Output</button>
+    </div>
+
+    <div class="section">
+        <h2>Console Output</h2>
+        <div id="output" class="output">
+            <span class="info">Ready to test...</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Expected Results</h2>
+        <ul>
+            <li>Browser Network Tab: POST request to <code>/wp-json/star-uec/v1/recorder-log</code></li>
+            <li>Response: <code>{"status":"ok"}</code> (200 OK)</li>
+            <li>WordPress Debug Log: <code>[SparxstarUEC Recorder] {...}</code></li>
+            <li>No JavaScript errors in console</li>
+        </ul>
+    </div>
+
+    <script>
+        // Mock SPARXSTAR object for standalone testing
+        window.SPARXSTAR = window.SPARXSTAR || {};
+
+        // Mock recorder if not loaded
+        if (!window.SPARXSTAR.logRecorderEvent) {
+            window.SPARXSTAR.logRecorderEvent = function (eventData) {
+                log('⚠️ SPARXSTAR.logRecorderEvent is mocked - plugin bundle not loaded', 'warning');
+                log('Event data: ' + JSON.stringify(eventData, null, 2), 'info');
+            };
+        }
+
+        function log(message, type = 'info') {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toISOString();
+            const className = type || 'info';
+            output.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearOutput() {
+            document.getElementById('output').innerHTML = '<span class="info">Output cleared...</span>';
+        }
+
+        function checkConfiguration() {
+            log('Checking configuration...', 'info');
+
+            if (window.sparxstarUECRecorderLog) {
+                const config = window.sparxstarUECRecorderLog;
+                document.getElementById('endpoint').textContent = config.endpoint || 'Not set';
+                document.getElementById('nonce').textContent = config.nonce ? config.nonce.substring(0, 10) + '...' : 'Not set';
+
+                log('✅ Configuration found:', 'success');
+                log('  Endpoint: ' + config.endpoint, 'info');
+                log('  Nonce: ' + (config.nonce ? 'Present' : 'Missing'), 'info');
+            } else {
+                log('❌ sparxstarUECRecorderLog not found', 'error');
+                log('Make sure WordPress plugin is active on this page', 'warning');
+            }
+
+            if (window.SPARXSTAR) {
+                log('✅ SPARXSTAR namespace available', 'success');
+                if (window.SPARXSTAR.logRecorderEvent) {
+                    log('✅ logRecorderEvent function available', 'success');
+                }
+                if (window.SPARXSTAR.Recorder) {
+                    log('✅ Recorder namespace available', 'success');
+                }
+                if (window.SPARXSTAR.State) {
+                    log('✅ State object available', 'success');
+                }
+            } else {
+                log('❌ SPARXSTAR namespace not found', 'error');
+            }
+        }
+
+        function testBasicEvent() {
+            log('Testing basic event...', 'info');
+            try {
+                window.SPARXSTAR.logRecorderEvent({
+                    test: 'basic_event',
+                    message: 'Testing recorder system',
+                    timestamp: new Date().toISOString(),
+                    data: {
+                        user_agent: navigator.userAgent,
+                        screen: {
+                            width: window.screen.width,
+                            height: window.screen.height
+                        }
+                    }
+                });
+                log('✅ Basic event sent successfully', 'success');
+                log('Check Network tab for POST request', 'info');
+            } catch (e) {
+                log('❌ Error: ' + e.message, 'error');
+            }
+        }
+
+        function testErrorEvent() {
+            log('Testing error event...', 'info');
+            try {
+                window.SPARXSTAR.logRecorderEvent({
+                    type: 'javascript_error',
+                    error_type: 'TypeError',
+                    message: 'Test error event',
+                    stack: 'Test stack trace',
+                    source: 'test-page',
+                    filename: window.location.href,
+                    lineno: 123,
+                    colno: 45
+                });
+                log('✅ Error event sent successfully', 'success');
+            } catch (e) {
+                log('❌ Error: ' + e.message, 'error');
+            }
+        }
+
+        function testPerformanceEvent() {
+            log('Testing performance event...', 'info');
+            try {
+                const perfData = {
+                    type: 'performance_metric',
+                    metrics: {},
+                    timestamp: Date.now()
+                };
+
+                // Collect real performance data if available
+                if (window.performance && window.performance.timing) {
+                    const timing = window.performance.timing;
+                    perfData.metrics = {
+                        loadTime: timing.loadEventEnd - timing.navigationStart,
+                        domReady: timing.domContentLoadedEventEnd - timing.navigationStart,
+                        responseTime: timing.responseEnd - timing.requestStart
+                    };
+                }
+
+                window.SPARXSTAR.logRecorderEvent(perfData);
+                log('✅ Performance event sent successfully', 'success');
+            } catch (e) {
+                log('❌ Error: ' + e.message, 'error');
+            }
+        }
+
+        function testStarmusEvent() {
+            log('Testing Starmus-style event...', 'info');
+            try {
+                window.SPARXSTAR.logRecorderEvent({
+                    plugin: 'starmus-recorder',
+                    event_name: 'user_interaction',
+                    event_type: 'click',
+                    element: 'test-button',
+                    timestamp: Date.now(),
+                    context: {
+                        page: window.location.pathname,
+                        referrer: document.referrer
+                    }
+                });
+                log('✅ Starmus event sent successfully', 'success');
+            } catch (e) {
+                log('❌ Error: ' + e.message, 'error');
+            }
+        }
+
+        // Auto-check configuration on load
+        window.addEventListener('DOMContentLoaded', function () {
+            setTimeout(checkConfiguration, 500);
+        });
+    </script>
+</body>
+
+</html>

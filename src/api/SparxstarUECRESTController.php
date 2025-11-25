@@ -23,12 +23,10 @@ if (! defined('ABSPATH')) {
 
 final readonly class SparxstarUECRESTController
 {
-    public function __construct(private SparxstarUECDatabase $database)
-    {
-    }
+    public function __construct(private SparxstarUECDatabase $database) {}
 
     /**
-     * Register the single, unified REST endpoint for logging snapshots.
+     * Register REST endpoints for logging snapshots and recorder events.
      */
     public function register_routes(): void
     {
@@ -39,6 +37,16 @@ final readonly class SparxstarUECRESTController
                 'methods'             => 'POST',
                 'callback'            => $this->handle_log_request(...),
                 'permission_callback' => $this->check_permissions(...),
+            ]
+        );
+
+        register_rest_route(
+            'star-uec/v1',
+            '/recorder-log',
+            [
+                'methods'             => 'POST',
+                'callback'            => $this->handle_recorder_log(...),
+                'permission_callback' => '__return_true', // Open endpoint - passive telemetry, no nonce required
             ]
         );
     }
@@ -56,7 +64,7 @@ final readonly class SparxstarUECRESTController
 
         // 1. Identify the User
         $user_id = get_current_user_id(); // Returns 0 if guest, ID if logged in
-        
+
         // DEBUG: Log exactly who the server thinks this is
         StarLogger::info('REST', 'Processing snapshot. Detected User ID: ' . $user_id, [
             'fingerprint' => $payload['client_side_data']['identifiers']['fingerprint'] ?? 'unknown'
@@ -88,6 +96,35 @@ final readonly class SparxstarUECRESTController
             ],
             200
         );
+    }
+
+    /**
+     * Handle incoming recorder event logs from external plugins.
+     * 
+     * @param WP_REST_Request $request The incoming request
+     * @return WP_REST_Response The response
+     */
+    public function handle_recorder_log(WP_REST_Request $request): WP_REST_Response
+    {
+        $body = $request->get_body();
+        $data = json_decode($body, true);
+
+        if (! is_array($data)) {
+            return new WP_REST_Response(['status' => 'invalid_json'], 400);
+        }
+
+        // Log the recorder event if WP_DEBUG_LOG is enabled
+        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+            StarLogger::info('RecorderEvent', 'External plugin event received', [
+                'event_type' => $data['type'] ?? 'unknown',
+                'timestamp' => $data['ts'] ?? '',
+                'has_env_data' => isset($data['env']),
+                'event_data' => $data['event'] ?? []
+            ]);
+            error_log('[SparxstarUEC Recorder] ' . wp_json_encode($data));
+        }
+
+        return new WP_REST_Response(['status' => 'ok'], 200);
     }
 
     /**

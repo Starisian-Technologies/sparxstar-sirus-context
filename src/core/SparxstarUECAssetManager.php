@@ -51,12 +51,22 @@ final class SparxstarUECAssetManager
 
         // 2. Attach Data (FIXED: Keys now match JS expectations)
         wp_localize_script(
-            self::HANDLE_BOOTSTRAP, 
-            'sparxstarUserEnvData', 
+            self::HANDLE_BOOTSTRAP,
+            'sparxstarUserEnvData',
             self::get_localization_data()
         );
 
-        // 3. Enqueue Styles
+        // 3. Attach Recorder Log Configuration
+        wp_localize_script(
+            self::HANDLE_BOOTSTRAP,
+            'sparxstarUECRecorderLog',
+            [
+                'endpoint' => esc_url_raw(rest_url('star-uec/v1/recorder-log')),
+                // No nonce required - open endpoint for passive telemetry
+            ]
+        );
+
+        // 4. Enqueue Styles
         self::enqueue_frontend_styles();
     }
 
