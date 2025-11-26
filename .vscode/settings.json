@@ -1,0 +1,10 @@
+{
+    "chat.mcp.serverSampling": {
+        "sparxstar-user-environment-check/.vscode/mcp.json: io.github.github/github-mcp-server": {
+            "allowedModels": [
+                "copilot/auto",
+                "copilot/claude-sonnet-4.5"
+            ]
+        }
+    }
+}

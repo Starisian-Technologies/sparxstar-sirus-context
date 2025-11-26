@@ -20,6 +20,10 @@ src/node_modules/
 /dist/
 /build/
 
+# Ignore cache files from code quality tools
+.php-cs-fixer.cache
+.phpstan-cache/
+
 
 # -----------------------------------------------------------------
 # >> WordPress Core & Content

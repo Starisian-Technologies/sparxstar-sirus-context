@@ -64,8 +64,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Fix JavaScript and CSS issues
         run: |
-          pnpm run lint:js:fix
-          pnpm run lint:css:fix
+          pnpm run lint:fix
+          pnpm run stylelint:fix
       - name: Commit and push fixes
         uses: stefanzweifel/git-auto-commit-action@778341af668090896ca464160c2def5d1d1a3eb0
         with:
