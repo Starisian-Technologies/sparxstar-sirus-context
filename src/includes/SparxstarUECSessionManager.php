@@ -14,7 +14,6 @@ final class SparxstarUECSessionManager
 {
     private const SESSION_NAMESPACE = 'sparxstar_uec_data';
 
-
     public function __construct()
     {
         // empty

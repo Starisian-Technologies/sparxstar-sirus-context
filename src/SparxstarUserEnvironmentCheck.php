@@ -14,16 +14,11 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-use Exception;
 use Throwable;
 use LogicException;
 use Starisian\SparxstarUEC\helpers\StarLogger;
-use Starisian\SparxstarUEC\admin\SparxstarUECAdmin;
 use Starisian\SparxstarUEC\core\SparxstarUECKernel;
-use Starisian\SparxstarUEC\core\SparxstarUECDatabase;
-use Starisian\SparxstarUEC\core\SparxstarUECAssetManager;
 use Starisian\SparxstarUEC\api\SparxstarUECRESTController;
-use Starisian\SparxstarUEC\includes\SparxstarUECSessionManager;
 
 /**
  * Orchestrates plugin services and exposes shared dependencies.
@@ -78,8 +73,8 @@ final class SparxstarUserEnvironmentCheck
             global $wpdb;
 
             // Kernel builds all services with dependency injection
-            $kernel = new SparxstarUECKernel($wpdb);
-            $this->api             = $kernel->get_api();
+            $kernel    = new SparxstarUECKernel($wpdb);
+            $this->api = $kernel->get_api();
 
             // Initialize asset manager hooks (must be called to enqueue scripts/styles)
             \Starisian\SparxstarUEC\core\SparxstarUECAssetManager::init();

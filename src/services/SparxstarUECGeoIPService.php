@@ -147,7 +147,7 @@ final class SparxstarUECGeoIPService
                 'postal_code' => sanitize_text_field($record->postal->code ?? ''),
                 'region'      => sanitize_text_field($record->mostSpecificSubdivision->name ?? ''),
                 'country'     => sanitize_text_field($record->country->name ?? ''),
-                'latitude'    => $record->location->latitude ?? 0.0,
+                'latitude'    => $record->location->latitude  ?? 0.0,
                 'longitude'   => $record->location->longitude ?? 0.0,
                 'timezone'    => sanitize_text_field($record->location->timeZone ?? ''),
             ];

@@ -13,9 +13,9 @@ use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 use Starisian\SparxstarUEC\StarUserUtils;
+use Starisian\SparxstarUEC\helpers\StarLogger;
 use Starisian\SparxstarUEC\core\SparxstarUECDatabase;
-use Starisian\SparxstarUEC\services\SparxstarUECGeoIPService;
-use Starisian\SparxstarUEC\helpers\StarLogger; // Import Logger
+use Starisian\SparxstarUEC\services\SparxstarUECGeoIPService; // Import Logger
 
 if (! defined('ABSPATH')) {
     exit;
@@ -23,7 +23,9 @@ if (! defined('ABSPATH')) {
 
 final readonly class SparxstarUECRESTController
 {
-    public function __construct(private SparxstarUECDatabase $database) {}
+    public function __construct(private SparxstarUECDatabase $database)
+    {
+    }
 
     /**
      * Register REST endpoints for logging snapshots and recorder events.
@@ -89,9 +91,9 @@ final readonly class SparxstarUECRESTController
 
         return new WP_REST_Response(
             [
-                'status' => 'ok',
-                'action' => $result['status'], // 'inserted' or 'updated'
-                'id'     => $result['id'],
+                'status'        => 'ok',
+                'action'        => $result['status'], // 'inserted' or 'updated'
+                'id'            => $result['id'],
                 'user_detected' => $user_id // Send this back to console for debugging
             ],
             200
@@ -100,7 +102,7 @@ final readonly class SparxstarUECRESTController
 
     /**
      * Handle incoming recorder event logs from external plugins.
-     * 
+     *
      * @param WP_REST_Request $request The incoming request
      * @return WP_REST_Response The response
      */
@@ -116,10 +118,10 @@ final readonly class SparxstarUECRESTController
         // Log the recorder event if WP_DEBUG_LOG is enabled
         if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
             StarLogger::info('RecorderEvent', 'External plugin event received', [
-                'event_type' => $data['type'] ?? 'unknown',
-                'timestamp' => $data['ts'] ?? '',
+                'event_type'   => $data['type'] ?? 'unknown',
+                'timestamp'    => $data['ts']   ?? '',
                 'has_env_data' => isset($data['env']),
-                'event_data' => $data['event'] ?? []
+                'event_data'   => $data['event'] ?? []
             ]);
             error_log('[SparxstarUEC Recorder] ' . wp_json_encode($data));
         }

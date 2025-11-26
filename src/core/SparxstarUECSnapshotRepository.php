@@ -16,7 +16,6 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-use wpdb;
 use Starisian\SparxstarUEC\helpers\StarLogger;
 
 final class SparxstarUECSnapshotRepository
@@ -43,10 +42,10 @@ final class SparxstarUECSnapshotRepository
             global $wpdb;
 
             $sql = $wpdb->prepare(
-                "SELECT * FROM " . self::table() . " 
+                'SELECT * FROM ' . self::table() . ' 
                  WHERE fingerprint = %s AND device_hash = %s 
                  ORDER BY updated_at DESC 
-                 LIMIT 1",
+                 LIMIT 1',
                 $fingerprint,
                 $device_hash
             );
@@ -79,10 +78,10 @@ final class SparxstarUECSnapshotRepository
             global $wpdb;
 
             $sql = $wpdb->prepare(
-                "SELECT * FROM " . self::table() . "
+                'SELECT * FROM ' . self::table() . '
                  WHERE user_id = %d
                  ORDER BY updated_at DESC
-                 LIMIT 1",
+                 LIMIT 1',
                 $user_id
             );
 
@@ -118,9 +117,9 @@ final class SparxstarUECSnapshotRepository
         $payload['user_id']     = (int) $row['user_id'];
         $payload['fingerprint'] = $row['fingerprint'] ?? null;
         $payload['device_hash'] = $row['device_hash'] ?? null;
-        $payload['session_id']  = $row['session_id'] ?? null;
-        $payload['created_at']  = $row['created_at'] ?? null;
-        $payload['updated_at']  = $row['updated_at'] ?? null;
+        $payload['session_id']  = $row['session_id']  ?? null;
+        $payload['created_at']  = $row['created_at']  ?? null;
+        $payload['updated_at']  = $row['updated_at']  ?? null;
 
         return $payload;
     }

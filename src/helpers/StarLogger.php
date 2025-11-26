@@ -116,29 +116,29 @@ class StarLogger
             return;
         }
 
-        $level_name = strtoupper($level);
+        $level_name      = strtoupper($level);
         $message_content = self::formatMessageContent($msg);
 
         // Prepare context data
         $extra_clean = self::sanitizeData($extra);
-        $extra_str = $extra_clean === [] ? '' : ' | Data: ' . json_encode($extra_clean, JSON_UNESCAPED_SLASHES);
+        $extra_str   = $extra_clean === [] ? '' : ' | Data: ' . json_encode($extra_clean, JSON_UNESCAPED_SLASHES);
 
         $prefix = self::$correlation_id ? '[' . self::$correlation_id . '] ' : '';
 
         // Construct the log line
         if (self::$json_mode) {
             $log_entry = json_encode([
-                'level' => $level_name,
+                'level'   => $level_name,
                 'context' => $context,
                 'message' => $message_content,
-                'extra' => $extra_clean,
-                'cid' => self::$correlation_id
+                'extra'   => $extra_clean,
+                'cid'     => self::$correlation_id
             ], JSON_UNESCAPED_UNICODE);
         } else {
             // Format: [SPARXSTAR UEC] [LEVEL] [Context] Message | Data: {...}
             // Note: error_log automatically adds the Timestamp.
             $log_entry = sprintf(
-                "%s[SPARXSTAR UEC] [%s] [%s] %s%s",
+                '%s[SPARXSTAR UEC] [%s] [%s] %s%s',
                 $prefix,
                 $level_name,
                 $context,

@@ -17,7 +17,7 @@ use Starisian\SparxstarUEC\helpers\StarLogger;
 
 final readonly class SparxstarUECDatabase
 {
-    private const TABLE_NAME              = SPX_ENV_CHECK_DB_TABLE_NAME;
+    private const TABLE_NAME = SPX_ENV_CHECK_DB_TABLE_NAME;
 
     private const SNAPSHOT_RETENTION_DAYS = 90;
 
@@ -183,12 +183,12 @@ final readonly class SparxstarUECDatabase
         } elseif (isset($raw['client_side_data']['client_side_data']['device']['full']) && is_array($raw['client_side_data']['client_side_data']['device']['full'])) {
             $device_hash_source = wp_json_encode($raw['client_side_data']['client_side_data']['device']['full']);
         } else {
-            $ip = isset($raw['server_side_data']['ipAddress']) ? (string) $raw['server_side_data']['ipAddress'] : '';
+            $ip                 = isset($raw['server_side_data']['ipAddress']) ? (string) $raw['server_side_data']['ipAddress'] : '';
             $device_hash_source = $fingerprint . '|' . $ip;
         }
 
         $device_hash = hash('sha256', $device_hash_source);
-        $updated_at = empty($raw['updated_at']) ? gmdate('Y-m-d H:i:s') : (string) $raw['updated_at'];
+        $updated_at  = empty($raw['updated_at']) ? gmdate('Y-m-d H:i:s') : (string) $raw['updated_at'];
 
         return [
             'user_id'     => $user_id,
@@ -220,7 +220,7 @@ final readonly class SparxstarUECDatabase
             }
 
             if (isset($snapshot['snapshot_data']) && is_string($snapshot['snapshot_data'])) {
-                $decoded = json_decode($snapshot['snapshot_data'], true);
+                $decoded                   = json_decode($snapshot['snapshot_data'], true);
                 $snapshot['snapshot_data'] = is_array($decoded) ? $decoded : [];
             }
 

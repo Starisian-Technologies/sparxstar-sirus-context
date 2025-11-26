@@ -5,7 +5,7 @@
  * © 2023–2025 Starisian Technologies. All Rights Reserved.
  *
  * Unified scheduler.
- * Version 3.1: 
+ * Version 3.1:
  * - Fixes Static Analysis errors regarding Action Scheduler.
  * - Prevents "Phantom Schedule" bugs by mapping to standard WP-Cron keys.
  *
@@ -27,9 +27,9 @@ final class SparxstarUECScheduler
     /**
      * Schedule a recurring event safely.
      *
-     * @param string $hook              The action hook to execute.
-     * @param int    $interval_in_seconds How often to run (e.g., 3600, 86400).
-     * @param array  $args              Arguments to pass to the hook.
+     * @param string $hook The action hook to execute.
+     * @param int $interval_in_seconds How often to run (e.g., 3600, 86400).
+     * @param array $args Arguments to pass to the hook.
      */
     public static function schedule_recurring(string $hook, int $interval_in_seconds, array $args = []): void
     {
