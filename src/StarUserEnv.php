@@ -55,7 +55,7 @@ if (! defined('ABSPATH')) {
  * Collection of static helper methods for retrieving sanitized visitor metadata
  * AND reading environment snapshots as the public API.
  */
-final class StarUserUtils
+final class StarUserEnv
 {
     /**
      * Session namespace key used to avoid collisions with other plugins.
