@@ -1,10 +1,10 @@
 
-# **SparxStar User Environment Check (UEC)**
+# **SPARXSTAR User Environment Check (UEC)**
 
 ![SPARXSTAR-User-Environment-Check-1536x864](https://github.com/user-attachments/assets/e1a42278-ba41-4c6f-8233-859de5267d1d)
 
 
-The **SparxStar User Environment Check (UEC)** plugin collects and analyzes client-side environment data to enhance onboarding, diagnostics, and tier-based experience management across the SparxStar multisite ecosystem. It provides a reliable snapshot of the user’s runtime environment and stores structured metadata server-side, enabling workflow decisions without relying on manual reporting or user comprehension.
+The **SPARXSTAR User Environment Check (UEC)** plugin collects and analyzes client-side environment data to enhance onboarding, diagnostics, and tier-based experience management experience. It provides a reliable snapshot of the user’s runtime environment and stores structured metadata server-side, enabling workflow decisions without relying on manual reporting or user comprehension.
 
 UEC operates silently during sessions and supports both authenticated and anonymous contexts.
 
