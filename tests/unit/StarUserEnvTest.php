@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Tests for the StarUserEnv read-only facade.
  *
@@ -12,7 +13,7 @@ namespace Starisian\SparxstarUEC\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 
 use ReflectionClass;
-use Starisian\SparxstarUEC\StarUserUtils;
+use Starisian\SparxstarUEC\StarUserEnv;
 
 /**
  * Exercises the high-level getters exposed by StarUserEnv.
@@ -39,7 +40,7 @@ final class StarUserEnvTest extends TestCase
             ],
         ]);
 
-        $this->assertSame('5g', StarUserUtils::get_network_type());
+        $this->assertSame('5g', StarUserEnv::get_network_type());
     }
 
     /**
@@ -49,7 +50,7 @@ final class StarUserEnvTest extends TestCase
     {
         $this->setSnapshotCache(['client_side_data' => []]);
 
-        $this->assertSame('unknown', StarUserUtils::get_network_type());
+        $this->assertSame('unknown', StarUserEnv::get_network_type());
     }
 
     /**
@@ -60,7 +61,7 @@ final class StarUserEnvTest extends TestCase
      */
     private function setSnapshotCache(?array $value): void
     {
-        $reflection = new ReflectionClass(StarUserUtils::class);
+        $reflection = new ReflectionClass(StarUserEnv::class);
         $property = $reflection->getProperty('snapshot_cache');
         $property->setAccessible(true);
         $property->setValue(null, $value);

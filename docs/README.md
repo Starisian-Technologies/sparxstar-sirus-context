@@ -42,7 +42,7 @@ Core plugin classes documented:
 - **SparxstarUECDatabase** - Database operations
 - **SparxstarUECGeoIPService** - Geolocation lookups
 - **StarUserEnv** - Public API facade
-- **StarUserUtils** - Utility functions
+- **StarUserEnv** - Utility functions
 
 ## JavaScript Modules
 

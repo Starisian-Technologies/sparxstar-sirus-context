@@ -150,7 +150,7 @@ final class SparxstarUECAssetManager
             ],
             'nonce'      => wp_create_nonce('wp_rest'),
             'debug'      => defined('WP_DEBUG') && WP_DEBUG,
-            'ip_address' => \Starisian\SparxstarUEC\StarUserUtils::get_current_visitor_ip(),
+            'ip_address' => \Starisian\SparxstarUEC\StarUserEnv::get_current_visitor_ip(),
             'i18n'       => [
                 'notice'         => __('Important Notice', self::TEXT_DOMAIN),
                 'update_message' => __('For the best experience, please update your browser.', self::TEXT_DOMAIN),

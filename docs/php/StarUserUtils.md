@@ -1,8 +1,8 @@
-# StarUserUtils
+# StarUserEnv
 
 **Namespace:** `Starisian\SparxstarUEC`
 
-**Full Class Name:** `Starisian\SparxstarUEC\StarUserUtils`
+**Full Class Name:** `Starisian\SparxstarUEC\StarUserEnv`
 
 ## Description
 
@@ -116,7 +116,7 @@ if (! defined('ABSPATH')) {
 Collection of static helper methods for retrieving sanitized visitor metadata
 AND reading environment snapshots as the public API.
 /
-final class StarUserUtils
+final class StarUserEnv
 {
     /**
 Session namespace key used to avoid collisions with other plugins.
@@ -188,7 +188,7 @@ if (! defined('ABSPATH')) {
 Collection of static helper methods for retrieving sanitized visitor metadata
 AND reading environment snapshots as the public API.
 /
-final class StarUserUtils
+final class StarUserEnv
 {
     /**
 Session namespace key used to avoid collisions with other plugins.
@@ -363,4 +363,3 @@ Get the current WordPress environment type.
 
 Allow snapshot creation if none exists for current identity.
 Clears the session block flag when admin visits settings but no snapshot exists.
-

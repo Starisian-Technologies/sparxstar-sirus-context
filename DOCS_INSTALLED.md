@@ -38,6 +38,7 @@ The comprehensive documentation generation system has been successfully installe
 ### Scripts Added
 
 **package.json:**
+
 ```json
 {
   "jsdocs": "node bin/generate-js-docs.mjs",
@@ -46,6 +47,7 @@ The comprehensive documentation generation system has been successfully installe
 ```
 
 **composer.json:**
+
 ```json
 {
   "docs": "php bin/generate-docs.php"
@@ -61,6 +63,7 @@ pnpm run docs:all
 ```
 
 This will:
+
 1. Generate PHP documentation from PHPDoc blocks (14 classes)
 2. Generate JavaScript documentation from JSDoc comments (7 modules)
 3. Output all files to `docs/php/` and `docs/js/`
@@ -97,7 +100,7 @@ docs/
 │   ├── SparxstarUECScheduler.md
 │   ├── SparxstarUECCacheHelper.md
 │   ├── SparxstarUECSessionManager.md
-│   ├── StarUserUtils.md
+│   ├── StarUserEnv.md
 │   └── StarLogger.md
 └── js/                                # JavaScript module documentation (7 files)
     ├── sparxstar-bootstrap.md
@@ -165,6 +168,7 @@ composer test             # Run all tests
 ### Updated CLEANUP.md
 
 The `CLEANUP.md` file has been updated to include documentation generation commands in:
+
 - Quick Commands section
 - Tools Included section
 - Configuration Files table
@@ -203,6 +207,7 @@ const getNetwork = async () => {
 ### 2. Review Generated Documentation
 
 Browse the generated files:
+
 ```bash
 cat docs/php/SparxstarUECAssetManager.md
 cat docs/js/sparxstar-collector.md
@@ -230,6 +235,7 @@ Add GitHub Actions to auto-generate documentation on every commit. See `DOCUMENT
 ### Customize PHP Output
 
 Edit `bin/generate-docs.php` to:
+
 - Add constants extraction
 - Include traits and interfaces
 - Customize Markdown templates
@@ -238,6 +244,7 @@ Edit `bin/generate-docs.php` to:
 ### Customize JavaScript Output
 
 Edit `jsdoc.json` to:
+
 - Configure JSDoc plugins
 - Change output format
 - Add custom templates

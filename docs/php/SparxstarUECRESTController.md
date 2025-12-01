@@ -19,7 +19,7 @@ namespace Starisian\SparxstarUEC\api;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
-use Starisian\SparxstarUEC\StarUserUtils;
+use Starisian\SparxstarUEC\StarUserEnv;
 use Starisian\SparxstarUEC\core\SparxstarUECDatabase;
 use Starisian\SparxstarUEC\services\SparxstarUECGeoIPService;
 use Starisian\SparxstarUEC\helpers\StarLogger; // Import Logger
@@ -49,4 +49,3 @@ Handle incoming recorder event logs from external plugins.
 ### `map_and_normalize_snapshot(array $payload)`
 
 Transform the raw incoming payload into the canonical database schema.
-

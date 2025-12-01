@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Tests covering locale helpers exposed by StarUserEnv.
  *
@@ -11,7 +12,7 @@ namespace Starisian\SparxstarUEC\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
-use Starisian\SparxstarUEC\StarUserUtils;
+use Starisian\SparxstarUEC\StarUserEnv;
 
 /**
  * Validates language parsing behaviour on stored snapshots.
@@ -38,7 +39,7 @@ final class StarUserEnvLanguageTest extends TestCase
             ],
         ]);
 
-        $this->assertSame('en', StarUserUtils::get_user_language());
+        $this->assertSame('en', StarUserEnv::get_user_language());
     }
 
     /**
@@ -48,7 +49,7 @@ final class StarUserEnvLanguageTest extends TestCase
     {
         $this->setSnapshotCache([]);
 
-        $this->assertSame('', StarUserUtils::get_user_language());
+        $this->assertSame('', StarUserEnv::get_user_language());
     }
 
     /**
@@ -59,7 +60,7 @@ final class StarUserEnvLanguageTest extends TestCase
      */
     private function setSnapshotCache(?array $value): void
     {
-        $reflection = new ReflectionClass(StarUserUtils::class);
+        $reflection = new ReflectionClass(StarUserEnv::class);
         $property = $reflection->getProperty('snapshot_cache');
         $property->setAccessible(true);
         $property->setValue(null, $value);

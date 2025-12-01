@@ -12,7 +12,7 @@ namespace Starisian\SparxstarUEC\api;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
-use Starisian\SparxstarUEC\StarUserUtils;
+use Starisian\SparxstarUEC\StarUserEnv;
 use Starisian\SparxstarUEC\helpers\StarLogger;
 use Starisian\SparxstarUEC\core\SparxstarUECDatabase;
 use Starisian\SparxstarUEC\services\SparxstarUECGeoIPService; // Import Logger
@@ -23,9 +23,7 @@ if (! defined('ABSPATH')) {
 
 final readonly class SparxstarUECRESTController
 {
-    public function __construct(private SparxstarUECDatabase $database)
-    {
-    }
+    public function __construct(private SparxstarUECDatabase $database) {}
 
     /**
      * Register REST endpoints for logging snapshots and recorder events.
@@ -73,7 +71,7 @@ final readonly class SparxstarUECRESTController
         ]);
 
         // 2. Enrich the payload with server-side data.
-        $client_ip                    = StarUserUtils::get_current_visitor_ip();
+        $client_ip                    = StarUserEnv::get_current_visitor_ip();
         $payload['server_side_data']  = $this->collect_server_side_data($client_ip);
         $payload['client_hints_data'] = $this->collect_client_hints();
         $payload['user_id']           = $user_id;

@@ -488,7 +488,7 @@ final class StarUserEnv
         try {
             session_start($options);
         } catch (Throwable $throwable) {
-            StarLogger::error('StarUserUtils', $throwable, ['method' => 'ensure_session']);
+            StarLogger::error('StarUserEnv', $throwable, ['method' => 'ensure_session']);
             return;
         }
 
@@ -903,13 +903,13 @@ final class StarUserEnv
                 // No snapshot stored → allow next snapshot creation
                 SparxstarUECSessionManager::clear_snapshot_flag();
                 StarLogger::debug(
-                    'StarUserUtils',
+                    'StarUserEnv',
                     'No snapshot found for current identity. Session flag cleared to allow creation.'
                 );
             }
         } catch (\Throwable $throwable) {
             StarLogger::error(
-                'StarUserUtils',
+                'StarUserEnv',
                 $throwable,
                 [
                     'method'  => 'allow_snapshot_if_none_exist',
