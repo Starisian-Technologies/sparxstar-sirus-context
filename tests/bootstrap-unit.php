@@ -627,26 +627,32 @@ if (!class_exists('wpdb')) {
 
 $GLOBALS['wpdb'] = $GLOBALS['wpdb'] ?? new wpdb();
 
-if (!function_exists('sparxstar_uec_normalize_args_for_hash')) {
-    /**
-     * Normalize an array for deterministic hashing by recursively sorting keys.
-     *
-     * This ensures that arrays with the same data but different key orders
-     * produce the same hash, avoiding non-deterministic behavior.
-     *
-     * @param array $args The array to normalize.
-     * @return array The normalized array with sorted keys.
-     */
-    function sparxstar_uec_normalize_args_for_hash(array $args): array
-    {
-        ksort($args);
-        foreach ($args as $key => $value) {
-            if (is_array($value)) {
-                $args[$key] = sparxstar_uec_normalize_args_for_hash($value);
-            }
-        }
-        return $args;
+/**
+ * Create a deterministic hash from arguments for scheduled hook lookups.
+ *
+ * Uses json_encode instead of serialize for security and determinism.
+ * Recursively sorts array keys to ensure consistent hashing regardless of key order.
+ *
+ * @param array $args Arguments to hash.
+ * @return string JSON-encoded string of sorted arguments.
+ */
+function sparxstar_uec_test_normalize_args(array $args): string
+{
+    if (empty($args)) {
+        return '[]';
     }
+
+    // Recursively sort arrays to ensure deterministic key order
+    $normalize = static function ($value) use (&$normalize) {
+        if (!is_array($value)) {
+            return $value;
+        }
+        ksort($value);
+        return array_map($normalize, $value);
+    };
+
+    $sorted = $normalize($args);
+    return json_encode($sorted, JSON_THROW_ON_ERROR);
 }
 
 if (!function_exists('wp_next_scheduled')) {
@@ -660,8 +666,7 @@ if (!function_exists('wp_next_scheduled')) {
     function wp_next_scheduled(string $hook, array $args = []): ?int
     {
         $blog_id = $GLOBALS['current_blog_id'] ?? 1;
-        $normalized = sparxstar_uec_normalize_args_for_hash($args);
-        $hash    = md5($blog_id . '|' . $hook . json_encode($normalized, JSON_THROW_ON_ERROR));
+        $hash    = md5($blog_id . '|' . $hook . '|' . sparxstar_uec_test_normalize_args($args));
         return $GLOBALS['scheduled_hooks'][$hash]['timestamp'] ?? null;
     }
 }
@@ -679,8 +684,7 @@ if (!function_exists('wp_schedule_event')) {
     function wp_schedule_event(int $timestamp, string $recurrence, string $hook, array $args = []): bool
     {
         $blog_id = $GLOBALS['current_blog_id'] ?? 1;
-        $normalized = sparxstar_uec_normalize_args_for_hash($args);
-        $hash    = md5($blog_id . '|' . $hook . json_encode($normalized, JSON_THROW_ON_ERROR));
+        $hash    = md5($blog_id . '|' . $hook . '|' . sparxstar_uec_test_normalize_args($args));
         $GLOBALS['scheduled_hooks'][$hash] = [
             'blog_id' => $blog_id,
             'timestamp' => $timestamp,
@@ -704,8 +708,7 @@ if (!function_exists('wp_unschedule_event')) {
     function wp_unschedule_event(int $timestamp, string $hook, array $args = []): bool
     {
         $blog_id = $GLOBALS['current_blog_id'] ?? 1;
-        $normalized = sparxstar_uec_normalize_args_for_hash($args);
-        $hash    = md5($blog_id . '|' . $hook . json_encode($normalized, JSON_THROW_ON_ERROR));
+        $hash    = md5($blog_id . '|' . $hook . '|' . sparxstar_uec_test_normalize_args($args));
         unset($GLOBALS['scheduled_hooks'][$hash]);
         unset($timestamp);
         return true;
@@ -758,8 +761,7 @@ if (!function_exists('as_schedule_recurring_action')) {
     function as_schedule_recurring_action(int $timestamp, int $interval, string $hook, array $args = []): bool
     {
         $blog_id = $GLOBALS['current_blog_id'] ?? 1;
-        $normalized = sparxstar_uec_normalize_args_for_hash($args);
-        $hash    = md5($blog_id . '|' . $hook . json_encode($normalized, JSON_THROW_ON_ERROR));
+        $hash    = md5($blog_id . '|' . $hook . '|' . sparxstar_uec_test_normalize_args($args));
         $GLOBALS['scheduled_hooks'][$hash] = [
             'blog_id' => $blog_id,
             'timestamp' => $timestamp,
