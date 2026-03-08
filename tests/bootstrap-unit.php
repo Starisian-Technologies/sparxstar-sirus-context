@@ -627,6 +627,34 @@ if (!class_exists('wpdb')) {
 
 $GLOBALS['wpdb'] = $GLOBALS['wpdb'] ?? new wpdb();
 
+/**
+ * Create a deterministic hash from arguments for scheduled hook lookups.
+ *
+ * Uses json_encode instead of serialize for security and determinism.
+ * Recursively sorts array keys to ensure consistent hashing regardless of key order.
+ *
+ * @param array $args Arguments to hash.
+ * @return string JSON-encoded string of sorted arguments.
+ */
+function sparxstar_uec_test_normalize_args(array $args): string
+{
+    if (empty($args)) {
+        return '[]';
+    }
+
+    // Recursively sort arrays to ensure deterministic key order
+    $normalize = static function ($value) use (&$normalize) {
+        if (!is_array($value)) {
+            return $value;
+        }
+        ksort($value);
+        return array_map($normalize, $value);
+    };
+
+    $sorted = $normalize($args);
+    return json_encode($sorted, JSON_THROW_ON_ERROR);
+}
+
 if (!function_exists('wp_next_scheduled')) {
     /**
      * Inspect the scheduled hooks registry for the next matching occurrence.
