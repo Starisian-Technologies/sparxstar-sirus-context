@@ -114,6 +114,13 @@ $GLOBALS['switched_blogs'] = $GLOBALS['switched_blogs'] ?? [];
  */
 $GLOBALS['current_blog_id'] = $GLOBALS['current_blog_id'] ?? 1;
 
+/**
+ * Registry used by the register_rest_route shim to capture routes for assertions.
+ *
+ * @var array<int, array<string, mixed>>
+ */
+$GLOBALS['spx_registered_routes'] = $GLOBALS['spx_registered_routes'] ?? [];
+
 if (!function_exists('plugin_dir_path')) {
     /**
      * Shimmed version of plugin_dir_path for the unit test environment.
@@ -892,6 +899,7 @@ if (!function_exists('register_rest_route')) {
     function register_rest_route(string $namespace, string $route, array $args = [], bool $override = false): bool
     {
         unset($override);
+        $GLOBALS['spx_registered_routes'] ??= [];
         $GLOBALS['spx_registered_routes'][] = [
             'namespace' => $namespace,
             'route'     => $route,
