@@ -46,6 +46,7 @@ use Starisian\SparxstarUEC\helpers\StarLogger;
 use Starisian\SparxstarUEC\includes\SparxstarUECCacheHelper;
 use Starisian\SparxstarUEC\core\SparxstarUECSnapshotRepository;
 use Starisian\SparxstarUEC\includes\SparxstarUECSessionManager;
+use Starisian\Sparxstar\Sirus\core\ContextEngine;
 
 if (! defined('ABSPATH')) {
     exit;
@@ -927,5 +928,19 @@ final class StarUserEnv
                 ]
             );
         }
+    }
+
+    /**
+     * Get the current Sirus context, delegating to the new ContextEngine.
+     * Falls back to null if the Sirus subsystem is not available.
+     *
+     * @return \Starisian\Sparxstar\Sirus\core\SirusContext|null
+     */
+    public static function getSirusContext(): ?\Starisian\Sparxstar\Sirus\core\SirusContext
+    {
+        if (! class_exists(ContextEngine::class)) {
+            return null;
+        }
+        return ContextEngine::current();
     }
 }

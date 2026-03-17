@@ -5,7 +5,8 @@
   "license": "proprietary",
   "autoload": {
     "psr-4": {
-      "Starisian\\SparxstarUEC\\": "src/"
+      "Starisian\\SparxstarUEC\\": "src/",
+      "Starisian\\Sparxstar\\Sirus\\": "src/"
     }
   },
   "authors": [
@@ -16,7 +17,8 @@
   ],
   "minimum-stability": "stable",
   "require": {
-    "geoip2/geoip2": "^3.2"
+    "geoip2/geoip2": "^3.2",
+    "matomo/device-detector": "^6.4"
   },
   "require-dev": {
     "php-stubs/wordpress-stubs": "^6.8",

@@ -1,0 +1,132 @@
+<?php
+/**
+ * DeviceRepository - Persistence layer for DeviceRecord objects.
+ *
+ * @package Starisian\Sparxstar\Sirus
+ */
+
+declare(strict_types=1);
+
+namespace Starisian\Sparxstar\Sirus\core;
+
+if (! defined('ABSPATH')) {
+    exit;
+}
+
+/**
+ * Handles all database interactions for the sirus_devices table.
+ * All queries use prepared statements via $wpdb.
+ */
+final class DeviceRepository
+{
+    /** @var string */
+    private string $table;
+
+    /**
+     * @param \wpdb $wpdb WordPress database abstraction object.
+     */
+    public function __construct(private readonly \wpdb $wpdb)
+    {
+        $this->table = $this->wpdb->prefix . 'sirus_devices';
+    }
+
+    /**
+     * Finds a DeviceRecord by its device_id UUID.
+     *
+     * @param string $device_id The device UUID to look up.
+     */
+    public function findByDeviceId(string $device_id): ?DeviceRecord
+    {
+        $sql = $this->wpdb->prepare(
+            "SELECT * FROM `{$this->table}` WHERE `device_id` = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $device_id
+        );
+
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        $row = $this->wpdb->get_row($sql);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return $this->rowToRecord($row);
+    }
+
+    /**
+     * Finds a DeviceRecord by its fingerprint hash.
+     *
+     * @param string $fingerprint_hash SHA-256 fingerprint hash to look up.
+     */
+    public function findByFingerprintHash(string $fingerprint_hash): ?DeviceRecord
+    {
+        $sql = $this->wpdb->prepare(
+            "SELECT * FROM `{$this->table}` WHERE `fingerprint_hash` = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $fingerprint_hash
+        );
+
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        $row = $this->wpdb->get_row($sql);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return $this->rowToRecord($row);
+    }
+
+    /**
+     * Inserts or replaces a DeviceRecord row.
+     *
+     * @param DeviceRecord $record The record to persist.
+     */
+    public function save(DeviceRecord $record): bool
+    {
+        $result = $this->wpdb->replace(
+            $this->table,
+            [
+                'device_id'        => $record->device_id,
+                'fingerprint_hash' => $record->fingerprint_hash,
+                'environment_json' => $record->environment_json,
+                'first_seen'       => $record->first_seen,
+                'last_seen'        => $record->last_seen,
+                'trust_level'      => $record->trust_level,
+            ],
+            ['%s', '%s', '%s', '%d', '%d', '%s']
+        );
+
+        return $result !== false;
+    }
+
+    /**
+     * Updates the last_seen timestamp for the given device_id to now.
+     *
+     * @param string $device_id The device UUID to update.
+     */
+    public function updateLastSeen(string $device_id): void
+    {
+        $this->wpdb->update(
+            $this->table,
+            ['last_seen' => time()],
+            ['device_id' => $device_id],
+            ['%d'],
+            ['%s']
+        );
+    }
+
+    /**
+     * Maps a raw database row object to a DeviceRecord value object.
+     *
+     * @param object $row The raw row from wpdb.
+     */
+    private function rowToRecord(object $row): DeviceRecord
+    {
+        return new DeviceRecord(
+            device_id:        (string) $row->device_id,
+            fingerprint_hash: (string) $row->fingerprint_hash,
+            environment_json: (string) $row->environment_json,
+            first_seen:       (int) $row->first_seen,
+            last_seen:        (int) $row->last_seen,
+            trust_level:      (string) $row->trust_level,
+        );
+    }
+}
