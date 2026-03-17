@@ -19,6 +19,9 @@
   "require": {
     "geoip2/geoip2": "^3.2"
   },
+  "suggest": {
+    "matomo/device-detector": "^6.4 — Required for server-side UA parsing. Install via: composer require matomo/device-detector. Without this package, SirusDeviceParser returns empty device metadata."
+  },
   "require-dev": {
     "php-stubs/wordpress-stubs": "^6.8",
     "psr/simple-cache": "^3.0",

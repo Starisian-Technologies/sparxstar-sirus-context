@@ -1,43 +1,69 @@
 /**
  * @file sparxstar-bootstrap.js
- * @version 1.0.0
- * @description Bootstrap file that imports vendor dependencies and exposes them globally.
- * This is the Rollup entry point that bundles everything together.
+ * @version 2.0.0
+ * @description Bootstrap file for the Sirus Context Engine JS client.
+ *
+ * ARCHITECTURE NOTE (spec §B):
+ * Device detection runs server-side via Matomo DeviceDetector (PHP).
+ * The JS client sends raw signals only — it never bundles a device-detection library.
+ * Bundling device-detector-js (~576KB) client-side violates the lightweight client rule.
+ *
+ * CROSS-DOMAIN CONTEXT HANDOFF (spec §F):
+ * When a signed context token arrives via the `?ctx` URL parameter, this bootstrap:
+ *   1. Reads the token from the URL.
+ *   2. Passes it to SPARXSTAR.State for context restoration.
+ *   3. Calls history.replaceState() to REMOVE the parameter from the URL immediately.
+ *      This is a security requirement — the token must never persist in browser history,
+ *      server logs, or referrer headers.
  */
 
-// Import vendor libraries from node_modules
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
-import DeviceDetector from 'device-detector-js';
 
-// Expose fingerprint globally
+// Expose fingerprint globally (used by collectors to send visitor_id to the server).
 window.FingerprintJS = FingerprintJS;
 
-// Initialize SPARXSTAR namespace
+// Initialize SPARXSTAR namespace.
 window.SPARXSTAR = window.SPARXSTAR || {};
 
-// Wrap DeviceDetector with the getDeviceInfo() API expected by collectors
-class SparxstarDeviceDetector {
-    constructor() {
-        this.detector = new DeviceDetector();
-    }
+// ── Cross-domain context token handoff ────────────────────────────────────────
+(function handleCtxHandoff() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const ctxToken = params.get('ctx');
 
-    getDeviceInfo() {
-        try {
-            const ua = navigator.userAgent || '';
-            return this.detector.parse(ua);
-        } catch (e) {
-            if (window.console && console.warn) {
-                console.warn('[SPARXSTAR DeviceDetector] parse() failed', e && e.message ? e.message : e);
+        if (ctxToken) {
+            // Validate the token format before storing: Sirus tokens are base64url-encoded
+            // JSON payloads. A valid token contains only base64url characters (A-Z, a-z, 0-9,
+            // -, _, .) and is at least 32 characters long.
+            // This prevents malicious or malformed values from reaching state consumers.
+            const isValidFormat = /^[A-Za-z0-9\-_.]{32,}$/.test(ctxToken);
+
+            if (isValidFormat) {
+                // Store the token for SPARXSTAR.State to consume.
+                window.SPARXSTAR._inboundContextToken = ctxToken;
+            } else if (window.console && console.warn) {
+                console.warn('[SPARXSTAR] Discarded malformed ctx token');
             }
-            return null;
+
+            // SECURITY: Remove ?ctx from the URL immediately regardless of validity.
+            // history.replaceState() does not trigger a page reload.
+            // The token must never persist in browser history, server logs, or referrer headers.
+            params.delete('ctx');
+            const newSearch = params.toString();
+            const newUrl = window.location.pathname +
+                (newSearch ? '?' + newSearch : '') +
+                window.location.hash;
+            window.history.replaceState(null, document.title, newUrl);
+        }
+    } catch (e) {
+        // Silently ignore — non-blocking.
+        if (window.console && console.warn) {
+            console.warn('[SPARXSTAR] ctx handoff failed', e && e.message ? e.message : e);
         }
     }
-}
+}());
 
-// Expose a single shared instance
-window.SPARXSTAR.DeviceDetector = new SparxstarDeviceDetector();
-
-// Now import all the IIFE modules
+// ── Import all IIFE modules ───────────────────────────────────────────────────
 import './sparxstar-state.js';
 import './sparxstar-collector.js';
 import './sparxstar-profile.js';

@@ -1,6 +1,12 @@
 <?php
+
 /**
- * SirusDatabase - Schema management for the sirus_devices table.
+ * SirusDatabase - Schema management for all Sirus database tables.
+ *
+ * Manages:
+ * - sirus_devices                 — device continuity records
+ * - sparxstar_client_reports      — raw client error telemetry (60-day rolling)
+ * - sparxstar_client_error_stats  — aggregated error statistics (permanent)
  *
  * @package Starisian\Sparxstar\Sirus
  */
@@ -14,13 +20,13 @@ if (! defined('ABSPATH')) {
 }
 
 /**
- * Handles creation and migration of the sirus_devices database table.
+ * Handles creation and migration of all Sirus database tables.
  * Uses dbDelta() for safe, idempotent schema management.
  */
 final class SirusDatabase
 {
     /** Current schema version. */
-    private const SCHEMA_VERSION = '1.0.0';
+    private const SCHEMA_VERSION = '1.1.0';
 
     /** Option key used to track the installed schema version. */
     private const VERSION_OPTION = 'sirus_db_version';
@@ -41,17 +47,33 @@ final class SirusDatabase
             return;
         }
 
-        $this->create_or_update_table();
+        $this->create_or_update_tables();
         update_option(self::VERSION_OPTION, self::SCHEMA_VERSION, true);
     }
 
     /**
-     * Creates or alters the sirus_devices table using dbDelta.
+     * Creates or alters all Sirus tables using dbDelta.
      */
-    public function create_or_update_table(): void
+    public function create_or_update_tables(): void
     {
-        $table          = $this->wpdb->prefix . 'sirus_devices';
         $charset_collate = $this->wpdb->get_charset_collate();
+
+        if (! function_exists('dbDelta')) {
+            require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+        }
+
+        $this->create_devices_table($charset_collate);
+        $this->create_telemetry_tables($charset_collate);
+    }
+
+    /**
+     * Creates or updates the sirus_devices table.
+     *
+     * @param string $charset_collate DB charset/collation string.
+     */
+    private function create_devices_table(string $charset_collate): void
+    {
+        $table = $this->wpdb->prefix . 'sirus_devices';
 
         $sql = "CREATE TABLE {$table} (
             device_id varchar(36) NOT NULL,
@@ -65,7 +87,49 @@ final class SirusDatabase
             KEY last_seen (last_seen)
         ) {$charset_collate};";
 
-        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta($sql);
+    }
+
+    /**
+     * Creates or updates the client telemetry tables.
+     *
+     * sparxstar_client_reports      — raw reports, 60-day rolling window
+     * sparxstar_client_error_stats  — aggregated stats, permanent
+     *
+     * @param string $charset_collate DB charset/collation string.
+     */
+    private function create_telemetry_tables(string $charset_collate): void
+    {
+        $reports_table = $this->wpdb->prefix . 'sparxstar_client_reports';
+        $stats_table   = $this->wpdb->prefix . 'sparxstar_client_error_stats';
+
+        $sql_reports = "CREATE TABLE {$reports_table} (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            error_hash varchar(64) NOT NULL,
+            site_id bigint(20) unsigned NOT NULL DEFAULT 1,
+            device_id varchar(36) DEFAULT NULL,
+            error_type varchar(128) NOT NULL DEFAULT '',
+            error_message text NOT NULL,
+            error_context longtext NOT NULL,
+            timestamp datetime NOT NULL,
+            PRIMARY KEY  (id),
+            KEY error_hash (error_hash),
+            KEY site_id (site_id),
+            KEY timestamp (timestamp)
+        ) {$charset_collate};";
+
+        $sql_stats = "CREATE TABLE {$stats_table} (
+            error_hash varchar(64) NOT NULL,
+            site_id bigint(20) unsigned NOT NULL DEFAULT 1,
+            count bigint(20) unsigned NOT NULL DEFAULT 1,
+            first_seen datetime NOT NULL,
+            last_seen datetime NOT NULL,
+            PRIMARY KEY  (error_hash, site_id),
+            KEY site_id (site_id),
+            KEY last_seen (last_seen)
+        ) {$charset_collate};";
+
+        dbDelta($sql_reports);
+        dbDelta($sql_stats);
     }
 }

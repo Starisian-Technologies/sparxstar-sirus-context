@@ -1291,3 +1291,35 @@ if (!class_exists('WP_Error')) {
         }
     }
 }
+
+if (!function_exists('sanitize_key')) {
+    /**
+     * Stub for WordPress' sanitize_key.
+     *
+     * @param string $key Key to sanitize.
+     * @return string Sanitized key (lowercase letters, numbers, underscores, dashes).
+     */
+    function sanitize_key(string $key): string
+    {
+        // Strip disallowed characters first, then lowercase — matching WP core order.
+        return strtolower((string) preg_replace('/[^a-zA-Z0-9_\-]/', '', $key));
+    }
+}
+
+if (!function_exists('current_time')) {
+    /**
+     * Stub for WordPress' current_time.
+     *
+     * @param string $type 'mysql' returns a MySQL datetime string; 'timestamp' returns int.
+     * @param bool   $gmt  Whether to use GMT. Ignored in tests.
+     * @return string|int
+     */
+    function current_time(string $type, bool $gmt = false): string|int
+    {
+        unset($gmt);
+        if ($type === 'timestamp' || $type === 'U') {
+            return time();
+        }
+        return gmdate('Y-m-d H:i:s');
+    }
+}

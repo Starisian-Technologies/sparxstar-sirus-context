@@ -1,4 +1,5 @@
 <?php
+
 /**
  * SirusPlugin - Plugin bootstrap and hook registration for the Sirus Context Engine.
  *
@@ -14,6 +15,7 @@ if (! defined('ABSPATH')) {
 }
 
 use Starisian\Sparxstar\Sirus\api\SirusRESTController;
+use Starisian\Sparxstar\Sirus\core\ClientTelemetry;
 use Starisian\Sparxstar\Sirus\core\ContextEngine;
 use Starisian\Sparxstar\Sirus\core\DeviceContinuity;
 use Starisian\Sparxstar\Sirus\core\DeviceRepository;
@@ -55,6 +57,9 @@ final class SirusPlugin
     {
         add_action('rest_api_init', [$this, 'registerRestRoutes']);
         add_action('wp_enqueue_scripts', [$this, 'enqueueAssets']);
+
+        // Daily telemetry pruning cron.
+        add_action(ClientTelemetry::CRON_HOOK, [$this, 'runTelemetryPrune']);
     }
 
     /**
@@ -110,20 +115,39 @@ final class SirusPlugin
     }
 
     /**
-     * Activation hook: ensures the sirus_devices table exists.
+     * Runs the daily telemetry pruning job.
+     * Removes raw client error reports older than 60 days.
+     */
+    public function runTelemetryPrune(): void
+    {
+        global $wpdb;
+        $telemetry = new ClientTelemetry($wpdb);
+        $telemetry->prune();
+    }
+
+    /**
+     * Activation hook: ensures all Sirus database tables exist and schedules cron.
      */
     public static function onActivation(): void
     {
         global $wpdb;
+
         $db = new SirusDatabase($wpdb);
         $db->ensure_schema();
+
+        // Also ensure telemetry tables via ClientTelemetry (which has its own ensure_schema).
+        $telemetry = new ClientTelemetry($wpdb);
+        $telemetry->ensure_schema();
+
+        ClientTelemetry::schedule_cron();
     }
 
     /**
-     * Deactivation hook: removes any scheduled cron events for this plugin.
+     * Deactivation hook: removes scheduled cron events for this plugin.
      */
     public static function onDeactivation(): void
     {
         wp_clear_scheduled_hook('sparxstar_sirus_cleanup');
+        ClientTelemetry::unschedule_cron();
     }
 }
