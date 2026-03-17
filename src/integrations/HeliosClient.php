@@ -57,13 +57,12 @@ final class HeliosClient
             return $cached;
         }
 
-        $base_url = $this->base_url !== '' ? $this->base_url : (string) get_bloginfo('url');
-
-        // Prevent self-referential calls when no explicit base_url is configured.
-        // An empty base_url should only be used in environments where this site IS the Helios service.
-        if ($base_url === '') {
+        // If no explicit base_url is configured, Helios is not available.
+        if ($this->base_url === '') {
             return null;
         }
+
+        $base_url = $this->base_url;
 
         $url = rtrim($base_url, '/') . self::ENDPOINT;
 

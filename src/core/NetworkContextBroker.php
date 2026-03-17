@@ -63,7 +63,8 @@ final class NetworkContextBroker
         $expected_sig = hash_hmac('sha256', $payload_b64, wp_salt('auth'), true);
         $provided_sig = $this->base64url_decode($sig_b64);
 
-        if (! hash_equals($expected_sig, $provided_sig)) {
+        // Guard against empty decoded signature before constant-time comparison.
+        if ($provided_sig === '' || ! hash_equals($expected_sig, $provided_sig)) {
             return null;
         }
 
@@ -79,6 +80,10 @@ final class NetworkContextBroker
 
         $now = time();
         if (! isset($data['exp']) || (int) $data['exp'] <= $now) {
+            return null;
+        }
+
+        if (isset($data['nbf']) && (int) $data['nbf'] > $now) {
             return null;
         }
 

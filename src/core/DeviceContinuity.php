@@ -67,8 +67,19 @@ final class DeviceContinuity
      */
     public function registerDevice(string $fingerprint_hash, array $environment_data): DeviceRecord
     {
-        $now            = time();
-        $environment_json = wp_json_encode($environment_data) ?: '{}';
+        $now              = time();
+        $encoded          = wp_json_encode($environment_data);
+        if ($encoded === false) {
+            // Log encoding failure so developers can diagnose data loss.
+            if (class_exists(\Starisian\SparxstarUEC\helpers\StarLogger::class)) {
+                \Starisian\SparxstarUEC\helpers\StarLogger::debug(
+                    'DeviceContinuity',
+                    'wp_json_encode failed for environment_data; storing empty object.'
+                );
+            }
+            $encoded = '{}';
+        }
+        $environment_json = $encoded;
 
         $record = new DeviceRecord(
             device_id:        wp_generate_uuid4(),

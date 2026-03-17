@@ -153,10 +153,9 @@ final class SirusRESTController
      *
      * Returns the portable payload of the current SirusContext.
      *
-     * @param WP_REST_Request $request The incoming REST request.
      * @return WP_REST_Response|WP_Error
      */
-    public function handle_get_context(WP_REST_Request $request): WP_REST_Response|WP_Error // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
+    public function handle_get_context(): WP_REST_Response|WP_Error
     {
         $context = ContextEngine::current();
 
@@ -166,24 +165,34 @@ final class SirusRESTController
     /**
      * Returns true if the given IP address is within its rate-limit window.
      *
-     * Stores a counter transient keyed by hashed IP. Allows up to RATE_LIMIT_MAX
-     * requests per 60-second window.
+     * Uses a pair of transients: one counter and one fixed window expiry to ensure
+     * the window does not slide on each increment. Allows up to RATE_LIMIT_MAX
+     * requests per 60-second fixed window.
      *
      * @param string $ip The client IP address to check.
      */
     private function check_rate_limit(string $ip): bool
     {
-        $transient_key = self::RATE_LIMIT_TRANSIENT_PREFIX . hash('sha256', $ip);
-        $count         = (int) get_transient($transient_key);
+        $hash           = hash('sha256', $ip);
+        $counter_key    = self::RATE_LIMIT_TRANSIENT_PREFIX . $hash;
+        $expiry_key     = self::RATE_LIMIT_TRANSIENT_PREFIX . 'exp_' . $hash;
+
+        $count  = (int) get_transient($counter_key);
+        $expiry = (int) get_transient($expiry_key);
 
         if ($count >= self::RATE_LIMIT_MAX) {
             return false;
         }
 
-        if ($count === 0) {
-            set_transient($transient_key, 1, 60);
+        if ($count === 0 || $expiry === 0) {
+            // Start a new fixed 60-second window.
+            $window_ttl = 60;
+            set_transient($counter_key, 1, $window_ttl);
+            set_transient($expiry_key, time() + $window_ttl, $window_ttl);
         } else {
-            set_transient($transient_key, $count + 1, 60);
+            // Increment within the existing window; preserve original TTL.
+            $remaining = max(1, $expiry - time());
+            set_transient($counter_key, $count + 1, $remaining);
         }
 
         return true;

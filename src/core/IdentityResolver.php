@@ -77,15 +77,23 @@ final class IdentityResolver
 
     /**
      * Returns the higher trust level of the two provided values.
+     * Ignores unknown levels (treats them as 'anonymous') and logs a warning.
      *
-     * @param string $current  The currently resolved trust level.
+     * @param string $current   The currently resolved trust level.
      * @param string $candidate The candidate trust level to compare.
      */
     private function escalate(string $current, string $candidate): string
     {
-        $current_weight   = self::TRUST_WEIGHTS[$current]   ?? 0;
-        $candidate_weight = self::TRUST_WEIGHTS[$candidate] ?? 0;
+        if (! array_key_exists($current, self::TRUST_WEIGHTS)) {
+            $current = 'anonymous';
+        }
+        if (! array_key_exists($candidate, self::TRUST_WEIGHTS)) {
+            // Unknown candidate is silently ignored rather than trusted.
+            return $current;
+        }
 
-        return $candidate_weight > $current_weight ? $candidate : $current;
+        return self::TRUST_WEIGHTS[$candidate] > self::TRUST_WEIGHTS[$current]
+            ? $candidate
+            : $current;
     }
 }
