@@ -70,13 +70,9 @@ final class DeviceContinuity
         $now              = time();
         $encoded          = wp_json_encode($environment_data);
         if ($encoded === false) {
-            // Log encoding failure so developers can diagnose data loss.
-            if (class_exists(\Starisian\SparxstarUEC\helpers\StarLogger::class)) {
-                \Starisian\SparxstarUEC\helpers\StarLogger::debug(
-                    'DeviceContinuity',
-                    'wp_json_encode failed for environment_data; storing empty object.'
-                );
-            }
+            // Log encoding failure via error_log to avoid cross-namespace coupling.
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+            error_log('[Sirus DeviceContinuity] wp_json_encode failed for environment_data; storing empty object.');
             $encoded = '{}';
         }
         $environment_json = $encoded;
