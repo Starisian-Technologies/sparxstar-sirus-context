@@ -148,4 +148,98 @@ final class ContextEngineTest extends TestCase
 
         $this->assertIsNumeric($ctx->site_id);
     }
+
+    // ── buildFromDevice() ─────────────────────────────────────────────────────
+
+    /**
+     * buildFromDevice() returns a SirusContext using the supplied device_id.
+     */
+    public function testBuildFromDeviceUsesDeviceId(): void
+    {
+        $record = new \Starisian\Sparxstar\Sirus\core\DeviceRecord(
+            device_id:        'fixed-device-uuid',
+            fingerprint_hash: 'abc123',
+            environment_json: '{}',
+            first_seen:       time() - 10,
+            last_seen:        time(),
+            trust_level:      'device',
+        );
+
+        $ctx = ContextEngine::buildFromDevice($record);
+
+        $this->assertSame('fixed-device-uuid', $ctx->device_id);
+    }
+
+    /**
+     * buildFromDevice() primes the ContextCache so current() returns the same instance.
+     */
+    public function testBuildFromDevicePrimesContextCache(): void
+    {
+        $record = new \Starisian\Sparxstar\Sirus\core\DeviceRecord(
+            device_id:        'primed-device-uuid',
+            fingerprint_hash: 'def456',
+            environment_json: '{}',
+            first_seen:       time() - 10,
+            last_seen:        time(),
+            trust_level:      'anonymous',
+        );
+
+        $built   = ContextEngine::buildFromDevice($record);
+        $current = ContextEngine::current();
+
+        $this->assertSame($built, $current);
+    }
+
+    /**
+     * buildFromDevice() seeds trust_level from the DeviceRecord.
+     */
+    public function testBuildFromDeviceUsesTrustLevelFromRecord(): void
+    {
+        $record = new \Starisian\Sparxstar\Sirus\core\DeviceRecord(
+            device_id:        'trusted-device-uuid',
+            fingerprint_hash: 'ghi789',
+            environment_json: '{}',
+            first_seen:       time() - 10,
+            last_seen:        time(),
+            trust_level:      'contributor',
+        );
+
+        $ctx = ContextEngine::buildFromDevice($record);
+
+        $this->assertSame('contributor', $ctx->trust_level);
+    }
+
+    // ── current() expiry eviction ─────────────────────────────────────────────
+
+    /**
+     * current() rebuilds the context when the cached one is expired.
+     */
+    public function testCurrentEvictsExpiredCacheAndRebuilds(): void
+    {
+        // Manually place an expired context into the cache.
+        $expired = new SirusContext(
+            context_id:     'old-ctx',
+            environment_id: 'env',
+            network_id:     '1',
+            site_id:        '1',
+            device_id:      'old-dev',
+            session_id:     'old-sess',
+            identity_id:    null,
+            authority_id:   null,
+            role_set:       [],
+            capabilities:   [],
+            trust_level:    'anonymous',
+            issued_at:      1000,
+            expires:        1001, // already expired
+        );
+
+        ContextCache::set($expired);
+
+        $fresh = ContextEngine::current();
+
+        // Must have returned a different (freshly built) context.
+        $this->assertNotSame($expired, $fresh);
+        // The fresh context must not be expired.
+        $this->assertFalse($fresh->isExpired());
+    }
 }

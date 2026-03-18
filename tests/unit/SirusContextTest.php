@@ -53,6 +53,62 @@ final class SirusContextTest extends TestCase
         $this->assertSame(1, SirusContext::CONTEXT_VERSION);
     }
 
+    // ── isExpired() ───────────────────────────────────────────────────────────
+
+    /**
+     * isExpired() returns false for a context whose expires is in the future.
+     */
+    public function testIsExpiredReturnsFalseForFutureExpiry(): void
+    {
+        $ctx = new SirusContext(
+            context_id:     'ctx-1', environment_id: 'env', network_id: '1', site_id: '1',
+            device_id:      'dev', session_id: 'sess',
+            identity_id:    null, authority_id: null,
+            role_set:       [], capabilities: [],
+            trust_level:    'anonymous',
+            issued_at:      time(),
+            expires:        time() + 300,
+        );
+
+        $this->assertFalse($ctx->isExpired());
+    }
+
+    /**
+     * isExpired() returns true for a context whose expires is in the past.
+     */
+    public function testIsExpiredReturnsTrueForPastExpiry(): void
+    {
+        $ctx = new SirusContext(
+            context_id:     'ctx-1', environment_id: 'env', network_id: '1', site_id: '1',
+            device_id:      'dev', session_id: 'sess',
+            identity_id:    null, authority_id: null,
+            role_set:       [], capabilities: [],
+            trust_level:    'anonymous',
+            issued_at:      1000,
+            expires:        1001, // well in the past
+        );
+
+        $this->assertTrue($ctx->isExpired());
+    }
+
+    /**
+     * isExpired() returns false when expires is 0 (never-expire sentinel).
+     */
+    public function testIsExpiredReturnsFalseWhenExpiresIsZero(): void
+    {
+        $ctx = new SirusContext(
+            context_id:     'ctx-1', environment_id: 'env', network_id: '1', site_id: '1',
+            device_id:      'dev', session_id: 'sess',
+            identity_id:    null, authority_id: null,
+            role_set:       [], capabilities: [],
+            trust_level:    'anonymous',
+            issued_at:      1000,
+            expires:        0,
+        );
+
+        $this->assertFalse($ctx->isExpired());
+    }
+
     /**
      * Validates that all constructor properties are accessible and correct.
      */

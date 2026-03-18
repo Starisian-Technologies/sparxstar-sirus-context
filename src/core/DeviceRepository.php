@@ -114,6 +114,31 @@ final class DeviceRepository
     }
 
     /**
+     * Updates the fingerprint_hash (and last_seen) for the given device_id.
+     *
+     * Called when fingerprint drift is detected — the device_id is the stable identity
+     * and the fingerprint is probabilistic metadata that may change over time
+     * (e.g. browser update, network change). Storing the latest hash allows the
+     * server to continue recognizing the device on subsequent visits.
+     *
+     * @param string $device_id        The device UUID to update.
+     * @param string $fingerprint_hash New SHA-256 fingerprint hash.
+     */
+    public function updateFingerprintHash(string $device_id, string $fingerprint_hash): void
+    {
+        $this->wpdb->update(
+            $this->table,
+            [
+                'fingerprint_hash' => $fingerprint_hash,
+                'last_seen'        => time(),
+            ],
+            ['device_id' => $device_id],
+            ['%s', '%d'],
+            ['%s']
+        );
+    }
+
+    /**
      * Maps a raw database row object to a DeviceRecord value object.
      *
      * @param object $row The raw row from wpdb.

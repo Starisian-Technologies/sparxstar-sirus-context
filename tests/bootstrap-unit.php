@@ -1323,3 +1323,18 @@ if (!function_exists('current_time')) {
         return gmdate('Y-m-d H:i:s');
     }
 }
+
+if (!function_exists('wp_salt')) {
+    /**
+     * Stub for WordPress' wp_salt — returns a fixed deterministic value for tests.
+     * In production this returns a secret key from wp-config.php.
+     *
+     * @param string $scheme Salt scheme (e.g. 'auth', 'secure_auth'). Ignored in tests.
+     * @return string Fixed test salt.
+     */
+    function wp_salt(string $scheme = 'auth'): string
+    {
+        unset($scheme);
+        return 'test-salt-for-unit-tests-only-not-secure';
+    }
+}

@@ -11,6 +11,10 @@
  * - fingerprint_hash is computed server-side as sha256(visitor_id + user_agent + ip_subnet).
  *   The client sends raw signals; the server owns the hash computation.
  *
+ * Device → Context binding (spec §A, issue #1):
+ * - After resolving/registering a device, the context is built FROM that device
+ *   via ContextEngine::buildFromDevice() so the two are always in sync.
+ *
  * @package Starisian\Sparxstar\Sirus
  */
 
@@ -92,6 +96,20 @@ final class SirusRESTController
                 'methods'             => 'GET',
                 'callback'            => [$this, 'handle_get_context'],
                 'permission_callback' => '__return_true',
+                'args'                => [
+                    // Optional: resolve context for a specific device.
+                    'device_id' => [
+                        'required'          => false,
+                        'type'              => 'string',
+                        'sanitize_callback' => 'sanitize_text_field',
+                    ],
+                    // Optional: restore context from a signed cross-domain token.
+                    'ctx_token' => [
+                        'required'          => false,
+                        'type'              => 'string',
+                        'sanitize_callback' => 'sanitize_text_field',
+                    ],
+                ],
             ]
         );
     }
@@ -101,7 +119,8 @@ final class SirusRESTController
      *
      * Server derives fingerprint_hash from visitor_id + UA + IP subnet.
      * Resolves or registers device continuity, runs server-side UA parsing,
-     * and returns a signed context token.
+     * builds the context from the resolved device (deterministic binding), and
+     * returns a signed context token.
      *
      * @param WP_REST_Request $request The incoming REST request.
      * @return WP_REST_Response|WP_Error
@@ -136,7 +155,7 @@ final class SirusRESTController
 
         // Server-side fingerprint derivation: sha256(visitorId + userAgent + ipSubnet).
         // This ensures the fingerprint is under server control and cannot be spoofed.
-        $user_agent     = sanitize_text_field(
+        $user_agent       = sanitize_text_field(
             wp_unslash((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''))
         );
         $ip_subnet        = IpAnonymizer::ipSubnet($raw_ip);
@@ -149,8 +168,8 @@ final class SirusRESTController
             : [];
 
         // Server-side UA parsing — the client never runs a detection library.
-        $parser            = new SirusDeviceParser();
-        $device_info       = $parser->parse($user_agent);
+        $parser      = new SirusDeviceParser();
+        $device_info = $parser->parse($user_agent);
 
         // Merge server-parsed device info into the environment snapshot.
         // Existing client signals are preserved; server data takes precedence for device keys.
@@ -167,15 +186,20 @@ final class SirusRESTController
             'ip_anonymized'             => IpAnonymizer::anonymize($raw_ip),
         ]);
 
+        // 1. Resolve (or register) the device.
         $device_record = $this->device_continuity->resolveDevice(
             $device_id_param,
             $fingerprint_hash,
             $environment_data
         );
 
-        $context = ContextEngine::current();
-        $broker  = new NetworkContextBroker();
-        $token   = $broker->generateToken($context);
+        // 2. Build context FROM the resolved device — ensures device and context always
+        //    reference the same device_id. This primes ContextCache so that any subsequent
+        //    call to ContextEngine::current() in this request returns the same context.
+        $context = ContextEngine::buildFromDevice($device_record);
+
+        $broker = new NetworkContextBroker();
+        $token  = $broker->generateToken($context);
 
         return new WP_REST_Response(
             [
@@ -190,14 +214,41 @@ final class SirusRESTController
     /**
      * Handles GET /sparxstar/v1/context.
      *
-     * Returns the portable payload of the current SirusContext.
+     * Resolution priority:
+     * 1. ctx_token — validates the signed cross-domain handoff token and restores context.
+     * 2. Fallback — returns the current request context via ContextEngine::current().
      *
+     * The ctx_token path implements the inbound side of the cross-domain handoff
+     * defined in spec §F: signature and TTL are verified; an expired or tampered
+     * token returns a 401. Signature verification uses HMAC-SHA256 with the WP auth
+     * salt, so tokens are site-specific.
+     *
+     * @param WP_REST_Request $request The incoming REST request.
      * @return WP_REST_Response|WP_Error
      */
-    public function handle_get_context(): WP_REST_Response|WP_Error
+    public function handle_get_context(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
-        $context = ContextEngine::current();
+        $ctx_token = sanitize_text_field(
+            wp_unslash((string) ($request->get_param('ctx_token') ?? ''))
+        );
 
+        if ($ctx_token !== '') {
+            $broker  = new NetworkContextBroker();
+            $context = $broker->verifyToken($ctx_token);
+
+            if ($context === null) {
+                return new WP_Error(
+                    'sirus_invalid_ctx_token',
+                    __('Invalid or expired context token.', 'sparxstar-sirus'),
+                    ['status' => 401]
+                );
+            }
+
+            return new WP_REST_Response($context->toPortablePayload(), 200);
+        }
+
+        // No token — return the context for the current request.
+        $context = ContextEngine::current();
         return new WP_REST_Response($context->toPortablePayload(), 200);
     }
 

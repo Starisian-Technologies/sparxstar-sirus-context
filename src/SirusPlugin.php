@@ -86,6 +86,10 @@ final class SirusPlugin
 
         $asset_path = SIRUS_PLUGIN_PATH . 'assets/js/sirus-context.js';
         if (! file_exists($asset_path)) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+                error_log('[Sirus] Front-end asset not found, skipping enqueue: ' . $asset_path);
+            }
             return;
         }
 

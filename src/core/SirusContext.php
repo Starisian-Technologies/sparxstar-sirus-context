@@ -54,6 +54,15 @@ final class SirusContext
     ) {}
 
     /**
+     * Returns true if the context has passed its expiry timestamp.
+     * An expires value of 0 is treated as "never expires" (backward-compatible).
+     */
+    public function isExpired(): bool
+    {
+        return $this->expires > 0 && time() >= $this->expires;
+    }
+
+    /**
      * Returns true if the given capability string is in the resolved capabilities set.
      *
      * @param string $capability The capability string to check.
