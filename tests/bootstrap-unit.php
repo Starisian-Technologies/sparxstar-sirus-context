@@ -905,6 +905,32 @@ if (!function_exists('wp_generate_uuid4')) {
     }
 }
 
+if (!function_exists('wp_is_uuid')) {
+    /**
+     * Validates whether a string is a valid UUID (any version).
+     *
+     * @param mixed  $uuid    The value to check.
+     * @param int    $version Optional version number (4 accepted; any version checked).
+     * @return bool True if the string is a valid UUID, false otherwise.
+     */
+    function wp_is_uuid(mixed $uuid, int $version = 0): bool
+    {
+        if (! is_string($uuid)) {
+            return false;
+        }
+        if (4 === $version) {
+            return (bool) preg_match(
+                '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i',
+                $uuid
+            );
+        }
+        return (bool) preg_match(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i',
+            $uuid
+        );
+    }
+}
+
 if (!function_exists('register_rest_route')) {
     /**
      * Stub for register_rest_route that records registered routes for assertions.

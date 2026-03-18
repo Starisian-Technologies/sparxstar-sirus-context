@@ -113,13 +113,9 @@ final class ContextEngine
             wp_unslash((string) $_COOKIE['spx_device_id'])
         ) : '';
         // Validate UUID v4 format to prevent arbitrary strings from reaching the DB.
-        $device_id = (
-            $raw_cookie !== '' &&
-            (bool) preg_match(
-                '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i',
-                $raw_cookie
-            )
-        ) ? $raw_cookie : wp_generate_uuid4();
+        $device_id = (is_string($raw_cookie) && wp_is_uuid($raw_cookie, 4))
+            ? $raw_cookie
+            : wp_generate_uuid4();
 
         $session_id = (session_status() === PHP_SESSION_ACTIVE && session_id() !== '')
             ? session_id()

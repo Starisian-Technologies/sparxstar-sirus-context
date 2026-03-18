@@ -79,7 +79,7 @@ final class NetworkContextBroker
         }
 
         $now = time();
-        if (! isset($data['exp']) || (int) $data['exp'] <= $now) {
+        if (! isset($data['exp']) || (int) $data['exp'] < $now) {
             return null;
         }
 

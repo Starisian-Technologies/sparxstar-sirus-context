@@ -59,7 +59,7 @@ final class DeviceContinuity
         array $environment_data
     ): DeviceRecord {
         // ── Path 1: Hard-anchor lookup — device_id + secret ───────────────────
-        if ($device_id !== '' && $device_secret !== '') {
+        if ($device_id !== '') {
             $existing = $this->repository->findByDeviceId($device_id);
 
             if ($existing !== null && $existing->isActive() && $existing->verifySecret($device_secret)) {
