@@ -1,4 +1,5 @@
 <?php
+
 /**
  * DeviceRepository - Persistence layer for DeviceRecord objects.
  *
@@ -17,7 +18,7 @@ if (! defined('ABSPATH')) {
  * Handles all database interactions for the sirus_devices table.
  * All queries use prepared statements via $wpdb.
  */
-final class DeviceRepository
+final class DeviceRepository implements DeviceRepositoryInterface
 {
     /** @var string */
     private string $table;
@@ -85,13 +86,15 @@ final class DeviceRepository
             $this->table,
             [
                 'device_id'        => $record->device_id,
+                'device_secret'    => $record->device_secret,
                 'fingerprint_hash' => $record->fingerprint_hash,
                 'environment_json' => $record->environment_json,
                 'first_seen'       => $record->first_seen,
                 'last_seen'        => $record->last_seen,
                 'trust_level'      => $record->trust_level,
+                'drift_score'      => $record->drift_score,
             ],
-            ['%s', '%s', '%s', '%d', '%d', '%s']
+            ['%s', '%s', '%s', '%s', '%d', '%d', '%s', '%d']
         );
 
         return $result !== false;
@@ -116,10 +119,9 @@ final class DeviceRepository
     /**
      * Updates the fingerprint_hash (and last_seen) for the given device_id.
      *
-     * Called when fingerprint drift is detected — the device_id is the stable identity
-     * and the fingerprint is probabilistic metadata that may change over time
-     * (e.g. browser update, network change). Storing the latest hash allows the
-     * server to continue recognizing the device on subsequent visits.
+     * Called when fingerprint drift is detected and the device has been authenticated
+     * via its device_secret. The device_id remains the stable identity; we simply
+     * record the new fingerprint so subsequent visits resolve correctly.
      *
      * @param string $device_id        The device UUID to update.
      * @param string $fingerprint_hash New SHA-256 fingerprint hash.
@@ -139,6 +141,28 @@ final class DeviceRepository
     }
 
     /**
+     * Atomically increments the drift_score and updates last_seen for a device.
+     *
+     * Should be called whenever a fingerprint change is detected on an authenticated
+     * device. A high drift_score may indicate a highly mobile device (VPN, carrier
+     * switching) and can inform future trust-level decisions.
+     *
+     * @param string $device_id The device UUID to update.
+     */
+    public function incrementDriftScore(string $device_id): void
+    {
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $sql = $this->wpdb->prepare(
+            "UPDATE `{$this->table}` SET `drift_score` = `drift_score` + 1, `last_seen` = %d WHERE `device_id` = %s",
+            time(),
+            $device_id
+        );
+
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        $this->wpdb->query($sql);
+    }
+
+    /**
      * Maps a raw database row object to a DeviceRecord value object.
      *
      * @param object $row The raw row from wpdb.
@@ -147,11 +171,13 @@ final class DeviceRepository
     {
         return new DeviceRecord(
             device_id:        (string) $row->device_id,
+            device_secret:    (string) ($row->device_secret ?? ''),
             fingerprint_hash: (string) $row->fingerprint_hash,
             environment_json: (string) $row->environment_json,
             first_seen:       (int) $row->first_seen,
             last_seen:        (int) $row->last_seen,
             trust_level:      (string) $row->trust_level,
+            drift_score:      (int) ($row->drift_score ?? 0),
         );
     }
 }

@@ -26,7 +26,7 @@ if (! defined('ABSPATH')) {
 final class SirusDatabase
 {
     /** Current schema version. */
-    private const SCHEMA_VERSION = '1.1.0';
+    private const SCHEMA_VERSION = '1.2.0';
 
     /** Option key used to track the installed schema version. */
     private const VERSION_OPTION = 'sirus_db_version';
@@ -77,11 +77,13 @@ final class SirusDatabase
 
         $sql = "CREATE TABLE {$table} (
             device_id varchar(36) NOT NULL,
+            device_secret varchar(64) NOT NULL DEFAULT '',
             fingerprint_hash varchar(64) NOT NULL,
             environment_json longtext NOT NULL,
             first_seen int(11) unsigned NOT NULL,
             last_seen int(11) unsigned NOT NULL,
             trust_level varchar(32) NOT NULL DEFAULT 'anonymous',
+            drift_score int(11) unsigned NOT NULL DEFAULT 0,
             PRIMARY KEY  (device_id),
             KEY fingerprint_hash (fingerprint_hash),
             KEY last_seen (last_seen)

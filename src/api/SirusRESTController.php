@@ -80,6 +80,12 @@ final class SirusRESTController
                         'type'              => 'string',
                         'sanitize_callback' => 'sanitize_text_field',
                     ],
+                    // Stored device_secret from localStorage — verifies the device_id claim.
+                    'device_secret' => [
+                        'required'          => false,
+                        'type'              => 'string',
+                        'sanitize_callback' => 'sanitize_text_field',
+                    ],
                     // Additional environment signals from the client.
                     'environment_data' => [
                         'required' => false,
@@ -153,6 +159,12 @@ final class SirusRESTController
             wp_unslash((string) ($request->get_param('device_id') ?? ''))
         );
 
+        // device_secret verifies the device_id claim (drift tolerance model).
+        // Absent on first visit; present on subsequent visits from localStorage.
+        $device_secret_param = sanitize_text_field(
+            wp_unslash((string) ($request->get_param('device_secret') ?? ''))
+        );
+
         // Server-side fingerprint derivation: sha256(visitorId + userAgent + ipSubnet).
         // This ensures the fingerprint is under server control and cannot be spoofed.
         $user_agent       = sanitize_text_field(
@@ -187,8 +199,10 @@ final class SirusRESTController
         ]);
 
         // 1. Resolve (or register) the device.
+        // Pass both device_id and device_secret — the secret authenticates the device_id claim.
         $device_record = $this->device_continuity->resolveDevice(
             $device_id_param,
+            $device_secret_param,
             $fingerprint_hash,
             $environment_data
         );
@@ -204,6 +218,7 @@ final class SirusRESTController
         return new WP_REST_Response(
             [
                 'device_id'     => $device_record->device_id,
+                'device_secret' => $device_record->device_secret,
                 'trust_level'   => $device_record->trust_level,
                 'context_token' => $token,
             ],

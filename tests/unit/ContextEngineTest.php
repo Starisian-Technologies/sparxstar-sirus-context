@@ -158,6 +158,7 @@ final class ContextEngineTest extends TestCase
     {
         $record = new \Starisian\Sparxstar\Sirus\core\DeviceRecord(
             device_id:        'fixed-device-uuid',
+            device_secret:    'aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899',
             fingerprint_hash: 'abc123',
             environment_json: '{}',
             first_seen:       time() - 10,
@@ -177,6 +178,7 @@ final class ContextEngineTest extends TestCase
     {
         $record = new \Starisian\Sparxstar\Sirus\core\DeviceRecord(
             device_id:        'primed-device-uuid',
+            device_secret:    'aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899',
             fingerprint_hash: 'def456',
             environment_json: '{}',
             first_seen:       time() - 10,
@@ -197,6 +199,7 @@ final class ContextEngineTest extends TestCase
     {
         $record = new \Starisian\Sparxstar\Sirus\core\DeviceRecord(
             device_id:        'trusted-device-uuid',
+            device_secret:    'aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899',
             fingerprint_hash: 'ghi789',
             environment_json: '{}',
             first_seen:       time() - 10,

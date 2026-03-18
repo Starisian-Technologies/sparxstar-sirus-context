@@ -1,0 +1,265 @@
+<?php
+
+/**
+ * Tests for DeviceContinuity – the drift-tolerance device resolution service.
+ *
+ * Uses a hand-rolled in-memory DeviceRepository stub so we can test
+ * DeviceContinuity logic without a database.
+ *
+ * @package Starisian\Sparxstar\Sirus\Tests\Unit
+ */
+
+declare(strict_types=1);
+
+namespace Starisian\Sparxstar\Sirus\Tests\Unit;
+
+use PHPUnit\Framework\TestCase;
+use Starisian\Sparxstar\Sirus\core\DeviceContinuity;
+use Starisian\Sparxstar\Sirus\core\DeviceRecord;
+use Starisian\Sparxstar\Sirus\core\DeviceRepositoryInterface;
+
+/**
+ * Validates the Drift Tolerance model in DeviceContinuity.
+ *
+ * Decision matrix under test:
+ *   device_id + correct secret + same fingerprint  → touch last_seen, return existing
+ *   device_id + correct secret + drifted fingerprint → update hash, increment drift_score
+ *   device_id + wrong secret                        → fall through to fingerprint lookup
+ *   fingerprint match (no device_id)                → touch last_seen, return existing
+ *   no match anywhere                               → register new device
+ */
+final class DeviceContinuityTest extends TestCase
+{
+    private const GOOD_SECRET = 'aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899';
+
+    /** @var array<string, DeviceRecord> keyed by device_id */
+    public array $store = [];
+
+    /** @var array<string, DeviceRecord> keyed by fingerprint_hash */
+    public array $fpStore = [];
+
+    /** @var array<string, int> drift increments by device_id */
+    public array $driftIncrements = [];
+
+    /** @var array<string> device_ids whose last_seen was touched */
+    public array $lastSeenTouched = [];
+
+    /** @var array<string, string> new fingerprint_hash per device_id */
+    public array $updatedFingerprints = [];
+
+    /** @var DeviceRepositoryInterface */
+    private DeviceRepositoryInterface $repo;
+    private DeviceContinuity $continuity;
+
+    protected function setUp(): void
+    {
+        $this->store           = [];
+        $this->fpStore         = [];
+        $this->driftIncrements = [];
+        $this->lastSeenTouched = [];
+        $this->updatedFingerprints = [];
+
+        // Build a stub DeviceRepository using anonymous class implementing the interface.
+        $self       = $this;
+        $this->repo = new class ($self) implements DeviceRepositoryInterface {
+            /** @phpstan-ignore-next-line */
+            public function __construct(private readonly DeviceContinuityTest $t) {}
+
+            public function findByDeviceId(string $device_id): ?DeviceRecord
+            {
+                return $this->t->store[$device_id] ?? null;
+            }
+
+            public function findByFingerprintHash(string $fingerprint_hash): ?DeviceRecord
+            {
+                return $this->t->fpStore[$fingerprint_hash] ?? null;
+            }
+
+            public function save(DeviceRecord $record): bool
+            {
+                $this->t->store[$record->device_id]           = $record;
+                $this->t->fpStore[$record->fingerprint_hash]  = $record;
+                return true;
+            }
+
+            public function updateLastSeen(string $device_id): void
+            {
+                $this->t->lastSeenTouched[] = $device_id;
+            }
+
+            public function updateFingerprintHash(string $device_id, string $fingerprint_hash): void
+            {
+                $this->t->updatedFingerprints[$device_id] = $fingerprint_hash;
+            }
+
+            public function incrementDriftScore(string $device_id): void
+            {
+                $this->t->driftIncrements[$device_id] = ($this->t->driftIncrements[$device_id] ?? 0) + 1;
+            }
+        };
+
+        $this->continuity = new DeviceContinuity($this->repo);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private function seedRecord(
+        string $device_id,
+        string $fingerprint_hash,
+        string $secret = self::GOOD_SECRET,
+        int $drift_score = 0,
+        int $last_seen_offset = 0
+    ): DeviceRecord {
+        $record = new DeviceRecord(
+            device_id:        $device_id,
+            device_secret:    $secret,
+            fingerprint_hash: $fingerprint_hash,
+            environment_json: '{}',
+            first_seen:       time() - 3600,
+            last_seen:        time() + $last_seen_offset,
+            trust_level:      'device',
+            drift_score:      $drift_score,
+        );
+        $this->store[$device_id]          = $record;
+        $this->fpStore[$fingerprint_hash] = $record;
+        return $record;
+    }
+
+    // ── Path 1a: hard-anchor match, no drift ─────────────────────────────────
+
+    /**
+     * When device_id + secret match and fingerprint is unchanged, updateLastSeen is called.
+     */
+    public function testNoDriftTouchesLastSeen(): void
+    {
+        $this->seedRecord('dev-1', 'fp-original');
+
+        $result = $this->continuity->resolveDevice('dev-1', self::GOOD_SECRET, 'fp-original', []);
+
+        $this->assertSame('dev-1', $result->device_id);
+        $this->assertContains('dev-1', $this->lastSeenTouched);
+        $this->assertArrayNotHasKey('dev-1', $this->driftIncrements);
+    }
+
+    // ── Path 1b: hard-anchor match, fingerprint drift ────────────────────────
+
+    /**
+     * When device_id + secret match but fingerprint changed, drift is accepted:
+     * fingerprint is updated and drift_score is incremented.
+     */
+    public function testDriftOnVerifiedDeviceUpdatesFingerprintAndIncrementsDriftScore(): void
+    {
+        $this->seedRecord('dev-2', 'fp-old');
+
+        $result = $this->continuity->resolveDevice('dev-2', self::GOOD_SECRET, 'fp-new', []);
+
+        $this->assertSame('dev-2', $result->device_id);
+        $this->assertSame('fp-new', $result->fingerprint_hash);
+        $this->assertSame(1, $result->drift_score);
+        $this->assertSame('fp-new', $this->updatedFingerprints['dev-2']);
+        $this->assertSame(1, $this->driftIncrements['dev-2']);
+    }
+
+    /**
+     * Drift does NOT create a new device — the device_id is preserved.
+     */
+    public function testDriftDoesNotCreateNewDevice(): void
+    {
+        $this->seedRecord('dev-3', 'fp-old');
+
+        $result = $this->continuity->resolveDevice('dev-3', self::GOOD_SECRET, 'fp-new', []);
+
+        $this->assertSame('dev-3', $result->device_id);
+        // Store should NOT contain a new entry keyed to 'fp-new' as a new device_id.
+        // The fingerprint map is updated by updateFingerprintHash, not save().
+        $this->assertArrayNotHasKey('fp-new', $this->store);
+    }
+
+    /**
+     * Drift_score accumulates across multiple drift events.
+     */
+    public function testDriftScoreAccumulates(): void
+    {
+        $this->seedRecord('dev-4', 'fp-v1', drift_score: 3);
+
+        $result = $this->continuity->resolveDevice('dev-4', self::GOOD_SECRET, 'fp-v2', []);
+
+        $this->assertSame(4, $result->drift_score);
+    }
+
+    // ── Path 1c: wrong secret → fall through ─────────────────────────────────
+
+    /**
+     * When device_id is present but the secret is wrong, device_id claim is not trusted.
+     * Falls through to fingerprint lookup.
+     */
+    public function testWrongSecretFallsThroughToFingerprintLookup(): void
+    {
+        // Plant a device with the correct fingerprint but wrong secret attempt.
+        $this->seedRecord('dev-5', 'fp-5');
+
+        // fp-5 is also in fpStore, so a fingerprint lookup would succeed.
+        $result = $this->continuity->resolveDevice('dev-5', 'wrong-secret-here', 'fp-5', []);
+
+        // Must have resolved via fingerprint path (lastSeenTouched by findByFingerprintHash path)
+        // and must NOT have triggered drift (no secret verification).
+        $this->assertSame('dev-5', $result->device_id);
+        $this->assertArrayNotHasKey('dev-5', $this->driftIncrements);
+        $this->assertArrayNotHasKey('dev-5', $this->updatedFingerprints);
+    }
+
+    /**
+     * When device_id + wrong secret + fingerprint not in store → new device registered.
+     */
+    public function testWrongSecretAndUnknownFingerprintRegistersNewDevice(): void
+    {
+        $this->seedRecord('dev-6', 'fp-6');
+
+        $result = $this->continuity->resolveDevice('dev-6', 'wrong-secret', 'fp-unknown', []);
+
+        // A brand-new device was created (different device_id).
+        $this->assertNotSame('dev-6', $result->device_id);
+        $this->assertNotEmpty($result->device_secret);
+        $this->assertSame(0, $result->drift_score);
+    }
+
+    // ── Path 2: fingerprint-only lookup ──────────────────────────────────────
+
+    /**
+     * Without a device_id, fingerprint match resolves an existing device.
+     */
+    public function testFingerprintMatchWithoutDeviceIdResolvesDevice(): void
+    {
+        $this->seedRecord('dev-7', 'fp-7');
+
+        $result = $this->continuity->resolveDevice('', '', 'fp-7', []);
+
+        $this->assertSame('dev-7', $result->device_id);
+        $this->assertContains('dev-7', $this->lastSeenTouched);
+    }
+
+    // ── Path 3: new device registration ──────────────────────────────────────
+
+    /**
+     * When no existing record matches, a new device is registered with a server-generated
+     * device_id, device_secret, and drift_score = 0.
+     */
+    public function testFirstVisitRegistersNewDevice(): void
+    {
+        $result = $this->continuity->resolveDevice('', '', 'fp-brand-new', []);
+
+        // New UUID was generated.
+        $uuid_regex = '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i';
+        $this->assertTrue((bool) preg_match($uuid_regex, $result->device_id));
+
+        // Secret is a 64-char hex string.
+        $this->assertSame(64, strlen($result->device_secret));
+        $this->assertRegExp('/^[0-9a-f]{64}$/', $result->device_secret);
+
+        // Starts at zero drift.
+        $this->assertSame(0, $result->drift_score);
+
+        // Trust level starts as anonymous.
+        $this->assertSame('anonymous', $result->trust_level);
+    }
+}
