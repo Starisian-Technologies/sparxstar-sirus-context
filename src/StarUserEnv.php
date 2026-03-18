@@ -4,7 +4,7 @@
  * Shared utility helpers and public snapshot accessors
  * for SPARXSTAR environment diagnostics.
  *
- * @package SparxstarUserEnvironmentCheck
+ * @package Starisian\SparxstarUEC
  */
 
 declare(strict_types=1);

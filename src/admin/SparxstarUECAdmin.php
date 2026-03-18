@@ -1,7 +1,7 @@
 <?php
 
 /**
- * SPARXSTAR User Environment Check - Admin Settings (Minimal, Stable)
+ * SPARXSTAR Sirus — Context Engine — Admin Settings (Minimal, Stable)
  * Version 2.3: Fetch snapshots by User ID instead of browser session/fingerprint.
  */
 
@@ -143,7 +143,7 @@ final class SparxstarUECAdmin
         ob_start();
 ?>
         <div class="wrap">
-            <h1><?php esc_html_e('SPARXSTAR User Environment Check Settings', 'sparxstar-user-environment-check'); ?></h1>
+            <h1><?php esc_html_e('SPARXSTAR Sirus Settings', 'sparxstar-user-environment-check'); ?></h1>
             <form action="options.php" method="post">
                 <?php
                 settings_fields('sparxstar_uec_options_group');
@@ -306,7 +306,7 @@ final class SparxstarUECAdmin
         if ('' !== $message) {
             printf(
                 '<div class="notice notice-warning is-dismissible"><p><strong>%1$s</strong> %2$s <a href="%3$s">%4$s</a>.</p></div>',
-                esc_html__('SPARXSTAR User Environment Check', 'sparxstar-user-environment-check'),
+                esc_html__('SPARXSTAR Sirus', 'sparxstar-user-environment-check'),
                 $message . ' ' . esc_html__('Please go to the', 'sparxstar-user-environment-check'),
                 esc_url(admin_url('options-general.php?page=' . self::PAGE_SLUG)),
                 esc_html__('settings page', 'sparxstar-user-environment-check')

@@ -7,7 +7,7 @@
  * It builds all services with their dependencies and exposes them
  * to the orchestrator. No WordPress hooks or side effects here.
  *
- * @package SparxstarUserEnvironmentCheck
+ * @package Starisian\SparxstarUEC
  */
 
 declare(strict_types=1);

@@ -1,8 +1,8 @@
 <?php
 /**
- * Multisite-safe uninstall routine for SPARXSTAR User Environment Check.
+ * Multisite-safe uninstall routine for SPARXSTAR Sirus — Context Engine.
  *
- * @package SparxstarUserEnvironmentCheck
+ * @package Starisian\SparxstarUEC
  */
 
 declare(strict_types=1);

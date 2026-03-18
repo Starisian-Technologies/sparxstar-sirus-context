@@ -9,7 +9,7 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Modern asset loader for Sparxstar User Environment Check plugin.
+ * Asset loader for SPARXSTAR Sirus — Context Engine.
  * Version 4.0.1: Fixed REST API namespace and JS localization keys.
  */
 final class SparxstarUECAssetManager
