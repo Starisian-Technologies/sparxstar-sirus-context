@@ -7,10 +7,11 @@ declare(strict_types=1);
  *
  * Privacy rules (non-negotiable per spec §H):
  * - Location output is limited to country + region only (approx_lat / approx_lng).
- * - Exact coordinates (city-level or finer) are never stored without an explicit
- *   per-session grant provided via the sparxstar_env_geolocation_lookup filter.
- * - The filter receives the raw location data; the default implementation strips
- *   everything except country, region, and rounded coordinates.
+ * - Exact coordinates (city-level or finer) are never stored unless a callback
+ *   on the sparxstar_env_geolocation_lookup filter explicitly reintroduces them.
+ * - The sparxstar_env_geolocation_lookup filter receives region-level,
+ *   privacy-sanitized data produced by this service; custom callbacks may further
+ *   restrict or, if they deliberately choose, widen this data.
  */
 
 namespace Starisian\SparxstarUEC\services;
