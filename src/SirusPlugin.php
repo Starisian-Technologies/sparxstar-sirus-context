@@ -139,10 +139,6 @@ final class SirusPlugin
         $db = new SirusDatabase($wpdb);
         $db->ensure_schema();
 
-        // Also ensure telemetry tables via ClientTelemetry (which has its own ensure_schema).
-        $telemetry = new ClientTelemetry($wpdb);
-        $telemetry->ensure_schema();
-
         ClientTelemetry::schedule_cron();
     }
 
