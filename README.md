@@ -1,5 +1,7 @@
 
-# **SPARXSTAR User Environment Check (UEC)**
+<img width="1280" height="640" alt="SPARXSTAR Sirus" src="https://github.com/user-attachments/assets/17659788-64d3-4053-888e-db0225aa857e" />
+
+# SPARXSTAR Sirus Context
 
 ![SPARXSTAR-User-Environment-Check-1536x864](https://github.com/user-attachments/assets/e1a42278-ba41-4c6f-8233-859de5267d1d)
 
