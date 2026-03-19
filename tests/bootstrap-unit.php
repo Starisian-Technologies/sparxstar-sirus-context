@@ -1059,6 +1059,29 @@ if (!function_exists('get_current_network_id')) {
     }
 }
 
+if (!function_exists('stripslashes_deep')) {
+    /**
+     * Stub for WordPress' stripslashes_deep.
+     * Recursively strips slashes from strings in arrays/objects.
+     *
+     * @param mixed $value Value to strip slashes from.
+     * @return mixed
+     */
+    function stripslashes_deep(mixed $value): mixed
+    {
+        if (is_array($value)) {
+            return array_map('stripslashes_deep', $value);
+        }
+        if (is_object($value)) {
+            foreach (get_object_vars($value) as $key => $val) {
+                $value->$key = stripslashes_deep($val);
+            }
+            return $value;
+        }
+        return is_string($value) ? stripslashes($value) : $value;
+    }
+}
+
 if (!function_exists('wp_unslash')) {
     /**
      * Stub for WordPress' wp_unslash.
