@@ -56,6 +56,37 @@ final class SirusRESTController
     ) {}
 
     /**
+     * Permission callback to enforce REST nonce validation and mitigate CSRF.
+     *
+     * Expects a valid X-WP-Nonce header created for the 'wp_rest' action.
+     *
+     * @param WP_REST_Request $request The current REST request.
+     * @return bool|WP_Error           True if the nonce is valid, otherwise WP_Error.
+     */
+    public function verify_rest_nonce(WP_REST_Request $request): bool|WP_Error
+    {
+        $nonce = $request->get_header('X-WP-Nonce');
+
+        if (! is_string($nonce) || $nonce === '') {
+            return new WP_Error(
+                'sparxstar_sirus_rest_nonce_missing',
+                __('REST nonce is missing.', 'sparxstar'),
+                ['status' => 403]
+            );
+        }
+
+        if (! wp_verify_nonce($nonce, 'wp_rest')) {
+            return new WP_Error(
+                'sparxstar_sirus_rest_nonce_invalid',
+                __('REST nonce is invalid.', 'sparxstar'),
+                ['status' => 403]
+            );
+        }
+
+        return true;
+    }
+
+    /**
      * Registers the REST API routes for the Sirus Context Engine.
      */
     public function register_routes(): void
@@ -66,7 +97,7 @@ final class SirusRESTController
             [
                 'methods'             => 'POST',
                 'callback'            => [$this, 'handle_device_register'],
-                'permission_callback' => '__return_true',
+                'permission_callback' => [$this, 'verify_rest_nonce'],
                 'args'                => [
                     // visitor_id from FingerprintJS — used SERVER-SIDE to derive fingerprint_hash.
                     'visitor_id' => [
@@ -101,7 +132,7 @@ final class SirusRESTController
             [
                 'methods'             => 'GET',
                 'callback'            => [$this, 'handle_get_context'],
-                'permission_callback' => '__return_true',
+                'permission_callback' => [$this, 'verify_rest_nonce'],
                 'args'                => [
                     // Optional: resolve context for a specific device.
                     'device_id' => [
