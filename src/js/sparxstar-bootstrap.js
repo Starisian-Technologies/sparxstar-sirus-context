@@ -11,11 +11,11 @@
  * CROSS-DOMAIN CONTEXT HANDOFF (spec §F):
  * When a signed context token arrives via the `?ctx` URL parameter, this bootstrap:
  *   1. Reads the token from the URL.
- *   2. Passes it to SPARXSTAR.State for context restoration.
+ *   2. Validates the format and exposes it on window.SPARXSTAR._inboundContextToken
+ *      for optional consumption by state/sync modules.
  *   3. Calls history.replaceState() to REMOVE the parameter from the URL immediately.
  *      This is a security requirement — the token must never persist in browser history,
  *      server logs, or referrer headers.
- */
 
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
 
@@ -39,7 +39,7 @@ window.SPARXSTAR = window.SPARXSTAR || {};
             const isValidFormat = /^[A-Za-z0-9\-_.]{32,}$/.test(ctxToken);
 
             if (isValidFormat) {
-                // Store the token for SPARXSTAR.State to consume.
+                // Expose the token on the global SPARXSTAR namespace for downstream consumers.
                 window.SPARXSTAR._inboundContextToken = ctxToken;
             } else if (window.console && console.warn) {
                 console.warn('[SPARXSTAR] Discarded malformed ctx token');
