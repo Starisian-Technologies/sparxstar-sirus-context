@@ -147,7 +147,6 @@ final class SirusPlugin
      */
     public static function onDeactivation(): void
     {
-        wp_clear_scheduled_hook('sparxstar_sirus_cleanup');
         ClientTelemetry::unschedule_cron();
     }
 }
