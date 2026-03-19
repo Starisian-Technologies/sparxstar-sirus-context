@@ -24,15 +24,16 @@ if (file_exists($autoload)) {
          */
         static function (string $class): void {
             $prefixes = [
-                'Starisian\\SparxstarUEC\\',
-                'Starisian\\Sparxstar\\Sirus\\',
+                'Starisian\\SparxstarUEC\\'               => dirname(__DIR__) . '/src/',
+                'Starisian\\Sparxstar\\Sirus\\Tests\\Unit\\' => dirname(__DIR__) . '/tests/unit/',
+                'Starisian\\Sparxstar\\Sirus\\'            => dirname(__DIR__) . '/src/',
             ];
-            foreach ($prefixes as $prefix) {
+            foreach ($prefixes as $prefix => $base) {
                 if (str_starts_with($class, $prefix) === false) {
                     continue;
                 }
                 $relative = substr($class, strlen($prefix));
-                $path     = dirname(__DIR__) . '/src/' . str_replace('\\', '/', $relative) . '.php';
+                $path     = $base . str_replace('\\', '/', $relative) . '.php';
                 if (file_exists($path)) {
                     require $path;
                     return;

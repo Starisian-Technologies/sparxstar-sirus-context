@@ -28,7 +28,7 @@ use Starisian\Sparxstar\Sirus\core\DeviceRepositoryInterface;
  *   fingerprint match (no device_id)                → touch last_seen, return existing
  *   no match anywhere                               → register new device
  */
-final class DeviceContinuityTest extends TestCase
+final class DeviceContinuityTest extends SirusTestCase
 {
     private const GOOD_SECRET = 'aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899';
 
@@ -254,7 +254,7 @@ final class DeviceContinuityTest extends TestCase
 
         // Secret is a 64-char hex string.
         $this->assertSame(64, strlen($result->device_secret));
-        $this->assertRegExp('/^[0-9a-f]{64}$/', $result->device_secret);
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $result->device_secret);
 
         // Starts at zero drift.
         $this->assertSame(0, $result->drift_score);
