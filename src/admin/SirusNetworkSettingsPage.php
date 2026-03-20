@@ -150,7 +150,7 @@ final class SirusNetworkSettingsPage
             restore_current_blog();
         }
 
-        return $can_view !== false;
+        return $can_view;
     }
 
     /**

@@ -196,7 +196,7 @@
                             latency_ms: Date.now() - startMs,
                         },
                         error:      {
-                            message: String(networkError && networkError.message || 'Network error'),
+                            message: String((networkError && networkError.message) || 'Network error'),
                             source:  url,
                             line:    0,
                             stack:   (networkError && networkError.stack) ? String(networkError.stack) : null,

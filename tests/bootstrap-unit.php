@@ -232,12 +232,12 @@ if (!function_exists('is_super_admin')) {
      * Returns true by default. Individual tests can override per user ID
      * by setting $GLOBALS['__is_super_admin_map'][$user_id] = false.
      *
-     * @param int|false $user_id Optional user ID to check.
+     * @param int|null $user_id Optional user ID to check.
      * @return bool True by default to allow network operations in tests.
      */
-    function is_super_admin(int|false $user_id = false): bool
+    function is_super_admin(?int $user_id = null): bool
     {
-        if ($user_id !== false && isset($GLOBALS['__is_super_admin_map'][$user_id])) {
+        if ($user_id !== null && isset($GLOBALS['__is_super_admin_map'][$user_id])) {
             return (bool) $GLOBALS['__is_super_admin_map'][$user_id];
         }
         return true;
