@@ -26,7 +26,7 @@ if (! defined('ABSPATH')) {
 final class SirusDatabase
 {
     /** Current schema version. */
-    private const SCHEMA_VERSION = '1.2.0';
+    private const SCHEMA_VERSION = '1.3.0';
 
     /** Option key used to track the installed schema version. */
     private const VERSION_OPTION = 'sirus_db_version';
@@ -64,6 +64,7 @@ final class SirusDatabase
 
         $this->create_devices_table($charset_collate);
         $this->create_telemetry_tables($charset_collate);
+        $this->create_events_table($charset_collate);
     }
 
     /**
@@ -133,5 +134,38 @@ final class SirusDatabase
 
         dbDelta($sql_reports);
         dbDelta($sql_stats);
+    }
+
+    /**
+     * Creates or updates the sirus_events observability table.
+     *
+     * Stores frontend error, network, session and capability events.
+     * JSON fields hold optional context, metrics and error payloads.
+     *
+     * @param string $charset_collate DB charset/collation string.
+     */
+    private function create_events_table(string $charset_collate): void
+    {
+        $table = $this->wpdb->prefix . 'sirus_events';
+
+        $sql = "CREATE TABLE {$table} (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            event_type varchar(50) NOT NULL,
+            timestamp int(10) unsigned NOT NULL,
+            device_id varchar(64) NOT NULL,
+            session_id varchar(64) NOT NULL,
+            user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+            url text NULL,
+            context_json longtext NOT NULL,
+            metrics_json longtext NULL,
+            error_json longtext NULL,
+            PRIMARY KEY  (id),
+            KEY idx_event_type (event_type),
+            KEY idx_timestamp (timestamp),
+            KEY idx_device (device_id),
+            KEY idx_session (session_id)
+        ) {$charset_collate};";
+
+        dbDelta($sql);
     }
 }

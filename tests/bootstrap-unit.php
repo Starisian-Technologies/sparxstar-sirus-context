@@ -14,34 +14,36 @@ declare(strict_types=1);
 $autoload = dirname(__DIR__) . '/vendor/autoload.php';
 if (file_exists($autoload)) {
     require $autoload;
-} else {
-    spl_autoload_register(
-        /**
-         * Minimal PSR-4 loader for both UEC and Sirus namespaces when Composer is unavailable.
-         *
-         * @param string $class Fully-qualified class name.
-         * @return void
-         */
-        static function (string $class): void {
-            $prefixes = [
-                'Starisian\\SparxstarUEC\\'               => dirname(__DIR__) . '/src/',
-                'Starisian\\Sparxstar\\Sirus\\Tests\\Unit\\' => dirname(__DIR__) . '/tests/unit/',
-                'Starisian\\Sparxstar\\Sirus\\'            => dirname(__DIR__) . '/src/',
-            ];
-            foreach ($prefixes as $prefix => $base) {
-                if (str_starts_with($class, $prefix) === false) {
-                    continue;
-                }
-                $relative = substr($class, strlen($prefix));
-                $path     = $base . str_replace('\\', '/', $relative) . '.php';
-                if (file_exists($path)) {
-                    require $path;
-                    return;
-                }
+}
+
+// Always register a PSR-4 loader for the test namespace (and src if vendor is absent)
+// so SirusTestCase and all test classes are found regardless of composer state.
+spl_autoload_register(
+    /**
+     * Minimal PSR-4 loader for both UEC and Sirus namespaces.
+     *
+     * @param string $class Fully-qualified class name.
+     * @return void
+     */
+    static function (string $class): void {
+        $prefixes = [
+            'Starisian\\Sparxstar\\Sirus\\Tests\\Unit\\' => dirname(__DIR__) . '/tests/unit/',
+            'Starisian\\SparxstarUEC\\'                  => dirname(__DIR__) . '/src/',
+            'Starisian\\Sparxstar\\Sirus\\'              => dirname(__DIR__) . '/src/',
+        ];
+        foreach ($prefixes as $prefix => $base) {
+            if (str_starts_with($class, $prefix) === false) {
+                continue;
+            }
+            $relative = substr($class, strlen($prefix));
+            $path     = $base . str_replace('\\', '/', $relative) . '.php';
+            if (file_exists($path)) {
+                require $path;
+                return;
             }
         }
-    );
-}
+    }
+);
 
 if (!defined('ABSPATH')) {
     define('ABSPATH', __DIR__ . '/../');
@@ -49,6 +51,18 @@ if (!defined('ABSPATH')) {
 
 if (!defined('DAY_IN_SECONDS')) {
     define('DAY_IN_SECONDS', 86400);
+}
+
+if (!defined('ARRAY_A')) {
+    define('ARRAY_A', 'ARRAY_A');
+}
+
+if (!defined('ARRAY_N')) {
+    define('ARRAY_N', 'ARRAY_N');
+}
+
+if (!defined('OBJECT')) {
+    define('OBJECT', 'OBJECT');
 }
 
 if (!defined('SPX_ENV_CHECK_PLUGIN_FILE')) {
@@ -215,10 +229,17 @@ if (!function_exists('is_super_admin')) {
     /**
      * Stubbed super admin check used for multisite lifecycle handlers.
      *
+     * Returns true by default. Individual tests can override per user ID
+     * by setting $GLOBALS['__is_super_admin_map'][$user_id] = false.
+     *
+     * @param int|false $user_id Optional user ID to check.
      * @return bool True by default to allow network operations in tests.
      */
-    function is_super_admin(): bool
+    function is_super_admin(int|false $user_id = false): bool
     {
+        if ($user_id !== false && isset($GLOBALS['__is_super_admin_map'][$user_id])) {
+            return (bool) $GLOBALS['__is_super_admin_map'][$user_id];
+        }
         return true;
     }
 }
@@ -640,14 +661,29 @@ if (!class_exists('wpdb')) {
          * Stubbed getter for a row result.
          *
          * @param string $query SQL string.
-         * @param int    $output Output type (unused).
+         * @param string $output Output type constant (unused).
          * @return array<string, mixed>|null Null to indicate no results.
          */
-        public function get_row(string $query, int $output = ARRAY_A): ?array
+        public function get_row(string $query, string $output = ARRAY_A): ?array
         {
             unset($output);
             $this->queries[] = ['query' => $query];
             return null;
+        }
+
+        /**
+         * Stubbed getter for multiple rows.
+         * Returns the value set in $GLOBALS['wpdb_get_results'] if present,
+         * otherwise an empty array.
+         *
+         * @param string $query  SQL string.
+         * @param string $output Output type constant (e.g. ARRAY_A).
+         * @return array<int, array<string, mixed>>
+         */
+        public function get_results(string $query, string $output = ARRAY_A): array
+        {
+            $this->queries[] = ['query' => $query];
+            return $GLOBALS['wpdb_get_results'] ?? [];
         }
     }
 }
@@ -1388,3 +1424,337 @@ if (!function_exists('wp_salt')) {
         return 'test-salt-for-unit-tests-only-not-secure';
     }
 }
+
+if (!function_exists('absint')) {
+    /**
+     * Converts a value to a non-negative integer.
+     *
+     * @param mixed $maybeint Raw value.
+     * @return int Non-negative integer.
+     */
+    function absint(mixed $maybeint): int
+    {
+        return abs((int) $maybeint);
+    }
+}
+
+if (!function_exists('get_site_option')) {
+    /**
+     * Retrieves a site option from the in-memory network options store.
+     *
+     * @param string $name    Option name.
+     * @param mixed  $default Default value when the option is absent.
+     * @return mixed Stored value or default.
+     */
+    function get_site_option(string $name, mixed $default = false): mixed
+    {
+        return $GLOBALS['wp_site_options'][$name] ?? $default;
+    }
+}
+
+if (!function_exists('update_site_option')) {
+    /**
+     * Stores a site option in the in-memory network options store.
+     *
+     * @param string $name  Option name.
+     * @param mixed  $value Option value.
+     * @return bool True after storing.
+     */
+    function update_site_option(string $name, mixed $value): bool
+    {
+        $GLOBALS['wp_site_options'][$name] = $value;
+        return true;
+    }
+}
+
+if (!function_exists('add_filter')) {
+    /**
+     * Stub for WordPress' add_filter.
+     *
+     * @param string   $hook_name Hook name.
+     * @param callable $callback  Callback.
+     * @param int      $priority  Priority.
+     * @param int      $args      Accepted args.
+     * @return bool Always true.
+     */
+    function add_filter(string $hook_name, callable $callback, int $priority = 10, int $args = 1): bool
+    {
+        $GLOBALS['registered_filters'][$hook_name][] = [
+            'callback' => $callback,
+            'priority' => $priority,
+            'args'     => $args,
+        ];
+        return true;
+    }
+}
+
+if (!function_exists('add_menu_page')) {
+    /**
+     * Stub for WordPress' add_menu_page.
+     *
+     * @param string   $page_title Page title.
+     * @param string   $menu_title Menu title.
+     * @param string   $capability Required capability.
+     * @param string   $menu_slug  Menu slug.
+     * @param callable $callback   Page render callback.
+     * @param string   $icon_url   Menu icon URL.
+     * @param int|null $position   Menu position.
+     * @return string Hook suffix.
+     */
+    function add_menu_page(
+        string $page_title,
+        string $menu_title,
+        string $capability,
+        string $menu_slug,
+        callable $callback = null,
+        string $icon_url = '',
+        ?int $position = null
+    ): string {
+        $GLOBALS['registered_admin_pages'][$menu_slug] = compact(
+            'page_title',
+            'menu_title',
+            'capability',
+            'menu_slug',
+            'callback',
+            'icon_url',
+            'position'
+        );
+        return 'toplevel_page_' . $menu_slug;
+    }
+}
+
+if (!function_exists('esc_attr')) {
+    /**
+     * Stub for WordPress' esc_attr.
+     *
+     * @param string $text Text to escape.
+     * @return string HTML attribute-safe string.
+     */
+    function esc_attr(string $text): string
+    {
+        return htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+    }
+}
+
+if (!function_exists('esc_attr__')) {
+    /**
+     * Stub for WordPress' esc_attr__.
+     *
+     * @param string $text   Text to translate and escape.
+     * @param string $domain Text domain (ignored).
+     * @return string
+     */
+    function esc_attr__(string $text, string $domain = ''): string
+    {
+        unset($domain);
+        return esc_attr($text);
+    }
+}
+
+if (!function_exists('checked')) {
+    /**
+     * Stub for WordPress' checked() helper.
+     * Outputs 'checked="checked"' when $checked evaluates to true.
+     *
+     * @param mixed  $checked  The value to compare.
+     * @param mixed  $current  The current value (default true).
+     * @param bool   $echo     Whether to echo or return.
+     * @return string
+     */
+    function checked(mixed $checked, mixed $current = true, bool $echo = true): string
+    {
+        $result = ($checked == $current) ? ' checked="checked"' : '';
+        if ($echo) {
+            echo $result; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        }
+        return $result;
+    }
+}
+
+if (!function_exists('selected')) {
+    /**
+     * Stub for WordPress' selected() helper.
+     *
+     * @param mixed  $selected Value to compare.
+     * @param mixed  $current  Current value (default true).
+     * @param bool   $echo     Whether to echo or return.
+     * @return string
+     */
+    function selected(mixed $selected, mixed $current = true, bool $echo = true): string
+    {
+        $result = ($selected == $current) ? ' selected="selected"' : '';
+        if ($echo) {
+            echo $result; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        }
+        return $result;
+    }
+}
+
+if (!function_exists('get_userdata')) {
+    /**
+     * Stub for WordPress' get_userdata.
+     * Returns null (no user found) in tests by default.
+     *
+     * @param int $user_id User ID.
+     * @return \WP_User|false
+     */
+    function get_userdata(int $user_id): \WP_User|false
+    {
+        return $GLOBALS['__wp_users'][$user_id] ?? false;
+    }
+}
+
+if (!class_exists('WP_User')) {
+    /**
+     * Minimal WP_User stand-in for tests.
+     */
+    class WP_User
+    {
+        /**
+         * The user's assigned roles.
+         *
+         * @var string[]
+         */
+        public array $roles = [];
+
+        /**
+         * @param int      $id    User ID.
+         * @param string[] $roles Roles to assign.
+         */
+        public function __construct(public int $ID = 0, array $roles = ['subscriber'])
+        {
+            $this->roles = $roles;
+        }
+    }
+}
+
+if (!function_exists('wp_safe_redirect')) {
+    /**
+     * Stub for WordPress' wp_safe_redirect.
+     *
+     * @param string $location  Redirect URL.
+     * @param int    $status    HTTP status code.
+     * @param string $x_redirect_by Optional caller name.
+     * @return bool Always true.
+     */
+    function wp_safe_redirect(string $location, int $status = 302, string $x_redirect_by = 'WordPress'): bool
+    {
+        $GLOBALS['safe_redirects'][] = compact('location', 'status', 'x_redirect_by');
+        return true;
+    }
+}
+
+if (!function_exists('add_query_arg')) {
+    /**
+     * Stub for WordPress' add_query_arg.
+     *
+     * @param array<string, mixed>|string $args  Query var key/value pairs.
+     * @param string                      $url   URL to append the args to.
+     * @return string
+     */
+    function add_query_arg(array|string $args, string $url = ''): string
+    {
+        if (is_array($args)) {
+            $query = http_build_query($args);
+            return $url . (str_contains($url, '?') ? '&' : '?') . $query;
+        }
+        return $url;
+    }
+}
+
+if (!function_exists('network_admin_url')) {
+    /**
+     * Stub for WordPress' network_admin_url.
+     *
+     * @param string $path URL path.
+     * @return string
+     */
+    function network_admin_url(string $path = ''): string
+    {
+        return 'https://example.com/wp-admin/network/' . ltrim($path, '/');
+    }
+}
+
+if (!function_exists('check_admin_referer')) {
+    /**
+     * Stub for WordPress' check_admin_referer.
+     * Always passes in the test environment.
+     *
+     * @param string $action Nonce action.
+     * @param string $query_arg Query argument (unused).
+     * @return int Always returns 1.
+     */
+    function check_admin_referer(string $action = '', string $query_arg = '_wpnonce'): int
+    {
+        unset($action, $query_arg);
+        return 1;
+    }
+}
+
+if (!function_exists('wp_nonce_field')) {
+    /**
+     * Stub for WordPress' wp_nonce_field.
+     *
+     * @param string $action     Nonce action.
+     * @param string $name       Nonce form field name.
+     * @param bool   $referer    Include referer field.
+     * @param bool   $echo       Whether to echo.
+     * @return string Nonce field HTML.
+     */
+    function wp_nonce_field(
+        string $action = '',
+        string $name = '_wpnonce',
+        bool $referer = true,
+        bool $echo = true
+    ): string {
+        $field = '<input type="hidden" id="' . esc_attr($name) . '" name="' . esc_attr($name) . '" value="test_nonce" />';
+        if ($echo) {
+            echo $field; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        }
+        return $field;
+    }
+}
+
+if (!function_exists('submit_button')) {
+    /**
+     * Stub for WordPress' submit_button.
+     *
+     * @param string $text     Button text.
+     * @param string $type     Button type.
+     * @param string $name     Button name attribute.
+     * @param bool   $wrap     Whether to wrap.
+     * @param mixed  $other_attributes Extra HTML attributes.
+     * @return void
+     */
+    function submit_button(
+        string $text = '',
+        string $type = 'primary',
+        string $name = 'submit',
+        bool $wrap = true,
+        mixed $other_attributes = null
+    ): void {
+        echo '<input type="submit" name="' . esc_attr($name) . '" value="' . esc_attr($text) . '" class="button button-' . esc_attr($type) . '" />';
+    }
+}
+
+if (!function_exists('wp_verify_nonce')) {
+    /**
+     * Stub for WordPress' wp_verify_nonce.
+     * Returns 1 (valid) for any nonce in tests.
+     *
+     * @param string $nonce  The nonce to verify.
+     * @param string $action Nonce action.
+     * @return int|false 1 or 2 when valid; false when invalid.
+     */
+    function wp_verify_nonce(string $nonce, string $action = ''): int|false
+    {
+        unset($action);
+        return $nonce !== '' ? 1 : false;
+    }
+}
+
+$GLOBALS['wp_site_options'] = $GLOBALS['wp_site_options'] ?? [];
+$GLOBALS['registered_admin_pages'] = $GLOBALS['registered_admin_pages'] ?? [];
+$GLOBALS['__wp_users'] = $GLOBALS['__wp_users'] ?? [];
+$GLOBALS['safe_redirects'] = $GLOBALS['safe_redirects'] ?? [];
+$GLOBALS['wpdb_get_results'] = $GLOBALS['wpdb_get_results'] ?? [];

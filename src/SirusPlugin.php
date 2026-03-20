@@ -15,12 +15,17 @@ if (! defined('ABSPATH')) {
 }
 
 use Starisian\Sparxstar\Sirus\api\SirusRESTController;
+use Starisian\Sparxstar\Sirus\api\SirusEventController;
+use Starisian\Sparxstar\Sirus\admin\SirusDashboardPage;
+use Starisian\Sparxstar\Sirus\admin\SirusNetworkSettingsPage;
 use Starisian\Sparxstar\Sirus\core\ClientTelemetry;
 use Starisian\Sparxstar\Sirus\core\ContextEngine;
 use Starisian\Sparxstar\Sirus\core\DeviceContinuity;
 use Starisian\Sparxstar\Sirus\core\DeviceRepository;
 use Starisian\Sparxstar\Sirus\core\NetworkContextBroker;
 use Starisian\Sparxstar\Sirus\core\SirusDatabase;
+use Starisian\Sparxstar\Sirus\core\SirusEventRepository;
+use Starisian\Sparxstar\Sirus\helpers\SirusPriorityScorer;
 
 /**
  * Singleton orchestrator for the Sirus Context Engine plugin.
@@ -57,9 +62,29 @@ final class SirusPlugin
     {
         add_action('rest_api_init', [$this, 'registerRestRoutes']);
         add_action('wp_enqueue_scripts', [$this, 'enqueueAssets']);
+        add_action('init', [$this, 'initAdminPages']);
 
         // Daily telemetry pruning cron.
         add_action(ClientTelemetry::CRON_HOOK, [$this, 'runTelemetryPrune']);
+    }
+
+    /**
+     * Initialises admin and network-admin pages after plugins are loaded.
+     *
+     * Called on the plugins_loaded hook so both admin_menu and network_admin_menu
+     * actions are available by the time WordPress fires them.
+     */
+    public function initAdminPages(): void
+    {
+        global $wpdb;
+
+        // Network settings page: super-admin only, registered in network_admin_menu.
+        new SirusNetworkSettingsPage();
+
+        // Site dashboard: registered in admin_menu, gated by access control.
+        $repo   = new SirusEventRepository($wpdb);
+        $scorer = new SirusPriorityScorer();
+        new SirusDashboardPage($repo, $scorer);
     }
 
     /**
@@ -72,6 +97,10 @@ final class SirusPlugin
         $device_continuity = new DeviceContinuity($device_repo);
         $controller        = new SirusRESTController($device_continuity);
         $controller->register_routes();
+
+        $event_repo       = new SirusEventRepository($wpdb);
+        $event_controller = new SirusEventController($event_repo);
+        $event_controller->register_routes();
     }
 
     /**
@@ -111,11 +140,24 @@ final class SirusPlugin
             [
                 'context_token' => $token,
                 'device_id'     => $context->device_id,
+                'session_id'    => $context->session_id,
                 'site_id'       => $context->site_id,
-                'rest_url'      => esc_url_raw(rest_url('sparxstar/v1')),
+                'rest_url'      => esc_url_raw(rest_url()),
                 'nonce'         => wp_create_nonce('wp_rest'),
             ]
         );
+
+        // Enqueue the Sirus observability bootstrap (error capture + session tracking).
+        $bootstrap_path = SIRUS_PLUGIN_PATH . 'assets/js/sirus-bootstrap.js';
+        if (file_exists($bootstrap_path)) {
+            wp_enqueue_script(
+                'sparxstar-sirus-bootstrap',
+                plugins_url('assets/js/sirus-bootstrap.js', SIRUS_PLUGIN_FILE),
+                ['sparxstar-sirus-context'],
+                SIRUS_VERSION,
+                true
+            );
+        }
     }
 
     /**
