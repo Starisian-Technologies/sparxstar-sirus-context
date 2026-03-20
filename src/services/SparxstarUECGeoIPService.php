@@ -1,8 +1,17 @@
 <?php
 
 declare(strict_types=1);
+
 /**
  * Service for performing GeoIP lookups.
+ *
+ * Privacy rules (non-negotiable per spec §H):
+ * - Location output is limited to country + region only (approx_lat / approx_lng).
+ * - Exact coordinates (city-level or finer) are never stored unless a callback
+ *   on the sparxstar_env_geolocation_lookup filter explicitly reintroduces them.
+ * - The sparxstar_env_geolocation_lookup filter receives region-level,
+ *   privacy-sanitized data produced by this service; custom callbacks may further
+ *   restrict or, if they deliberately choose, widen this data.
  */
 
 namespace Starisian\SparxstarUEC\services;
@@ -19,6 +28,11 @@ final class SparxstarUECGeoIPService
 {
     /**
      * Look up an IP address and return its geographic information.
+     *
+     * Output is deliberately limited to region-level data. City-level fields
+     * (exact city name, postal code, precise coordinates) are stripped before
+     * the result is returned or cached.
+     *
      * Supports both ipinfo.io (API) and MaxMind GeoIP2 (local database).
      *
      * @param string $ip_address The IP to look up.
@@ -47,17 +61,35 @@ final class SparxstarUECGeoIPService
             }
 
             // Route to appropriate provider
-            $location_data = null;
+            $raw_data = null;
             if ($provider === 'ipinfo') {
-                $location_data = $this->lookup_ipinfo($ip_address);
+                $raw_data = $this->lookup_ipinfo($ip_address);
             } elseif ($provider === 'maxmind') {
-                $location_data = $this->lookup_maxmind($ip_address);
+                $raw_data = $this->lookup_maxmind($ip_address);
             }
 
-            // Cache the result for 24 hours if successful
-            if (is_array($location_data) && $location_data !== []) {
-                set_transient($transient_key, $location_data, DAY_IN_SECONDS);
+            if (! is_array($raw_data) || $raw_data === []) {
+                return null;
             }
+
+            // Enforce region-level privacy — strip city/postal/precise coords.
+            $location_data = $this->to_region_level($raw_data);
+
+            /**
+             * Filter: sparxstar_env_geolocation_lookup
+             *
+             * Allows an external provider or grant mechanism to supply richer
+             * location data. The default contract remains region-level only.
+             * Any override must handle consent verification independently.
+             *
+             * @param array  $location_data Region-level location data.
+             * @param string $ip_address    The (non-anonymized) IP being resolved.
+             */
+            $location_data = (array) apply_filters('sparxstar_env_geolocation_lookup', $location_data, $ip_address);
+
+            // Cache the result for the configured TTL (default 24 hours).
+            $ttl = (int) apply_filters('sparxstar_env_geolocation_ttl', DAY_IN_SECONDS);
+            set_transient($transient_key, $location_data, $ttl);
 
             return $location_data;
         } catch (\Throwable $throwable) {
@@ -67,10 +99,32 @@ final class SparxstarUECGeoIPService
     }
 
     /**
+     * Strips all fields below region level, returning only the allowed subset.
+     *
+     * Allowed fields:
+     *   country     — two-letter country code or full name
+     *   region      — state / province / subdivision name
+     *   approx_lat  — latitude rounded to 1 decimal place (~11 km precision)
+     *   approx_lng  — longitude rounded to 1 decimal place (~11 km precision)
+     *
+     * @param array $raw Raw location data from the provider.
+     * @return array Region-level location data.
+     */
+    private function to_region_level(array $raw): array
+    {
+        return [
+            'country'    => sanitize_text_field((string) ($raw['country'] ?? '')),
+            'region'     => sanitize_text_field((string) ($raw['region']  ?? '')),
+            'approx_lat' => isset($raw['latitude'])  ? round((float) $raw['latitude'],  1) : null,
+            'approx_lng' => isset($raw['longitude']) ? round((float) $raw['longitude'], 1) : null,
+        ];
+    }
+
+    /**
      * Perform lookup using ipinfo.io API.
      *
      * @param string $ip_address The IP to look up.
-     * @return array|null Location data or null.
+     * @return array|null Raw location data or null.
      */
     private function lookup_ipinfo(string $ip_address): ?array
     {
@@ -95,16 +149,11 @@ final class SparxstarUECGeoIPService
                 return null;
             }
 
-            // Normalize to standard format
             return [
-                'city'        => sanitize_text_field($data['city'] ?? ''),
-                'state'       => sanitize_text_field($data['region'] ?? ''),
-                'postal_code' => sanitize_text_field($data['postal'] ?? ''),
-                'region'      => sanitize_text_field($data['region'] ?? ''),
-                'country'     => sanitize_text_field($data['country'] ?? ''),
-                'latitude'    => isset($data['loc']) ? (float) explode(',', $data['loc'])[0] : 0.0,
-                'longitude'   => isset($data['loc']) ? (float) explode(',', $data['loc'])[1] : 0.0,
-                'timezone'    => sanitize_text_field($data['timezone'] ?? ''),
+                'country'   => sanitize_text_field($data['country']  ?? ''),
+                'region'    => sanitize_text_field($data['region']   ?? ''),
+                'latitude'  => isset($data['loc']) ? (float) explode(',', $data['loc'])[0] : null,
+                'longitude' => isset($data['loc']) ? (float) explode(',', $data['loc'])[1] : null,
             ];
         } catch (\Throwable $throwable) {
             StarLogger::log('SparxstarUECGeoIPService', $throwable);
@@ -116,7 +165,7 @@ final class SparxstarUECGeoIPService
      * Perform lookup using MaxMind GeoIP2 local database.
      *
      * @param string $ip_address The IP to look up.
-     * @return array|null Location data or null.
+     * @return array|null Raw location data or null.
      */
     private function lookup_maxmind(string $ip_address): ?array
     {
@@ -127,7 +176,6 @@ final class SparxstarUECGeoIPService
                 return null;
             }
 
-            // Check if MaxMind library is available
             if (! class_exists(\GeoIp2\Database\Reader::class)) {
                 StarLogger::warning(
                     'SparxstarUECGeoIPService',
@@ -140,21 +188,14 @@ final class SparxstarUECGeoIPService
             $reader = new Reader($db_path);
             $record = $reader->city($ip_address);
 
-            // Normalize to standard format
             return [
-                'city'        => sanitize_text_field($record->city->name ?? ''),
-                'state'       => sanitize_text_field($record->mostSpecificSubdivision->name ?? ''),
-                'postal_code' => sanitize_text_field($record->postal->code ?? ''),
-                'region'      => sanitize_text_field($record->mostSpecificSubdivision->name ?? ''),
-                'country'     => sanitize_text_field($record->country->name ?? ''),
-                'latitude'    => $record->location->latitude  ?? 0.0,
-                'longitude'   => $record->location->longitude ?? 0.0,
-                'timezone'    => sanitize_text_field($record->location->timeZone ?? ''),
+                'country'   => sanitize_text_field($record->country->name                    ?? ''),
+                'region'    => sanitize_text_field($record->mostSpecificSubdivision->name    ?? ''),
+                'latitude'  => $record->location->latitude  ?? null,
+                'longitude' => $record->location->longitude ?? null,
             ];
         } catch (\Throwable $throwable) {
-            // Handle AddressNotFoundException specifically if MaxMind library is loaded
-            if (class_exists(\GeoIp2\Exception\AddressNotFoundException::class) && $throwable instanceof \GeoIp2\Exception\AddressNotFoundException) {
-                // IP not found in database - this is normal for private IPs
+            if (class_exists(AddressNotFoundException::class) && $throwable instanceof AddressNotFoundException) {
                 return null;
             }
 

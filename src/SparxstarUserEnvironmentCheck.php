@@ -1,9 +1,10 @@
 <?php
 
 /**
- * Bootstrapper for the SPARXSTAR User Environment Check plugin.
+ * Legacy orchestrator — maintained for backward compatibility with
+ * SPARXSTAR Sirus — Context Engine.
  *
- * @package SparxstarUserEnvironmentCheck
+ * @package Starisian\SparxstarUEC
  */
 
 declare(strict_types=1);

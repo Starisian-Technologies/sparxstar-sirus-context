@@ -9,7 +9,7 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Modern asset loader for Sparxstar User Environment Check plugin.
+ * Asset loader for SPARXSTAR Sirus — Context Engine.
  * Version 4.0.1: Fixed REST API namespace and JS localization keys.
  */
 final class SparxstarUECAssetManager
@@ -39,7 +39,7 @@ final class SparxstarUECAssetManager
     {
         $base_uri    = plugins_url('assets/js', dirname(__FILE__, 2));
         $base_path   = plugin_dir_path(dirname(__FILE__, 2)) . 'assets/js/';
-        $bundle      = 'sparxstar-user-environment-check-app.bundle.min.js';
+        $bundle      = 'sirus-context.js';
         $bundle_path = $base_path . $bundle;
 
         // 1. Enqueue the Bundle

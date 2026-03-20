@@ -2,7 +2,7 @@
 <?php
 
 /**
- * Auto-Documentation Generator for SPARXSTAR User Environment Check
+ * Auto-Documentation Generator for SPARXSTAR Sirus — Context Engine
  * Scans /src for classes, extracts PHPDoc + signatures, outputs /docs/php/*.md
  */
 

@@ -17,21 +17,27 @@ if (file_exists($autoload)) {
 } else {
     spl_autoload_register(
         /**
-         * Minimal PSR-4 loader for the plugin namespace when Composer is unavailable.
+         * Minimal PSR-4 loader for both UEC and Sirus namespaces when Composer is unavailable.
          *
          * @param string $class Fully-qualified class name.
          * @return void
          */
         static function (string $class): void {
-            $prefix = 'Starisian\\SparxstarUEC\\';
-            if (str_starts_with($class, $prefix) === false) {
-                return;
-            }
-
-            $relative = substr($class, strlen($prefix));
-            $path = dirname(__DIR__) . '/src/' . str_replace('\\', '/', $relative) . '.php';
-            if (file_exists($path)) {
-                require $path;
+            $prefixes = [
+                'Starisian\\SparxstarUEC\\'               => dirname(__DIR__) . '/src/',
+                'Starisian\\Sparxstar\\Sirus\\Tests\\Unit\\' => dirname(__DIR__) . '/tests/unit/',
+                'Starisian\\Sparxstar\\Sirus\\'            => dirname(__DIR__) . '/src/',
+            ];
+            foreach ($prefixes as $prefix => $base) {
+                if (str_starts_with($class, $prefix) === false) {
+                    continue;
+                }
+                $relative = substr($class, strlen($prefix));
+                $path     = $base . str_replace('\\', '/', $relative) . '.php';
+                if (file_exists($path)) {
+                    require $path;
+                    return;
+                }
             }
         }
     );
@@ -63,6 +69,20 @@ if (!defined('SPX_ENV_CHECK_TEXT_DOMAIN')) {
 
 if (!defined('SPX_ENV_CHECK_DB_TABLE_NAME')) {
     define('SPX_ENV_CHECK_DB_TABLE_NAME', 'sparxstar_uec_snapshots');
+}
+
+// Sirus Context Engine constants.
+if (!defined('SIRUS_VERSION')) {
+    define('SIRUS_VERSION', '1.0.0');
+}
+if (!defined('SIRUS_PLUGIN_FILE')) {
+    define('SIRUS_PLUGIN_FILE', dirname(__DIR__) . '/sparxstar-sirus-context.php');
+}
+if (!defined('SIRUS_PLUGIN_PATH')) {
+    define('SIRUS_PLUGIN_PATH', dirname(__DIR__) . '/');
+}
+if (!defined('SIRUS_PLUGIN_SLUG')) {
+    define('SIRUS_PLUGIN_SLUG', 'sparxstar-sirus-context');
 }
 
 /**
@@ -886,6 +906,32 @@ if (!function_exists('wp_generate_uuid4')) {
     }
 }
 
+if (!function_exists('wp_is_uuid')) {
+    /**
+     * Validates whether a string is a valid UUID (any version).
+     *
+     * @param mixed  $uuid    The value to check.
+     * @param int    $version Optional version number (4 accepted; any version checked).
+     * @return bool True if the string is a valid UUID, false otherwise.
+     */
+    function wp_is_uuid(mixed $uuid, int $version = 0): bool
+    {
+        if (! is_string($uuid)) {
+            return false;
+        }
+        if (4 === $version) {
+            return (bool) preg_match(
+                '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i',
+                $uuid
+            );
+        }
+        return (bool) preg_match(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i',
+            $uuid
+        );
+    }
+}
+
 if (!function_exists('register_rest_route')) {
     /**
      * Stub for register_rest_route that records registered routes for assertions.
@@ -966,5 +1012,379 @@ if (!function_exists('deactivate_plugins')) {
     function deactivate_plugins(string|array $plugins): void
     {
         $GLOBALS['deactivated_plugins'][] = $plugins;
+    }
+}
+
+// Sirus-specific WordPress function shims.
+if (!function_exists('get_bloginfo')) {
+    /**
+     * Stub for WordPress' get_bloginfo.
+     *
+     * @param string $show  The field to return.
+     * @param string $filter Whether to apply filters.
+     * @return string
+     */
+    function get_bloginfo(string $show = '', string $filter = 'raw'): string
+    {
+        return match ($show) {
+            'url', 'home' => 'https://example.com',
+            'name'        => 'Test Site',
+            'charset'     => 'UTF-8',
+            default       => '',
+        };
+    }
+}
+
+if (!function_exists('get_current_blog_id')) {
+    /**
+     * Stub for WordPress' get_current_blog_id.
+     *
+     * @return int
+     */
+    function get_current_blog_id(): int
+    {
+        return 1;
+    }
+}
+
+if (!function_exists('get_current_network_id')) {
+    /**
+     * Stub for WordPress' get_current_network_id.
+     *
+     * @return int
+     */
+    function get_current_network_id(): int
+    {
+        return 1;
+    }
+}
+
+if (!function_exists('stripslashes_deep')) {
+    /**
+     * Stub for WordPress' stripslashes_deep.
+     * Recursively strips slashes from strings in arrays/objects.
+     *
+     * @param mixed $value Value to strip slashes from.
+     * @return mixed
+     */
+    function stripslashes_deep(mixed $value): mixed
+    {
+        if (is_array($value)) {
+            return array_map('stripslashes_deep', $value);
+        }
+        if (is_object($value)) {
+            foreach (get_object_vars($value) as $key => $val) {
+                $value->$key = stripslashes_deep($val);
+            }
+            return $value;
+        }
+        return is_string($value) ? stripslashes($value) : $value;
+    }
+}
+
+if (!function_exists('wp_unslash')) {
+    /**
+     * Stub for WordPress' wp_unslash.
+     *
+     * @param string|array $value Value to strip slashes from.
+     * @return string|array
+     */
+    function wp_unslash(string|array $value): string|array
+    {
+        return is_array($value) ? stripslashes_deep($value) : stripslashes($value);
+    }
+}
+
+if (!function_exists('esc_url_raw')) {
+    /**
+     * Stub for WordPress' esc_url_raw.
+     *
+     * @param string $url URL to sanitize.
+     * @return string
+     */
+    function esc_url_raw(string $url): string
+    {
+        return filter_var($url, FILTER_SANITIZE_URL) ?: '';
+    }
+}
+
+if (!function_exists('rest_url')) {
+    /**
+     * Stub for WordPress' rest_url.
+     *
+     * @param string $path Path.
+     * @return string
+     */
+    function rest_url(string $path = ''): string
+    {
+        return 'https://example.com/wp-json/' . ltrim($path, '/');
+    }
+}
+
+if (!function_exists('wp_create_nonce')) {
+    /**
+     * Stub for WordPress' wp_create_nonce.
+     *
+     * @param string $action Nonce action.
+     * @return string
+     */
+    function wp_create_nonce(string $action = ''): string
+    {
+        return 'test_nonce_' . hash('sha256', $action);
+    }
+}
+
+if (!function_exists('wp_enqueue_script')) {
+    /**
+     * Stub for WordPress' wp_enqueue_script.
+     *
+     * @param string $handle  Script handle.
+     * @param string $src     Script URL.
+     * @param array  $deps    Dependencies.
+     * @param mixed  $ver     Version.
+     * @param bool   $in_footer Whether to load in footer.
+     * @return void
+     */
+    function wp_enqueue_script(string $handle, string $src = '', array $deps = [], mixed $ver = false, bool $in_footer = false): void
+    {
+        $GLOBALS['enqueued_scripts'][] = compact('handle', 'src', 'deps', 'ver', 'in_footer');
+    }
+}
+
+if (!function_exists('wp_localize_script')) {
+    /**
+     * Stub for WordPress' wp_localize_script.
+     *
+     * @param string $handle Script handle.
+     * @param string $object_name JS object name.
+     * @param array  $l10n  Data to localize.
+     * @return bool
+     */
+    function wp_localize_script(string $handle, string $object_name, array $l10n): bool
+    {
+        $GLOBALS['localized_scripts'][$handle][$object_name] = $l10n;
+        return true;
+    }
+}
+
+if (!function_exists('plugins_url')) {
+    /**
+     * Stub for WordPress' plugins_url.
+     *
+     * @param string $path   Path relative to plugin.
+     * @param string $plugin Plugin file path.
+     * @return string
+     */
+    function plugins_url(string $path = '', string $plugin = ''): string
+    {
+        return 'https://example.com/wp-content/plugins/' . ltrim($path, '/');
+    }
+}
+
+if (!function_exists('get_transient')) {
+    /**
+     * Stub for WordPress' get_transient.
+     *
+     * @param string $transient Transient name.
+     * @return mixed
+     */
+    function get_transient(string $transient): mixed
+    {
+        return $GLOBALS['transients'][$transient] ?? false;
+    }
+}
+
+if (!function_exists('set_transient')) {
+    /**
+     * Stub for WordPress' set_transient.
+     *
+     * @param string $transient  Transient name.
+     * @param mixed  $value      Transient value.
+     * @param int    $expiration Expiration in seconds.
+     * @return bool
+     */
+    function set_transient(string $transient, mixed $value, int $expiration = 0): bool
+    {
+        $GLOBALS['transients'][$transient] = $value;
+        return true;
+    }
+}
+
+if (!function_exists('delete_transient')) {
+    /**
+     * Stub for WordPress' delete_transient.
+     *
+     * @param string $transient Transient name.
+     * @return bool
+     */
+    function delete_transient(string $transient): bool
+    {
+        unset($GLOBALS['transients'][$transient]);
+        return true;
+    }
+}
+
+if (!function_exists('is_wp_error')) {
+    /**
+     * Stub for WordPress' is_wp_error.
+     *
+     * @param mixed $thing Object to check.
+     * @return bool
+     */
+    function is_wp_error(mixed $thing): bool
+    {
+        return $thing instanceof \WP_Error;
+    }
+}
+
+if (!function_exists('__')) {
+    /**
+     * Stub for WordPress' translation function.
+     *
+     * @param string $text   Text to translate.
+     * @param string $domain Text domain.
+     * @return string
+     */
+    function __(string $text, string $domain = 'default'): string
+    {
+        return $text;
+    }
+}
+
+if (!function_exists('wp_remote_post')) {
+    /**
+     * Stub for WordPress' wp_remote_post.
+     *
+     * @param string $url  URL to post to.
+     * @param array  $args Request arguments.
+     * @return array|\WP_Error
+     */
+    function wp_remote_post(string $url, array $args = []): array|\WP_Error
+    {
+        return ['response' => ['code' => 503], 'body' => ''];
+    }
+}
+
+if (!function_exists('wp_remote_retrieve_response_code')) {
+    /**
+     * Stub for WordPress' wp_remote_retrieve_response_code.
+     *
+     * @param array|\WP_Error $response HTTP response.
+     * @return int
+     */
+    function wp_remote_retrieve_response_code(array|\WP_Error $response): int
+    {
+        return (int) ($response['response']['code'] ?? 0);
+    }
+}
+
+if (!function_exists('wp_remote_retrieve_body')) {
+    /**
+     * Stub for WordPress' wp_remote_retrieve_body.
+     *
+     * @param array|\WP_Error $response HTTP response.
+     * @return string
+     */
+    function wp_remote_retrieve_body(array|\WP_Error $response): string
+    {
+        return (string) ($response['body'] ?? '');
+    }
+}
+
+if (!class_exists('WP_Error')) {
+    /**
+     * Stub for WordPress' WP_Error class.
+     */
+    class WP_Error
+    {
+        /** @var string */
+        private string $code;
+
+        /** @var string */
+        private string $message;
+
+        /** @var mixed */
+        private mixed $data;
+
+        /**
+         * Constructor.
+         *
+         * @param string $code    Error code.
+         * @param string $message Error message.
+         * @param mixed  $data    Optional error data.
+         */
+        public function __construct(string $code = '', string $message = '', mixed $data = '')
+        {
+            $this->code    = $code;
+            $this->message = $message;
+            $this->data    = $data;
+        }
+
+        /**
+         * Returns the error code.
+         *
+         * @return string
+         */
+        public function get_error_code(): string
+        {
+            return $this->code;
+        }
+
+        /**
+         * Returns the error message.
+         *
+         * @return string
+         */
+        public function get_error_message(): string
+        {
+            return $this->message;
+        }
+    }
+}
+
+if (!function_exists('sanitize_key')) {
+    /**
+     * Stub for WordPress' sanitize_key.
+     *
+     * @param string $key Key to sanitize.
+     * @return string Sanitized key (lowercase letters, numbers, underscores, dashes).
+     */
+    function sanitize_key(string $key): string
+    {
+        // Strip disallowed characters first, then lowercase — matching WP core order.
+        return strtolower((string) preg_replace('/[^a-zA-Z0-9_\-]/', '', $key));
+    }
+}
+
+if (!function_exists('current_time')) {
+    /**
+     * Stub for WordPress' current_time.
+     *
+     * @param string $type 'mysql' returns a MySQL datetime string; 'timestamp' returns int.
+     * @param bool   $gmt  Whether to use GMT. Ignored in tests.
+     * @return string|int
+     */
+    function current_time(string $type, bool $gmt = false): string|int
+    {
+        unset($gmt);
+        if ($type === 'timestamp' || $type === 'U') {
+            return time();
+        }
+        return gmdate('Y-m-d H:i:s');
+    }
+}
+
+if (!function_exists('wp_salt')) {
+    /**
+     * Stub for WordPress' wp_salt — returns a fixed deterministic value for tests.
+     * In production this returns a secret key from wp-config.php.
+     *
+     * @param string $scheme Salt scheme (e.g. 'auth', 'secure_auth'). Ignored in tests.
+     * @return string Fixed test salt.
+     */
+    function wp_salt(string $scheme = 'auth'): string
+    {
+        unset($scheme);
+        return 'test-salt-for-unit-tests-only-not-secure';
     }
 }
