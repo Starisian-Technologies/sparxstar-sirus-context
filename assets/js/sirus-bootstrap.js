@@ -39,6 +39,11 @@
     var DEVICE_ID  = ctx.device_id;
     var SESSION_ID = ctx.session_id;
 
+    // ─── Circuit breaker: hard cap on events per page load. ───────────────────
+    // Prevents runaway JS error loops (e.g. render loops) from DDoS-ing the DB.
+    var MAX_EVENTS_PER_PAGE_LOAD = 50;
+    var _eventCount = 0;
+
     // ─── Context builder: pulls available environment signals. ────────────────
     function buildContext() {
         var nav = window.navigator || {};
@@ -81,6 +86,12 @@
 
     // ─── Core send function. ──────────────────────────────────────────────────
     function sendToSirus(payload) {
+        // Circuit breaker: drop events once the per-page cap is reached.
+        if (_eventCount >= MAX_EVENTS_PER_PAGE_LOAD) {
+            return;
+        }
+        _eventCount++;
+
         // Attach required fields to every payload.
         payload.device_id  = DEVICE_ID;
         payload.session_id = SESSION_ID;
@@ -169,6 +180,11 @@
             return _nativeFetch(input, init).then(
                 function (response) {
                     if (!response.ok) {
+                        // Never log errors about our own telemetry endpoint to prevent
+                        // infinite feedback loops (e.g. expired nonce → 403 → log → 403 …).
+                        if (url.indexOf(ENDPOINT) !== -1) {
+                            return response;
+                        }
                         sendToSirus({
                             event_type: 'api_error',
                             timestamp:  Math.floor(Date.now() / 1000),
@@ -188,6 +204,10 @@
                     return response;
                 },
                 function (networkError) {
+                    // Never log network errors about our own telemetry endpoint.
+                    if (url.indexOf(ENDPOINT) !== -1) {
+                        return Promise.reject(networkError);
+                    }
                     sendToSirus({
                         event_type: 'network_issue',
                         timestamp:  Math.floor(Date.now() / 1000),
@@ -228,21 +248,24 @@
             xhr.onreadystatechange = function () {
                 if (xhr.readyState === 4) {
                     if (xhr.status === 0 || xhr.status >= 400) {
-                        sendToSirus({
-                            event_type: xhr.status === 0 ? 'network_issue' : 'api_error',
-                            timestamp:  Math.floor(Date.now() / 1000),
-                            url:        window.location.pathname,
-                            metrics:    {
-                                latency_ms:  Date.now() - (xhr._sirusStartMs || 0),
-                                http_status: xhr.status,
-                            },
-                            error:      {
-                                message: 'XHR ' + (xhr.status || 0) + ' from ' + (xhr._sirusUrl || ''),
-                                source:  xhr._sirusUrl || '',
-                                line:    0,
-                                stack:   null,
-                            },
-                        });
+                        // Never log errors about our own telemetry endpoint.
+                        if ((xhr._sirusUrl || '').indexOf(ENDPOINT) === -1) {
+                            sendToSirus({
+                                event_type: xhr.status === 0 ? 'network_issue' : 'api_error',
+                                timestamp:  Math.floor(Date.now() / 1000),
+                                url:        window.location.pathname,
+                                metrics:    {
+                                    latency_ms:  Date.now() - (xhr._sirusStartMs || 0),
+                                    http_status: xhr.status,
+                                },
+                                error:      {
+                                    message: 'XHR ' + (xhr.status || 0) + ' from ' + (xhr._sirusUrl || ''),
+                                    source:  xhr._sirusUrl || '',
+                                    line:    0,
+                                    stack:   null,
+                                },
+                            });
+                        }
                     }
                 }
 

@@ -246,4 +246,67 @@ final class SirusEventRepositoryTest extends SirusTestCase
 
         $this->assertCount(count($expected), SirusEventRepository::VALID_EVENT_TYPES);
     }
+
+    // ── prune ─────────────────────────────────────────────────────────────────
+
+    /**
+     * prune() should issue a DELETE query targeting timestamps older than the
+     * retention cutoff.
+     */
+    public function testPruneIssuesDeleteQuery(): void
+    {
+        $this->repo->prune();
+
+        $last_query = end($this->wpdb->queries);
+        $this->assertStringContainsString('DELETE', strtoupper((string) $last_query['query']));
+        $this->assertStringContainsString('sirus_events', (string) $last_query['query']);
+        $this->assertStringContainsString('timestamp', (string) $last_query['query']);
+    }
+
+    /**
+     * prune() should use a cutoff timestamp in the past (at least 1 day ago).
+     */
+    public function testPruneCutoffIsInThePast(): void
+    {
+        $this->repo->prune();
+
+        $last_query = end($this->wpdb->queries);
+        $sql        = (string) $last_query['query'];
+
+        // Extract the numeric timestamp from the prepared query.
+        preg_match('/timestamp < (\d+)/', $sql, $matches);
+        $this->assertNotEmpty($matches[1] ?? '', 'Expected a numeric cutoff timestamp in the DELETE query.');
+
+        $cutoff = (int) ($matches[1] ?? 0);
+
+        // The cutoff must be strictly in the past (at least 1 day ago).
+        // We allow a 10-second tolerance for test execution speed.
+        $toleranceSeconds   = 10;
+        $minimumRetention   = SirusEventRepository::DEFAULT_RETENTION_DAYS * DAY_IN_SECONDS;
+        $expectedMaxCutoff  = time() - $minimumRetention + $toleranceSeconds;
+
+        $this->assertLessThanOrEqual(
+            $expectedMaxCutoff,
+            $cutoff,
+            'Cutoff timestamp should reflect the full retention window, not a recent time.'
+        );
+    }
+
+    /**
+     * prune() should return 0 when the wpdb query returns false (failure case).
+     */
+    public function testPruneReturnsZeroOnDbFailure(): void
+    {
+        $failingWpdb = new class extends \wpdb {
+            public function query(string $query): int|false
+            {
+                return false;
+            }
+        };
+
+        $repo   = new SirusEventRepository($failingWpdb);
+        $result = $repo->prune();
+
+        $this->assertSame(0, $result);
+    }
 }

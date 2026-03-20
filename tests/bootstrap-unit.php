@@ -609,14 +609,18 @@ if (!class_exists('wpdb')) {
 
         /**
          * Mimic WordPress' query helper by recording the SQL string.
+         * Returns 0 on success (rows affected), matching wpdb's int|false contract.
+         * Note: always returns 0 in tests regardless of actual rows matched — this
+         * is sufficient for asserting that queries are correctly constructed and
+         * dispatched; row-count assertions should use integration tests.
          *
          * @param string $query SQL string.
-         * @return bool         True after logging.
+         * @return int|false 0 on success (rows affected); false to simulate DB error.
          */
-        public function query(string $query): bool
+        public function query(string $query): int|false
         {
             $this->queries[] = ['query' => $query];
-            return true;
+            return 0;
         }
 
         /**

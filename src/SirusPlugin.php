@@ -162,13 +162,18 @@ final class SirusPlugin
 
     /**
      * Runs the daily telemetry pruning job.
-     * Removes raw client error reports older than 60 days.
+     * Removes:
+     *   - raw client error reports older than 60 days (sparxstar_client_reports)
+     *   - sirus_events older than the retention window (default 30 days)
      */
     public function runTelemetryPrune(): void
     {
         global $wpdb;
         $telemetry = new ClientTelemetry($wpdb);
         $telemetry->prune();
+
+        $event_repo = new SirusEventRepository($wpdb);
+        $event_repo->prune();
     }
 
     /**

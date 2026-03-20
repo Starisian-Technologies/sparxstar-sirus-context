@@ -36,6 +36,13 @@ final class SirusEventRepository
     ];
 
     /**
+     * Default retention period in days for the sirus_events table.
+     * Events older than this are deleted by prune().
+     * Override via the `sparxstar_env_retention_days` filter.
+     */
+    public const DEFAULT_RETENTION_DAYS = 30;
+
+    /**
      * @param \wpdb $wpdb WordPress database abstraction object.
      */
     public function __construct(private readonly \wpdb $wpdb) {}
@@ -205,5 +212,33 @@ final class SirusEventRepository
         $rows = $this->wpdb->get_results($sql, ARRAY_A);
 
         return is_array($rows) ? $rows : [];
+    }
+
+    /**
+     * Deletes events older than the configured retention period.
+     *
+     * The retention window is controlled by the `sparxstar_env_retention_days`
+     * filter (same filter used by client telemetry). Default is 30 days.
+     * Call this from the daily cron hook to keep aggregate queries fast.
+     *
+     * @return int Number of rows deleted, or 0 on failure.
+     */
+    public function prune(): int
+    {
+        $table          = $this->wpdb->prefix . 'sirus_events';
+        $retention_days = (int) apply_filters('sparxstar_env_retention_days', self::DEFAULT_RETENTION_DAYS);
+        $retention_days = max(1, $retention_days); // Never allow 0 or negative retention.
+
+        $cutoff = time() - ($retention_days * DAY_IN_SECONDS);
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $result = $this->wpdb->query(
+            $this->wpdb->prepare(
+                "DELETE FROM {$table} WHERE timestamp < %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                $cutoff
+            )
+        );
+
+        return is_int($result) ? $result : 0;
     }
 }
