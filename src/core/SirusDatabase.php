@@ -26,7 +26,7 @@ if (! defined('ABSPATH')) {
 final class SirusDatabase
 {
     /** Current schema version. */
-    private const SCHEMA_VERSION = '1.3.0';
+    private const SCHEMA_VERSION = '1.4.0';
 
     /** Option key used to track the installed schema version. */
     private const VERSION_OPTION = 'sirus_db_version';
@@ -65,6 +65,8 @@ final class SirusDatabase
         $this->create_devices_table($charset_collate);
         $this->create_telemetry_tables($charset_collate);
         $this->create_events_table($charset_collate);
+        $this->create_rule_hits_table($charset_collate);
+        $this->create_mitigation_actions_table($charset_collate);
     }
 
     /**
@@ -156,6 +158,9 @@ final class SirusDatabase
             session_id varchar(64) NOT NULL,
             user_id bigint(20) unsigned NOT NULL DEFAULT 0,
             url text NULL,
+            browser varchar(100) NOT NULL DEFAULT '',
+            device_type varchar(50) NOT NULL DEFAULT '',
+            network varchar(50) NOT NULL DEFAULT '',
             context_json longtext NOT NULL,
             metrics_json longtext NULL,
             error_json longtext NULL,
@@ -163,7 +168,73 @@ final class SirusDatabase
             KEY idx_event_type (event_type),
             KEY idx_timestamp (timestamp),
             KEY idx_device (device_id),
-            KEY idx_session (session_id)
+            KEY idx_session (session_id),
+            KEY idx_browser (browser),
+            KEY idx_device_type (device_type)
+        ) {$charset_collate};";
+
+        dbDelta($sql);
+    }
+
+    /**
+     * Creates or updates the sirus_rule_hits table.
+     *
+     * @param string $charset_collate DB charset/collation string.
+     */
+    private function create_rule_hits_table(string $charset_collate): void
+    {
+        $table = $this->wpdb->prefix . 'sirus_rule_hits';
+
+        $sql = "CREATE TABLE {$table} (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            rule_key varchar(100) NOT NULL,
+            signal_key varchar(100) NOT NULL,
+            site_id bigint(20) unsigned NOT NULL,
+            device_id varchar(64) NULL,
+            session_id varchar(64) NULL,
+            hit_count int(10) unsigned NOT NULL DEFAULT 1,
+            severity varchar(20) NOT NULL DEFAULT 'low',
+            action_key varchar(100) NULL,
+            status varchar(20) NOT NULL DEFAULT 'triggered',
+            created_at int(10) unsigned NOT NULL,
+            updated_at int(10) unsigned NOT NULL,
+            PRIMARY KEY  (id),
+            KEY idx_rule_key (rule_key),
+            KEY idx_signal_key (signal_key),
+            KEY idx_site_id (site_id),
+            KEY idx_device_id (device_id),
+            KEY idx_created_at (created_at)
+        ) {$charset_collate};";
+
+        dbDelta($sql);
+    }
+
+    /**
+     * Creates or updates the sirus_mitigation_actions table.
+     *
+     * @param string $charset_collate DB charset/collation string.
+     */
+    private function create_mitigation_actions_table(string $charset_collate): void
+    {
+        $table = $this->wpdb->prefix . 'sirus_mitigation_actions';
+
+        $sql = "CREATE TABLE {$table} (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            action_key varchar(100) NOT NULL,
+            site_id bigint(20) unsigned NOT NULL,
+            device_id varchar(64) NULL,
+            session_id varchar(64) NULL,
+            response_mode varchar(20) NOT NULL DEFAULT 'normal',
+            payload_json longtext NULL,
+            status varchar(20) NOT NULL DEFAULT 'active',
+            expires_at int(10) unsigned NULL,
+            created_at int(10) unsigned NOT NULL,
+            PRIMARY KEY  (id),
+            KEY idx_action_key (action_key),
+            KEY idx_site_id (site_id),
+            KEY idx_device_id (device_id),
+            KEY idx_session_id (session_id),
+            KEY idx_status (status)
         ) {$charset_collate};";
 
         dbDelta($sql);

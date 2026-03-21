@@ -16,6 +16,7 @@ if (! defined('ABSPATH')) {
 
 use Starisian\Sparxstar\Sirus\api\SirusRESTController;
 use Starisian\Sparxstar\Sirus\api\SirusEventController;
+use Starisian\Sparxstar\Sirus\api\SirusDirectiveController;
 use Starisian\Sparxstar\Sirus\admin\SirusDashboardPage;
 use Starisian\Sparxstar\Sirus\admin\SirusNetworkSettingsPage;
 use Starisian\Sparxstar\Sirus\core\ClientTelemetry;
@@ -25,7 +26,13 @@ use Starisian\Sparxstar\Sirus\core\DeviceRepository;
 use Starisian\Sparxstar\Sirus\core\NetworkContextBroker;
 use Starisian\Sparxstar\Sirus\core\SirusDatabase;
 use Starisian\Sparxstar\Sirus\core\SirusEventRepository;
+use Starisian\Sparxstar\Sirus\core\SirusMitigationActionRepository;
+use Starisian\Sparxstar\Sirus\core\SirusRuleHitRepository;
+use Starisian\Sparxstar\Sirus\helpers\SirusImpactScorer;
+use Starisian\Sparxstar\Sirus\helpers\SirusMitigationRuleEngine;
 use Starisian\Sparxstar\Sirus\helpers\SirusPriorityScorer;
+use Starisian\Sparxstar\Sirus\helpers\SirusSignalEvaluator;
+use Starisian\Sparxstar\Sirus\services\SirusMitigationCoordinator;
 
 /**
  * Singleton orchestrator for the Sirus Context Engine plugin.
@@ -81,10 +88,20 @@ final class SirusPlugin
         // Network settings page: super-admin only, registered in network_admin_menu.
         new SirusNetworkSettingsPage();
 
-        // Site dashboard: registered in admin_menu, gated by access control.
-        $repo   = new SirusEventRepository($wpdb);
+        // Build coordinator dependencies.
+        $event_repo   = new SirusEventRepository($wpdb);
+        $rule_hit_repo = new SirusRuleHitRepository($wpdb);
+        $action_repo  = new SirusMitigationActionRepository($wpdb);
+        $coordinator  = new SirusMitigationCoordinator(
+            new SirusSignalEvaluator(),
+            new SirusImpactScorer(),
+            new SirusMitigationRuleEngine(),
+            $rule_hit_repo,
+            $action_repo
+        );
+
         $scorer = new SirusPriorityScorer();
-        new SirusDashboardPage($repo, $scorer);
+        new SirusDashboardPage($event_repo, $scorer, $rule_hit_repo, $coordinator);
     }
 
     /**
@@ -99,8 +116,21 @@ final class SirusPlugin
         $controller->register_routes();
 
         $event_repo       = new SirusEventRepository($wpdb);
-        $event_controller = new SirusEventController($event_repo);
+        $rule_hit_repo    = new SirusRuleHitRepository($wpdb);
+        $action_repo      = new SirusMitigationActionRepository($wpdb);
+        $coordinator      = new SirusMitigationCoordinator(
+            new SirusSignalEvaluator(),
+            new SirusImpactScorer(),
+            new SirusMitigationRuleEngine(),
+            $rule_hit_repo,
+            $action_repo
+        );
+
+        $event_controller = new SirusEventController($event_repo, $coordinator);
         $event_controller->register_routes();
+
+        $directive_controller = new SirusDirectiveController($coordinator, $rule_hit_repo);
+        $directive_controller->register_routes();
     }
 
     /**
@@ -174,6 +204,12 @@ final class SirusPlugin
 
         $event_repo = new SirusEventRepository($wpdb);
         $event_repo->prune();
+
+        $rule_hit_repo = new SirusRuleHitRepository($wpdb);
+        $rule_hit_repo->pruneOldHits(30);
+
+        $action_repo = new SirusMitigationActionRepository($wpdb);
+        $action_repo->pruneExpiredActions(30);
     }
 
     /**

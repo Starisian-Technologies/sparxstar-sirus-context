@@ -64,12 +64,15 @@ final class SirusEventRepository
             'session_id'   => (string) ($event['session_id'] ?? ''),
             'user_id'      => (int) ($event['user_id'] ?? 0),
             'url'          => isset($event['url']) ? (string) $event['url'] : null,
+            'browser'      => (string) ($event['browser'] ?? ''),
+            'device_type'  => (string) ($event['device_type'] ?? ''),
+            'network'      => (string) ($event['network'] ?? ''),
             'context_json' => isset($event['context']) ? (wp_json_encode($event['context']) ?: '{}') : '{}',
             'metrics_json' => isset($event['metrics']) ? (wp_json_encode($event['metrics']) ?: null) : null,
             'error_json'   => isset($event['error']) ? (wp_json_encode($event['error']) ?: null) : null,
         ];
 
-        $formats = ['%s', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s'];
+        $formats = ['%s', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s'];
 
         $result = $this->wpdb->insert($table, $row, $formats);
 
@@ -240,5 +243,75 @@ final class SirusEventRepository
         );
 
         return is_int($result) ? $result : 0;
+    }
+
+    /**
+     * Returns error counts grouped by a denormalized column (browser, device_type, or network).
+     *
+     * @param string $column One of: 'browser', 'device_type', 'network'.
+     * @param int    $since  Unix timestamp lower bound.
+     * @return array<string, int> Map of column value → count.
+     */
+    public function getErrorCountsByColumn(string $column, int $since): array
+    {
+        $allowed = ['browser', 'device_type', 'network'];
+        if (! in_array($column, $allowed, true)) {
+            return [];
+        }
+
+        $table = $this->wpdb->prefix . 'sirus_events';
+
+        // Column name is validated against allowlist above; safe to interpolate.
+        $sql = $this->wpdb->prepare(
+            "SELECT {$column}, COUNT(*) AS count FROM {$table} WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND timestamp >= %d GROUP BY {$column} ORDER BY count DESC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $since
+        );
+
+        $rows = $this->wpdb->get_results($sql, ARRAY_A);
+
+        $result = [];
+        if (is_array($rows)) {
+            foreach ($rows as $row) {
+                $result[(string) ($row[$column] ?? '')] = (int) ($row['count'] ?? 0);
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Returns the count of error events on slow networks since a given timestamp.
+     *
+     * @param int $since Unix timestamp lower bound.
+     * @return int
+     */
+    public function getSlowNetworkErrorCount(int $since): int
+    {
+        $table = $this->wpdb->prefix . 'sirus_events';
+
+        $sql = $this->wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table} WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND network IN ('slow-2g','2g','slow-3g') AND timestamp >= %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $since
+        );
+
+        return (int) $this->wpdb->get_var($sql);
+    }
+
+    /**
+     * Returns the count of error events on mobile devices since a given timestamp.
+     *
+     * @param int $since Unix timestamp lower bound.
+     * @return int
+     */
+    public function getMobileErrorCount(int $since): int
+    {
+        $table = $this->wpdb->prefix . 'sirus_events';
+
+        $sql = $this->wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table} WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND device_type = 'mobile' AND timestamp >= %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $since
+        );
+
+        return (int) $this->wpdb->get_var($sql);
     }
 }

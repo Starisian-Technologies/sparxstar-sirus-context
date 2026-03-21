@@ -24,6 +24,8 @@ if (! defined('ABSPATH')) {
 
 use Starisian\Sparxstar\Sirus\core\SirusEventRepository;
 use Starisian\Sparxstar\Sirus\helpers\SirusPriorityScorer;
+use Starisian\Sparxstar\Sirus\core\SirusRuleHitRepository;
+use Starisian\Sparxstar\Sirus\services\SirusMitigationCoordinator;
 
 /**
  * Registers and renders the site-level Sirus Observability dashboard.
@@ -36,12 +38,16 @@ final class SirusDashboardPage
     private const TOP_URLS_LIMIT = 10;
 
     /**
-     * @param SirusEventRepository $repository Events DAL.
-     * @param SirusPriorityScorer  $scorer     Priority scoring helper.
+     * @param SirusEventRepository        $repository  Events DAL.
+     * @param SirusPriorityScorer         $scorer      Priority scoring helper.
+     * @param SirusRuleHitRepository      $ruleHitRepo Rule hits DAL.
+     * @param SirusMitigationCoordinator  $coordinator Mitigation coordinator.
      */
     public function __construct(
         private readonly SirusEventRepository $repository,
         private readonly SirusPriorityScorer $scorer,
+        private readonly SirusRuleHitRepository $ruleHitRepo,
+        private readonly SirusMitigationCoordinator $coordinator,
     ) {
         add_action('admin_menu', [$this, 'add_admin_menu']);
     }
@@ -85,12 +91,15 @@ final class SirusDashboardPage
         $error_since = $now - self::ERROR_WINDOW;
 
         $active_sessions = $this->repository->getActiveSessions(self::ACTIVE_WINDOW);
-        $recent_errors   = $this->repository->getRecentErrors($error_since);
         $top_urls        = $this->repository->getTopFailingUrls($error_since, self::TOP_URLS_LIMIT);
         $scored_urls     = $this->scorer->scoreRows($top_urls);
 
-        $errors_by_device  = $this->group_errors_by_context($recent_errors, 'device_type');
-        $errors_by_browser = $this->group_errors_by_context($recent_errors, 'browser');
+        $errors_by_device  = $this->repository->getErrorCountsByColumn('device_type', $error_since);
+        $errors_by_browser = $this->repository->getErrorCountsByColumn('browser', $error_since);
+
+        $recent_rule_hits    = $this->ruleHitRepo->getRecentHits(10);
+        $slow_network_count  = $this->repository->getSlowNetworkErrorCount($error_since);
+        $mobile_error_count  = $this->repository->getMobileErrorCount($error_since);
 
         ob_start();
         ?>
@@ -98,6 +107,121 @@ final class SirusDashboardPage
             <h1><?php esc_html_e('Sirus Observability Dashboard', 'sparxstar-sirus'); ?></h1>
 
             <div class="sirus-panels" style="display:flex; gap:20px; flex-wrap:wrap; margin-top:20px;">
+
+                <!-- Panel 1: Critical Rule Hits -->
+                <div class="sirus-panel" style="flex:2; min-width:300px; background:#fff; border:1px solid #ddd; border-radius:4px; padding:16px;">
+                    <h2 style="margin-top:0; font-size:1.1em;">
+                        <?php esc_html_e('Critical Rule Hits', 'sparxstar-sirus'); ?>
+                    </h2>
+                    <?php if ($recent_rule_hits === []) : ?>
+                        <p><?php esc_html_e('No rule hits recorded.', 'sparxstar-sirus'); ?></p>
+                    <?php else : ?>
+                        <table class="widefat striped">
+                            <thead>
+                                <tr>
+                                    <th><?php esc_html_e('Rule', 'sparxstar-sirus'); ?></th>
+                                    <th><?php esc_html_e('Severity', 'sparxstar-sirus'); ?></th>
+                                    <th><?php esc_html_e('Action', 'sparxstar-sirus'); ?></th>
+                                    <th><?php esc_html_e('Device', 'sparxstar-sirus'); ?></th>
+                                    <th><?php esc_html_e('Session', 'sparxstar-sirus'); ?></th>
+                                    <th><?php esc_html_e('Hit Count', 'sparxstar-sirus'); ?></th>
+                                    <th><?php esc_html_e('First Seen', 'sparxstar-sirus'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($recent_rule_hits as $hit) : ?>
+                                    <tr>
+                                        <td><code><?php echo esc_html((string) ($hit['rule_key'] ?? '')); ?></code></td>
+                                        <td><?php echo esc_html((string) ($hit['severity'] ?? '')); ?></td>
+                                        <td><?php echo esc_html((string) ($hit['action_key'] ?? '')); ?></td>
+                                        <td><?php echo esc_html((string) ($hit['device_id'] ?? '')); ?></td>
+                                        <td><?php echo esc_html((string) ($hit['session_id'] ?? '')); ?></td>
+                                        <td><?php echo esc_html((string) ($hit['hit_count'] ?? 0)); ?></td>
+                                        <td><?php echo esc_html(wp_date('Y-m-d H:i', (int) ($hit['created_at'] ?? 0))); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Panel 2: Recommended Actions -->
+                <div class="sirus-panel" style="flex:2; min-width:300px; background:#fff; border:1px solid #ddd; border-radius:4px; padding:16px;">
+                    <h2 style="margin-top:0; font-size:1.1em;">
+                        <?php esc_html_e('Recommended Actions', 'sparxstar-sirus'); ?>
+                    </h2>
+                    <?php
+                    $action_hits = $this->ruleHitRepo->getRecentHits(5);
+                    if ($action_hits === []) :
+                    ?>
+                        <p><?php esc_html_e('No active recommendations.', 'sparxstar-sirus'); ?></p>
+                    <?php else : ?>
+                        <table class="widefat striped">
+                            <thead>
+                                <tr>
+                                    <th><?php esc_html_e('Rule Key', 'sparxstar-sirus'); ?></th>
+                                    <th><?php esc_html_e('Action Key', 'sparxstar-sirus'); ?></th>
+                                    <th><?php esc_html_e('Severity', 'sparxstar-sirus'); ?></th>
+                                    <th><?php esc_html_e('Status', 'sparxstar-sirus'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($action_hits as $hit) : ?>
+                                    <tr>
+                                        <td><code><?php echo esc_html((string) ($hit['rule_key'] ?? '')); ?></code></td>
+                                        <td><?php echo esc_html((string) ($hit['action_key'] ?? '')); ?></td>
+                                        <td><?php echo esc_html((string) ($hit['severity'] ?? '')); ?></td>
+                                        <td><?php echo esc_html((string) ($hit['status'] ?? '')); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Panel 3: Environmental Friction -->
+                <div class="sirus-panel" style="flex:2; min-width:300px; background:#fff; border:1px solid #ddd; border-radius:4px; padding:16px;">
+                    <h2 style="margin-top:0; font-size:1.1em;">
+                        <?php esc_html_e('Environmental Friction', 'sparxstar-sirus'); ?>
+                    </h2>
+                    <table class="widefat striped" style="margin-bottom:12px;">
+                        <thead>
+                            <tr>
+                                <th><?php esc_html_e('Signal', 'sparxstar-sirus'); ?></th>
+                                <th><?php esc_html_e('Error Count', 'sparxstar-sirus'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><?php esc_html_e('Slow Network Failures', 'sparxstar-sirus'); ?></td>
+                                <td><?php echo esc_html((string) $slow_network_count); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php esc_html_e('Mobile-Only Failures', 'sparxstar-sirus'); ?></td>
+                                <td><?php echo esc_html((string) $mobile_error_count); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <?php if ($errors_by_browser !== []) : ?>
+                        <h3 style="font-size:0.95em;"><?php esc_html_e('Browser-Specific Failures', 'sparxstar-sirus'); ?></h3>
+                        <table class="widefat striped">
+                            <thead>
+                                <tr>
+                                    <th><?php esc_html_e('Browser', 'sparxstar-sirus'); ?></th>
+                                    <th><?php esc_html_e('Errors', 'sparxstar-sirus'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($errors_by_browser as $browser => $count) : ?>
+                                    <tr>
+                                        <td><?php echo esc_html($browser); ?></td>
+                                        <td><?php echo esc_html((string) $count); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                </div>
 
                 <!-- Panel A: Active Users -->
                 <div class="sirus-panel" style="flex:1; min-width:220px; background:#fff; border:1px solid #ddd; border-radius:4px; padding:16px;">
@@ -206,30 +330,5 @@ final class SirusDashboardPage
         </div>
         <?php
         echo ob_get_clean(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-    }
-
-    /**
-     * Groups recent error rows by a context JSON field value.
-     *
-     * @param array<int, array<string, mixed>> $errors       Rows from SirusEventRepository::getRecentErrors.
-     * @param string                           $context_key  Key within context_json (e.g. 'browser', 'device_type').
-     * @return array<string, int>
-     */
-    private function group_errors_by_context(array $errors, string $context_key): array
-    {
-        $groups = [];
-
-        foreach ($errors as $row) {
-            $context_json = (string) ($row['context_json'] ?? '{}');
-            $context      = json_decode($context_json, true);
-            $context      = is_array($context) ? $context : [];
-            $label        = (string) ($context[$context_key] ?? 'Unknown');
-
-            $groups[$label] = ($groups[$label] ?? 0) + 1;
-        }
-
-        arsort($groups);
-
-        return $groups;
     }
 }

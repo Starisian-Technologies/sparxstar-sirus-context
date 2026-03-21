@@ -23,6 +23,7 @@ use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 use Starisian\Sparxstar\Sirus\core\SirusEventRepository;
+use Starisian\Sparxstar\Sirus\services\SirusMitigationCoordinator;
 
 /**
  * Registers and handles the POST /sirus/v1/event REST route.
@@ -33,10 +34,12 @@ final class SirusEventController
     private const NAMESPACE = 'sirus/v1';
 
     /**
-     * @param SirusEventRepository $repository The event data access layer.
+     * @param SirusEventRepository          $repository  The event data access layer.
+     * @param SirusMitigationCoordinator|null $coordinator Optional mitigation coordinator.
      */
     public function __construct(
         private readonly SirusEventRepository $repository,
+        private readonly ?SirusMitigationCoordinator $coordinator = null,
     ) {}
 
     /**
@@ -177,15 +180,18 @@ final class SirusEventController
         $error     = is_array($error_raw) ? $this->sanitize_json_object($error_raw) : null;
 
         $event = [
-            'event_type' => $event_type,
-            'timestamp'  => $timestamp,
-            'device_id'  => $device_id,
-            'session_id' => $session_id,
-            'user_id'    => absint($request->get_param('user_id') ?? 0),
-            'url'        => $url,
-            'context'    => $context,
-            'metrics'    => $metrics,
-            'error'      => $error,
+            'event_type'  => $event_type,
+            'timestamp'   => $timestamp,
+            'device_id'   => $device_id,
+            'session_id'  => $session_id,
+            'user_id'     => absint($request->get_param('user_id') ?? 0),
+            'url'         => $url,
+            'context'     => $context,
+            'metrics'     => $metrics,
+            'error'       => $error,
+            'browser'     => (string) ($context['browser'] ?? ''),
+            'device_type' => (string) ($context['device_type'] ?? ''),
+            'network'     => (string) ($context['network'] ?? ''),
         ];
 
         $id = $this->repository->insert($event);
@@ -196,6 +202,10 @@ final class SirusEventController
                 __('Failed to record event.', 'sparxstar-sirus'),
                 ['status' => 500]
             );
+        }
+
+        if ($this->coordinator !== null) {
+            $this->coordinator->processEvent($event);
         }
 
         return new WP_REST_Response(['id' => $id, 'status' => 'recorded'], 201);

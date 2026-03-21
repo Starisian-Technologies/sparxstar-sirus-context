@@ -35,6 +35,9 @@
     var ctx   = window.SirusContext;
     var ENDPOINT = (ctx.rest_url || '/wp-json') + '/sirus/v1/event';
 
+    // Capture fetch before any interceptor override so directive fetches never self-log.
+    var _directiveFetch = window.fetch;
+
     // ─── Session ID: use provided session_id from context. ────────────────────
     var DEVICE_ID  = ctx.device_id;
     var SESSION_ID = ctx.session_id;
@@ -293,6 +296,47 @@
             url:        window.location.pathname,
         });
     });
+
+    // ─── 7. Fetch active directives and apply response_mode. ─────────────────
+    (function fetchDirectives() {
+        if (!DEVICE_ID) return;
+        var directiveUrl = ENDPOINT.replace('/event', '/directives')
+            + '?device_id=' + encodeURIComponent(DEVICE_ID)
+            + '&session_id=' + encodeURIComponent(SESSION_ID);
+
+        // Use the pre-interceptor fetch reference to avoid self-logging.
+        var fetchFn = (typeof _directiveFetch === 'function') ? _directiveFetch : window.fetch;
+        if (typeof fetchFn !== 'function') return;
+
+        fetchFn(directiveUrl, {
+            method: 'GET',
+            credentials: 'same-origin',
+        }).then(function (res) {
+            return res.ok ? res.json() : null;
+        }).then(function (directives) {
+            if (!directives) return;
+            window.SIRUS = window.SIRUS || {};
+            window.SIRUS.directives = directives;
+
+            var mode = directives.response_mode || 'normal';
+            if (mode !== 'normal') {
+                document.documentElement.classList.add('sirus-' + mode);
+            }
+
+            var flags = directives.flags || {};
+            if (flags.disable_animations) {
+                document.documentElement.classList.add('sirus-no-animations');
+            }
+            if (flags.disable_waveform) {
+                document.documentElement.classList.add('sirus-no-waveform');
+            }
+            if (flags.reduce_polling) {
+                document.documentElement.classList.add('sirus-reduce-polling');
+            }
+        }).catch(function () {
+            // Directive fetch failure is non-fatal; silently ignore.
+        });
+    }());
 
     // ─── Expose public API for direct use. ───────────────────────────────────
     window.SIRUS = window.SIRUS || {};
