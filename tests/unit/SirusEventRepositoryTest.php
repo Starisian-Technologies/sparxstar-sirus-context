@@ -228,7 +228,8 @@ final class SirusEventRepositoryTest extends SirusTestCase
     // ── VALID_EVENT_TYPES constant ────────────────────────────────────────────
 
     /**
-     * VALID_EVENT_TYPES should contain all nine canonical event types.
+     * VALID_EVENT_TYPES should contain all nine canonical event types
+     * (six original + three success-signal additions).
      */
     public function testValidEventTypesContainsAllExpectedTypes(): void
     {

@@ -231,7 +231,7 @@ final class SirusPlugin
     {
         if (! isset($schedules['every_5_minutes'])) {
             $schedules['every_5_minutes'] = [
-                'interval' => 300,
+                'interval' => SirusEventAggregator::CRON_INTERVAL_SEC,
                 'display'  => esc_html__('Every 5 Minutes', 'sparxstar-sirus'),
             ];
         }

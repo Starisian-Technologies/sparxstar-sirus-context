@@ -23,7 +23,8 @@ if (! defined('ABSPATH')) {
  */
 final class SirusEventAggregator
 {
-    public const CRON_HOOK = 'sirus_aggregate_events';
+    public const CRON_HOOK         = 'sirus_aggregate_events';
+    public const CRON_INTERVAL_SEC = 300; // 5 minutes
 
     private const BUCKET_5M = '5m';
     private const BUCKET_1H = '1h';
@@ -74,7 +75,7 @@ final class SirusEventAggregator
         $table = $this->wpdb->prefix . 'sirus_event_aggregates';
 
         $sql = $this->wpdb->prepare(
-            "SELECT * FROM {$table} WHERE bucket_size = %s AND bucket_start >= %d ORDER BY bucket_start DESC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            "SELECT id, bucket_start, bucket_size, site_id, event_type, browser, device_type, network, event_count, session_count FROM {$table} WHERE bucket_size = %s AND bucket_start >= %d ORDER BY bucket_start DESC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $bucket_size,
             $since,
             $limit

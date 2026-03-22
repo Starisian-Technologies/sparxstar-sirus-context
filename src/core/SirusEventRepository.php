@@ -72,7 +72,7 @@ final class SirusEventRepository
         if (in_array($event_type_raw, self::DEDUP_EVENT_TYPES, true)) {
             $device_raw = (string) ($event['device_id'] ?? '');
             $url_raw    = (string) ($event['url'] ?? '');
-            $dedup_key  = 'sirus_dedup_' . md5($event_type_raw . '|' . $device_raw . '|' . $url_raw);
+            $dedup_key  = 'sirus_dedup_' . md5(sha1($event_type_raw) . sha1($device_raw) . sha1($url_raw));
 
             if (get_transient($dedup_key) !== false) {
                 return self::DEDUP_SKIPPED;

@@ -272,8 +272,8 @@ final class SirusEventController
      */
     private function is_valid_device_id(string $device_id): bool
     {
-        return (bool) preg_match('/^[a-zA-Z0-9\-]{8,64}$/', $device_id)
-            && (bool) preg_match('/[a-zA-Z0-9]/', $device_id);
+        // Single regex: 8–64 chars of alphanumeric/hyphens with at least one alnum character.
+        return (bool) preg_match('/^(?=.*[a-zA-Z0-9])[a-zA-Z0-9\-]{8,64}$/', $device_id);
     }
 
     /**

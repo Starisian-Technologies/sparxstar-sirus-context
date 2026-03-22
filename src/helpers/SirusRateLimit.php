@@ -22,9 +22,14 @@ if (! defined('ABSPATH')) {
  */
 final class SirusRateLimit
 {
-    private const RATE_LIMIT_WINDOW = 3600; // 1 hour
-    private const RATE_LIMIT_MAX    = 200;  // events per device per hour
-    private const KEY_PREFIX        = 'sirus_rl_';
+    private const RATE_LIMIT_WINDOW       = 3600; // 1 hour
+    private const RATE_LIMIT_MAX          = 200;  // events per device per hour
+    private const KEY_PREFIX              = 'sirus_rl_';
+    /**
+     * Extra TTL added beyond the window to guard against clock drift and
+     * ensure WP's transient GC does not prune entries mid-window.
+     */
+    private const RATE_LIMIT_GRACE_PERIOD = 60; // seconds
 
     /**
      * Returns true if the request should be allowed, false if rate-limited.
@@ -39,7 +44,7 @@ final class SirusRateLimit
         $data = get_transient($key);
 
         if ($data === false) {
-            set_transient($key, ['count' => 1, 'window_start' => time()], self::RATE_LIMIT_WINDOW + 60);
+            set_transient($key, ['count' => 1, 'window_start' => time()], self::RATE_LIMIT_WINDOW + self::RATE_LIMIT_GRACE_PERIOD);
             return true;
         }
 
@@ -48,9 +53,8 @@ final class SirusRateLimit
         $count = (int) ($data['count'] ?? 0);
 
         if ((time() - $start) >= self::RATE_LIMIT_WINDOW) {
-            // Window has expired — reset and allow. Extra 60 seconds TTL guards against
-            // clock drift and ensures WP's transient GC doesn't prune mid-window.
-            set_transient($key, ['count' => 1, 'window_start' => time()], self::RATE_LIMIT_WINDOW + 60);
+            // Window has expired — reset and allow.
+            set_transient($key, ['count' => 1, 'window_start' => time()], self::RATE_LIMIT_WINDOW + self::RATE_LIMIT_GRACE_PERIOD);
             return true;
         }
 
@@ -59,7 +63,7 @@ final class SirusRateLimit
         }
 
         $data['count'] = $count + 1;
-        set_transient($key, $data, self::RATE_LIMIT_WINDOW + 60);
+        set_transient($key, $data, self::RATE_LIMIT_WINDOW + self::RATE_LIMIT_GRACE_PERIOD);
         return true;
     }
 }
