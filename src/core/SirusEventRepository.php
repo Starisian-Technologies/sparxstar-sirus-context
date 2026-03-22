@@ -33,7 +33,19 @@ final class SirusEventRepository
         'capability_failure',
         'session_start',
         'session_end',
+        'action_success',
+        'page_ready',
+        'task_completed',
     ];
+
+    /** Return value from insert() when deduplication prevented the write. */
+    public const DEDUP_SKIPPED = -1;
+
+    /** Event types that use deduplication (error signals only). */
+    private const DEDUP_EVENT_TYPES = ['js_error', 'api_error', 'network_issue', 'capability_failure'];
+
+    /** Deduplication window in seconds (transient TTL). */
+    private const DEDUP_WINDOW = 60;
 
     /**
      * Default retention period in days for the sirus_events table.
@@ -55,6 +67,20 @@ final class SirusEventRepository
      */
     public function insert(array $event): int
     {
+        // Deduplication: skip repeated error events from the same device+url within DEDUP_WINDOW seconds.
+        $event_type_raw = (string) ($event['event_type'] ?? '');
+        if (in_array($event_type_raw, self::DEDUP_EVENT_TYPES, true)) {
+            $device_raw = (string) ($event['device_id'] ?? '');
+            $url_raw    = (string) ($event['url'] ?? '');
+            $dedup_key  = 'sirus_dedup_' . md5($event_type_raw . '|' . $device_raw . '|' . $url_raw);
+
+            if (get_transient($dedup_key) !== false) {
+                return self::DEDUP_SKIPPED;
+            }
+
+            set_transient($dedup_key, 1, self::DEDUP_WINDOW);
+        }
+
         $table = $this->wpdb->prefix . 'sirus_events';
 
         $row = [

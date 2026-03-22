@@ -26,7 +26,7 @@ if (! defined('ABSPATH')) {
 final class SirusDatabase
 {
     /** Current schema version. */
-    private const SCHEMA_VERSION = '1.4.0';
+    private const SCHEMA_VERSION = '1.5.0';
 
     /** Option key used to track the installed schema version. */
     private const VERSION_OPTION = 'sirus_db_version';
@@ -67,6 +67,7 @@ final class SirusDatabase
         $this->create_events_table($charset_collate);
         $this->create_rule_hits_table($charset_collate);
         $this->create_mitigation_actions_table($charset_collate);
+        $this->create_event_aggregates_table($charset_collate);
     }
 
     /**
@@ -235,6 +236,35 @@ final class SirusDatabase
             KEY idx_device_id (device_id),
             KEY idx_session_id (session_id),
             KEY idx_status (status)
+        ) {$charset_collate};";
+
+        dbDelta($sql);
+    }
+
+    /**
+     * Creates or updates the sirus_event_aggregates pre-aggregated summary table.
+     *
+     * @param string $charset_collate DB charset/collation string.
+     */
+    private function create_event_aggregates_table(string $charset_collate): void
+    {
+        $table = $this->wpdb->prefix . 'sirus_event_aggregates';
+
+        $sql = "CREATE TABLE {$table} (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            bucket_start int(10) unsigned NOT NULL,
+            bucket_size varchar(10) NOT NULL,
+            site_id bigint(20) unsigned NOT NULL DEFAULT 1,
+            event_type varchar(50) NOT NULL,
+            browser varchar(100) NOT NULL DEFAULT '',
+            device_type varchar(50) NOT NULL DEFAULT '',
+            network varchar(50) NOT NULL DEFAULT '',
+            event_count int(10) unsigned NOT NULL DEFAULT 0,
+            session_count int(10) unsigned NOT NULL DEFAULT 0,
+            PRIMARY KEY  (id),
+            UNIQUE KEY idx_bucket_unique (bucket_start, bucket_size, site_id, event_type, browser, device_type, network),
+            KEY idx_bucket_start (bucket_start),
+            KEY idx_event_type (event_type)
         ) {$charset_collate};";
 
         dbDelta($sql);

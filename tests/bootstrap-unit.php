@@ -1762,3 +1762,87 @@ $GLOBALS['registered_admin_pages'] = $GLOBALS['registered_admin_pages'] ?? [];
 $GLOBALS['__wp_users'] = $GLOBALS['__wp_users'] ?? [];
 $GLOBALS['safe_redirects'] = $GLOBALS['safe_redirects'] ?? [];
 $GLOBALS['wpdb_get_results'] = $GLOBALS['wpdb_get_results'] ?? [];
+$GLOBALS['transients'] = $GLOBALS['transients'] ?? [];
+
+if (!class_exists('WP_REST_Request')) {
+    /**
+     * Minimal stub for WP_REST_Request used in unit tests.
+     */
+    class WP_REST_Request
+    {
+        /** @var array<string, mixed> */
+        private array $params = [];
+
+        /**
+         * @param string               $method HTTP method.
+         * @param string               $route  Route pattern.
+         * @param array<string, mixed> $params Initial request params.
+         */
+        public function __construct(
+            private string $method = 'POST',
+            private string $route  = '',
+            array $params = []
+        ) {
+            $this->params = $params;
+        }
+
+        /**
+         * Returns a single parameter value or null.
+         *
+         * @param string $param Parameter name.
+         * @return mixed
+         */
+        public function get_param(string $param): mixed
+        {
+            return $this->params[$param] ?? null;
+        }
+
+        /**
+         * Sets a parameter value.
+         *
+         * @param string $param Parameter name.
+         * @param mixed  $value Parameter value.
+         */
+        public function set_param(string $param, mixed $value): void
+        {
+            $this->params[$param] = $value;
+        }
+    }
+}
+
+if (!class_exists('WP_REST_Response')) {
+    /**
+     * Minimal stub for WP_REST_Response used in unit tests.
+     */
+    class WP_REST_Response
+    {
+        /**
+         * @param mixed $data   Response data.
+         * @param int   $status HTTP status code.
+         */
+        public function __construct(
+            private readonly mixed $data   = null,
+            private readonly int   $status = 200
+        ) {}
+
+        /**
+         * Returns the response data.
+         *
+         * @return mixed
+         */
+        public function get_data(): mixed
+        {
+            return $this->data;
+        }
+
+        /**
+         * Returns the HTTP status code.
+         *
+         * @return int
+         */
+        public function get_status(): int
+        {
+            return $this->status;
+        }
+    }
+}

@@ -23,6 +23,7 @@ use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 use Starisian\Sparxstar\Sirus\core\SirusEventRepository;
+use Starisian\Sparxstar\Sirus\helpers\SirusRateLimit;
 use Starisian\Sparxstar\Sirus\services\SirusMitigationCoordinator;
 
 /**
@@ -34,12 +35,14 @@ final class SirusEventController
     private const NAMESPACE = 'sirus/v1';
 
     /**
-     * @param SirusEventRepository          $repository  The event data access layer.
-     * @param SirusMitigationCoordinator|null $coordinator Optional mitigation coordinator.
+     * @param SirusEventRepository            $repository   The event data access layer.
+     * @param SirusMitigationCoordinator|null $coordinator  Optional mitigation coordinator.
+     * @param SirusRateLimit|null             $rateLimiter  Optional rate limiter.
      */
     public function __construct(
         private readonly SirusEventRepository $repository,
         private readonly ?SirusMitigationCoordinator $coordinator = null,
+        private readonly ?SirusRateLimit $rateLimiter = null,
     ) {}
 
     /**
@@ -157,6 +160,22 @@ final class SirusEventController
             );
         }
 
+        if (! $this->is_valid_device_id($device_id)) {
+            return new WP_Error(
+                'sirus_event_invalid_device_id',
+                __('device_id format is invalid.', 'sparxstar-sirus'),
+                ['status' => 400]
+            );
+        }
+
+        if ($this->rateLimiter !== null && ! $this->rateLimiter->allow($device_id)) {
+            return new WP_Error(
+                'sirus_event_rate_limited',
+                __('Rate limit exceeded. Please slow down.', 'sparxstar-sirus'),
+                ['status' => 429]
+            );
+        }
+
         if ($session_id === '') {
             return new WP_Error(
                 'sirus_event_missing_session_id',
@@ -195,6 +214,10 @@ final class SirusEventController
         ];
 
         $id = $this->repository->insert($event);
+
+        if ($id === SirusEventRepository::DEDUP_SKIPPED) {
+            return new WP_REST_Response(['status' => 'deduplicated'], 200);
+        }
 
         if ($id === 0) {
             return new WP_Error(
@@ -240,6 +263,17 @@ final class SirusEventController
         }
 
         return true;
+    }
+
+    /**
+     * Validates that device_id is in an acceptable format.
+     * Must be 8–64 characters, alphanumeric and hyphens only,
+     * and contain at least one alphanumeric character.
+     */
+    private function is_valid_device_id(string $device_id): bool
+    {
+        return (bool) preg_match('/^[a-zA-Z0-9\-]{8,64}$/', $device_id)
+            && (bool) preg_match('/[a-zA-Z0-9]/', $device_id);
     }
 
     /**

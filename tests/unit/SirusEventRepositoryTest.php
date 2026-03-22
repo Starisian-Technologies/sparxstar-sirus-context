@@ -29,6 +29,7 @@ final class SirusEventRepositoryTest extends SirusTestCase
         // Reset the global wpdb stub before each test.
         $GLOBALS['wpdb'] = new \wpdb();
         $GLOBALS['wpdb_get_results'] = [];
+        $GLOBALS['transients'] = [];
 
         $this->wpdb = $GLOBALS['wpdb'];
         $this->repo  = new SirusEventRepository($this->wpdb);
@@ -227,7 +228,7 @@ final class SirusEventRepositoryTest extends SirusTestCase
     // ── VALID_EVENT_TYPES constant ────────────────────────────────────────────
 
     /**
-     * VALID_EVENT_TYPES should contain all six canonical event types.
+     * VALID_EVENT_TYPES should contain all nine canonical event types.
      */
     public function testValidEventTypesContainsAllExpectedTypes(): void
     {
@@ -238,6 +239,9 @@ final class SirusEventRepositoryTest extends SirusTestCase
             'capability_failure',
             'session_start',
             'session_end',
+            'action_success',
+            'page_ready',
+            'task_completed',
         ];
 
         foreach ($expected as $type) {
@@ -308,5 +312,74 @@ final class SirusEventRepositoryTest extends SirusTestCase
         $result = $repo->prune();
 
         $this->assertSame(0, $result);
+    }
+
+    // ── deduplication ─────────────────────────────────────────────────────────
+
+    /**
+     * insert() should return DEDUP_SKIPPED for a duplicate error event within the dedup window.
+     */
+    public function testInsertReturnsDedupSkippedForDuplicateErrorEvent(): void
+    {
+        $event = [
+            'event_type' => 'js_error',
+            'timestamp'  => 1710000000,
+            'device_id'  => 'dedup-device-abc123',
+            'session_id' => 'sess-dedup',
+            'url'        => '/checkout',
+        ];
+
+        // First insert: should succeed.
+        $id1 = $this->repo->insert($event);
+        $this->assertGreaterThan(0, $id1, 'First insert should succeed.');
+
+        // Second insert: same device+url+type within dedup window — should be skipped.
+        $id2 = $this->repo->insert($event);
+        $this->assertSame(SirusEventRepository::DEDUP_SKIPPED, $id2);
+    }
+
+    /**
+     * insert() should allow duplicate non-error events (e.g. page_ready) to pass through.
+     */
+    public function testInsertAllowsDuplicateSuccessEvent(): void
+    {
+        $event = [
+            'event_type' => 'page_ready',
+            'timestamp'  => 1710000000,
+            'device_id'  => 'dedup-device-xyz',
+            'session_id' => 'sess-success',
+            'url'        => '/home',
+        ];
+
+        $id1 = $this->repo->insert($event);
+        $id2 = $this->repo->insert($event);
+
+        $this->assertGreaterThan(0, $id1, 'First insert should succeed.');
+        $this->assertGreaterThan(0, $id2, 'Second insert should also succeed — no dedup for page_ready.');
+        $this->assertNotSame(SirusEventRepository::DEDUP_SKIPPED, $id1);
+        $this->assertNotSame(SirusEventRepository::DEDUP_SKIPPED, $id2);
+    }
+
+    /**
+     * insert() should allow the same error type for a different device to pass through.
+     */
+    public function testInsertAllowsSameErrorTypeForDifferentDevice(): void
+    {
+        $event1 = [
+            'event_type' => 'api_error',
+            'timestamp'  => 1710000000,
+            'device_id'  => 'device-one-abcdef12',
+            'session_id' => 'sess-one',
+            'url'        => '/api/test',
+        ];
+
+        $event2 = array_merge($event1, ['device_id' => 'device-two-abcdef12']);
+
+        $id1 = $this->repo->insert($event1);
+        $id2 = $this->repo->insert($event2);
+
+        $this->assertGreaterThan(0, $id1, 'First device should be inserted.');
+        $this->assertGreaterThan(0, $id2, 'Second device should also be inserted.');
+        $this->assertNotSame(SirusEventRepository::DEDUP_SKIPPED, $id2);
     }
 }

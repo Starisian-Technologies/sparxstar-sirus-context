@@ -25,12 +25,14 @@ use Starisian\Sparxstar\Sirus\core\DeviceContinuity;
 use Starisian\Sparxstar\Sirus\core\DeviceRepository;
 use Starisian\Sparxstar\Sirus\core\NetworkContextBroker;
 use Starisian\Sparxstar\Sirus\core\SirusDatabase;
+use Starisian\Sparxstar\Sirus\core\SirusEventAggregator;
 use Starisian\Sparxstar\Sirus\core\SirusEventRepository;
 use Starisian\Sparxstar\Sirus\core\SirusMitigationActionRepository;
 use Starisian\Sparxstar\Sirus\core\SirusRuleHitRepository;
 use Starisian\Sparxstar\Sirus\helpers\SirusImpactScorer;
 use Starisian\Sparxstar\Sirus\helpers\SirusMitigationRuleEngine;
 use Starisian\Sparxstar\Sirus\helpers\SirusPriorityScorer;
+use Starisian\Sparxstar\Sirus\helpers\SirusRateLimit;
 use Starisian\Sparxstar\Sirus\helpers\SirusSignalEvaluator;
 use Starisian\Sparxstar\Sirus\services\SirusMitigationCoordinator;
 
@@ -73,6 +75,10 @@ final class SirusPlugin
 
         // Daily telemetry pruning cron.
         add_action(ClientTelemetry::CRON_HOOK, [$this, 'runTelemetryPrune']);
+
+        // 5-minute event aggregation cron.
+        add_action(SirusEventAggregator::CRON_HOOK, [$this, 'runEventAggregation']);
+        add_filter('cron_schedules', [$this, 'addCronSchedules']);
     }
 
     /**
@@ -126,7 +132,7 @@ final class SirusPlugin
             $action_repo
         );
 
-        $event_controller = new SirusEventController($event_repo, $coordinator);
+        $event_controller = new SirusEventController($event_repo, $coordinator, new SirusRateLimit());
         $event_controller->register_routes();
 
         $directive_controller = new SirusDirectiveController($coordinator, $rule_hit_repo);
@@ -210,6 +216,36 @@ final class SirusPlugin
 
         $action_repo = new SirusMitigationActionRepository($wpdb);
         $action_repo->pruneExpiredActions(30);
+
+        $aggregator = new SirusEventAggregator($wpdb);
+        $aggregator->prune(7); // Keep 7 days of aggregates.
+    }
+
+    /**
+     * Adds the custom 'every_5_minutes' cron schedule.
+     *
+     * @param array<string, array<string, mixed>> $schedules Existing cron schedules.
+     * @return array<string, array<string, mixed>>
+     */
+    public function addCronSchedules(array $schedules): array
+    {
+        if (! isset($schedules['every_5_minutes'])) {
+            $schedules['every_5_minutes'] = [
+                'interval' => 300,
+                'display'  => esc_html__('Every 5 Minutes', 'sparxstar-sirus'),
+            ];
+        }
+        return $schedules;
+    }
+
+    /**
+     * Runs the 5-minute event aggregation compilation job.
+     */
+    public function runEventAggregation(): void
+    {
+        global $wpdb;
+        $aggregator = new SirusEventAggregator($wpdb);
+        $aggregator->compile();
     }
 
     /**
@@ -223,6 +259,7 @@ final class SirusPlugin
         $db->ensure_schema();
 
         ClientTelemetry::schedule_cron();
+        SirusEventAggregator::schedule_cron();
     }
 
     /**
@@ -231,5 +268,6 @@ final class SirusPlugin
     public static function onDeactivation(): void
     {
         ClientTelemetry::unschedule_cron();
+        SirusEventAggregator::unschedule_cron();
     }
 }

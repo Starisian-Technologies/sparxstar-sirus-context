@@ -288,6 +288,17 @@
         url:        window.location.pathname,
     });
 
+    // ─── 5a. Page ready event (DOM fully interactive). ────────────────────────
+    document.addEventListener('DOMContentLoaded', function () {
+        sendToSirus({
+            event_type: 'page_ready',
+            timestamp:  Math.floor(Date.now() / 1000),
+            device_id:  DEVICE_ID,
+            session_id: SESSION_ID,
+            context:    buildContext(),
+        });
+    });
+
     // ─── 6. Session end on page unload. ──────────────────────────────────────
     window.addEventListener('beforeunload', function () {
         sendToSirus({
