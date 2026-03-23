@@ -142,11 +142,12 @@ final class SirusMitigationCoordinator
             return null;
         }
 
-        // Pick the highest-priority action using MODE_PRIORITY ordering.
+        // Pick the highest-priority action; normalize modes before comparison so
+        // legacy values (safe_mode, lightweight) map to the locked 3-mode set.
         $winning_action = null;
         $highest        = -1;
         foreach ($all_actions as $action) {
-            $mode     = (string) ($action['response_mode'] ?? 'normal');
+            $mode     = $this->normalizeMode((string) ($action['response_mode'] ?? 'normal'));
             $priority = array_search($mode, self::MODE_PRIORITY, true);
             if ($priority !== false && (int) $priority > $highest) {
                 $highest        = (int) $priority;

@@ -238,35 +238,31 @@ final class SirusMitigationCoordinatorTest extends SirusTestCase
 
     public function testNormalizeModeMapsSafeModeToDegragedViaDirective(): void
     {
-        // Provide 3 actions so the degraded sample gate is met.
+        // safe_mode is normalized to degraded before the priority lookup,
+        // so 3 safe_mode actions will be selected and normalized correctly.
         $GLOBALS['wpdb_get_results'] = [
             ['id' => 1, 'action_key' => 'network_failure_spike', 'response_mode' => 'safe_mode', 'status' => 'active'],
             ['id' => 2, 'action_key' => 'network_failure_spike', 'response_mode' => 'safe_mode', 'status' => 'active'],
             ['id' => 3, 'action_key' => 'network_failure_spike', 'response_mode' => 'safe_mode', 'status' => 'active'],
         ];
 
-        // safe_mode is not in MODE_PRIORITY, so no winning action is picked → null.
-        // This confirms safe_mode must be normalised before the priority lookup.
-        // Since normalizeMode runs AFTER the priority lookup, safe_mode actions
-        // won't be found in MODE_PRIORITY and getDirective returns null.
         $result = $this->coordinator->getDirective('dev-safe');
 
-        // safe_mode is unknown to the new MODE_PRIORITY; winning_action will be null.
-        $this->assertNull($result);
+        // safe_mode → normalized to degraded; sample gate met (3 >= 3).
+        $this->assertNotNull($result);
+        $this->assertSame('degraded', $result['mode']);
     }
 
-    public function testNormalizeModeMapslightweightToLiteViaGetResponseMode(): void
+    public function testNormalizeModesMapsLightweightToLiteViaGetResponseMode(): void
     {
-        // lightweight normalizes to lite via getResponseMode → getDirective.
+        // lightweight is normalized to lite before the priority lookup.
         $GLOBALS['wpdb_get_results'] = [
             ['id' => 1, 'action_key' => 'high_js_error_rate', 'response_mode' => 'lightweight', 'status' => 'active'],
         ];
 
-        // 'lightweight' is not in new MODE_PRIORITY (['normal','lite','degraded']).
-        // No winning action → getDirective returns null → getResponseMode returns 'normal'.
         $mode = $this->coordinator->getResponseMode('dev-light');
 
-        $this->assertSame('normal', $mode);
+        $this->assertSame('lite', $mode);
     }
 
     // ─── deprecated wrappers ─────────────────────────────────────────────────
