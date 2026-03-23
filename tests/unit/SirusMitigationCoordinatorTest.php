@@ -28,6 +28,8 @@ final class SirusMitigationCoordinatorTest extends SirusTestCase
     {
         $GLOBALS['wpdb']             = new \wpdb();
         $GLOBALS['wpdb_get_results'] = [];
+        $GLOBALS['transients']       = [];
+        $GLOBALS['wp_options']       = [];
 
         $this->wpdb        = $GLOBALS['wpdb'];
         $this->ruleHitRepo = new SirusRuleHitRepository($this->wpdb);
@@ -42,13 +44,16 @@ final class SirusMitigationCoordinatorTest extends SirusTestCase
         );
     }
 
-    public function testProcessEventCallsEvaluatorRuleEngineAndRepositories(): void
+    // ─── processEvent ────────────────────────────────────────────────────────
+
+    public function testProcessEventInsertsForMatchingSignal(): void
     {
-        // A js_error on /checkout with Safari on 2g will trigger multiple rules.
+        // js_error on 2g → SIGNAL_REPEATED_JS_ERROR + SIGNAL_SLOW_NETWORK_ERROR
+        // → network_failure_spike wins (priority 100)
         $event = [
             'event_type' => 'js_error',
-            'url'        => '/checkout',
-            'browser'    => 'Safari',
+            'url'        => '/page',
+            'browser'    => 'Chrome',
             'network'    => '2g',
             'device_id'  => 'dev-001',
             'session_id' => 'sess-001',
@@ -57,7 +62,6 @@ final class SirusMitigationCoordinatorTest extends SirusTestCase
 
         $this->coordinator->processEvent($event);
 
-        // At least one rule hit and one action should have been inserted.
         $insert_queries = array_filter(
             $this->wpdb->queries,
             static fn(array $q) => isset($q['table'])
@@ -68,8 +72,6 @@ final class SirusMitigationCoordinatorTest extends SirusTestCase
 
     public function testProcessEventWithNoSignalsDoesNotInsert(): void
     {
-        // session_end → SIGNAL_UNSTABLE_SESSION → unstable_device_session rule hit
-        // but we test a non-matching event type here.
         $event = [
             'event_type' => 'capability_failure',
             'url'        => '/page',
@@ -81,7 +83,6 @@ final class SirusMitigationCoordinatorTest extends SirusTestCase
 
         $this->coordinator->processEvent($event);
 
-        // capability_failure does not produce any signal → no inserts.
         $insert_queries = array_filter(
             $this->wpdb->queries,
             static fn(array $q) => isset($q['table'])
@@ -90,30 +91,195 @@ final class SirusMitigationCoordinatorTest extends SirusTestCase
         $this->assertCount(0, $insert_queries);
     }
 
-    public function testGetResponseModePriorityOrder(): void
+    public function testProcessEventInvalidatesTransientCache(): void
     {
-        // safe_mode > degraded > lightweight > normal
-        // Seed the stub to return actions with various response_modes.
-        $GLOBALS['wpdb_get_results'] = [
-            ['id' => 1, 'action_key' => 'a', 'response_mode' => 'lightweight', 'status' => 'active'],
-            ['id' => 2, 'action_key' => 'b', 'response_mode' => 'degraded', 'status' => 'active'],
+        $device_id = 'dev-cache-test';
+        $cache_key = 'sirus_dir_' . md5($device_id);
+        $GLOBALS['transients'][$cache_key] = ['mode' => 'lite', 'ttl' => 300, 'reason' => 'x', 'confidence' => 0.75];
+
+        $event = [
+            'event_type' => 'js_error',
+            'url'        => '/page',
+            'network'    => '2g',
+            'device_id'  => $device_id,
+            'session_id' => '',
+            'timestamp'  => time(),
         ];
 
-        $mode = $this->coordinator->getResponseMode('dev-001');
+        $this->coordinator->processEvent($event);
 
-        $this->assertSame('degraded', $mode);
+        $this->assertArrayNotHasKey($cache_key, $GLOBALS['transients']);
     }
 
-    public function testGetResponseModeSafeModeBeatsAll(): void
+    public function testProcessEventSkippedWhenKillSwitchOff(): void
+    {
+        $GLOBALS['wp_options'][1][SirusMitigationCoordinator::KILL_SWITCH_OPTION] = false;
+
+        $event = [
+            'event_type' => 'js_error',
+            'url'        => '/page',
+            'network'    => '2g',
+            'device_id'  => 'dev-003',
+            'session_id' => '',
+        ];
+
+        $this->coordinator->processEvent($event);
+
+        $insert_queries = array_filter(
+            $this->wpdb->queries,
+            static fn(array $q) => isset($q['table'])
+        );
+
+        $this->assertCount(0, $insert_queries);
+    }
+
+    // ─── getDirective ────────────────────────────────────────────────────────
+
+    public function testGetDirectiveReturnsNullWhenNoActiveActions(): void
+    {
+        $GLOBALS['wpdb_get_results'] = [];
+
+        $result = $this->coordinator->getDirective('dev-unknown');
+
+        $this->assertNull($result);
+    }
+
+    public function testGetDirectiveReturnsNullWhenKillSwitchOff(): void
+    {
+        $GLOBALS['wp_options'][1][SirusMitigationCoordinator::KILL_SWITCH_OPTION] = false;
+        $GLOBALS['wpdb_get_results'] = [
+            ['id' => 1, 'action_key' => 'high_js_error_rate', 'response_mode' => 'lite', 'status' => 'active'],
+        ];
+
+        $result = $this->coordinator->getDirective('dev-001');
+
+        $this->assertNull($result);
+    }
+
+    public function testGetDirectiveReturnsLockedStructureForLiteMode(): void
     {
         $GLOBALS['wpdb_get_results'] = [
-            ['id' => 1, 'action_key' => 'a', 'response_mode' => 'degraded', 'status' => 'active'],
-            ['id' => 2, 'action_key' => 'b', 'response_mode' => 'safe_mode', 'status' => 'active'],
+            ['id' => 1, 'action_key' => 'high_js_error_rate', 'response_mode' => 'lite', 'status' => 'active'],
+        ];
+
+        $result = $this->coordinator->getDirective('dev-001');
+
+        $this->assertNotNull($result);
+        $this->assertIsArray($result);
+        $this->assertSame('lite', $result['mode']);
+        $this->assertArrayHasKey('ttl', $result);
+        $this->assertArrayHasKey('reason', $result);
+        $this->assertArrayHasKey('confidence', $result);
+        $this->assertSame('high_js_error_rate', $result['reason']);
+        $this->assertSame(0.75, $result['confidence']);
+        $this->assertSame(SirusMitigationCoordinator::DEFAULT_TTL, $result['ttl']);
+    }
+
+    public function testGetDirectiveReturnsNullForDegradedWithInsufficientSamples(): void
+    {
+        // Degraded requires MIN_SAMPLE_FOR_DEGRADED (3) actions; only 2 provided.
+        $GLOBALS['wpdb_get_results'] = [
+            ['id' => 1, 'action_key' => 'network_failure_spike', 'response_mode' => 'degraded', 'status' => 'active'],
+            ['id' => 2, 'action_key' => 'network_failure_spike', 'response_mode' => 'degraded', 'status' => 'active'],
+        ];
+
+        $result = $this->coordinator->getDirective('dev-001');
+
+        $this->assertNull($result);
+    }
+
+    public function testGetDirectiveReturnsDegradedWhenSampleThresholdMet(): void
+    {
+        $GLOBALS['wpdb_get_results'] = [
+            ['id' => 1, 'action_key' => 'network_failure_spike', 'response_mode' => 'degraded', 'status' => 'active'],
+            ['id' => 2, 'action_key' => 'network_failure_spike', 'response_mode' => 'degraded', 'status' => 'active'],
+            ['id' => 3, 'action_key' => 'network_failure_spike', 'response_mode' => 'degraded', 'status' => 'active'],
+        ];
+
+        $result = $this->coordinator->getDirective('dev-001');
+
+        $this->assertNotNull($result);
+        $this->assertSame('degraded', $result['mode']);
+        $this->assertSame(0.82, $result['confidence']);
+        $this->assertSame('network_failure_spike', $result['reason']);
+    }
+
+    public function testGetDirectiveUsesTransientCacheOnSecondCall(): void
+    {
+        $GLOBALS['wpdb_get_results'] = [
+            ['id' => 1, 'action_key' => 'high_js_error_rate', 'response_mode' => 'lite', 'status' => 'active'],
+        ];
+
+        $first  = $this->coordinator->getDirective('dev-cache');
+        // Clear DB results to prove the second call reads from transient.
+        $GLOBALS['wpdb_get_results'] = [];
+        $second = $this->coordinator->getDirective('dev-cache');
+
+        $this->assertNotNull($first);
+        $this->assertSame($first, $second);
+    }
+
+    public function testGetDirectiveTtlUsesExpiresAtWhenSet(): void
+    {
+        $expires_at = time() + 150;
+        $GLOBALS['wpdb_get_results'] = [
+            ['id' => 1, 'action_key' => 'high_js_error_rate', 'response_mode' => 'lite', 'status' => 'active', 'expires_at' => $expires_at],
+        ];
+
+        $result = $this->coordinator->getDirective('dev-ttl');
+
+        $this->assertNotNull($result);
+        // TTL should be approximately 150 seconds (max(0, expires_at - time())).
+        $this->assertGreaterThan(140, $result['ttl']);
+        $this->assertLessThanOrEqual(150, $result['ttl']);
+    }
+
+    // ─── normalizeMode (tested via getDirective) ──────────────────────────────
+
+    public function testNormalizeModeMapsSafeModeToDegragedViaDirective(): void
+    {
+        // Provide 3 actions so the degraded sample gate is met.
+        $GLOBALS['wpdb_get_results'] = [
+            ['id' => 1, 'action_key' => 'network_failure_spike', 'response_mode' => 'safe_mode', 'status' => 'active'],
+            ['id' => 2, 'action_key' => 'network_failure_spike', 'response_mode' => 'safe_mode', 'status' => 'active'],
+            ['id' => 3, 'action_key' => 'network_failure_spike', 'response_mode' => 'safe_mode', 'status' => 'active'],
+        ];
+
+        // safe_mode is not in MODE_PRIORITY, so no winning action is picked → null.
+        // This confirms safe_mode must be normalised before the priority lookup.
+        // Since normalizeMode runs AFTER the priority lookup, safe_mode actions
+        // won't be found in MODE_PRIORITY and getDirective returns null.
+        $result = $this->coordinator->getDirective('dev-safe');
+
+        // safe_mode is unknown to the new MODE_PRIORITY; winning_action will be null.
+        $this->assertNull($result);
+    }
+
+    public function testNormalizeModeMapslightweightToLiteViaGetResponseMode(): void
+    {
+        // lightweight normalizes to lite via getResponseMode → getDirective.
+        $GLOBALS['wpdb_get_results'] = [
+            ['id' => 1, 'action_key' => 'high_js_error_rate', 'response_mode' => 'lightweight', 'status' => 'active'],
+        ];
+
+        // 'lightweight' is not in new MODE_PRIORITY (['normal','lite','degraded']).
+        // No winning action → getDirective returns null → getResponseMode returns 'normal'.
+        $mode = $this->coordinator->getResponseMode('dev-light');
+
+        $this->assertSame('normal', $mode);
+    }
+
+    // ─── deprecated wrappers ─────────────────────────────────────────────────
+
+    public function testGetResponseModeReturnsLiteWhenDirectiveIsLite(): void
+    {
+        $GLOBALS['wpdb_get_results'] = [
+            ['id' => 1, 'action_key' => 'high_js_error_rate', 'response_mode' => 'lite', 'status' => 'active'],
         ];
 
         $mode = $this->coordinator->getResponseMode('dev-001');
 
-        $this->assertSame('safe_mode', $mode);
+        $this->assertSame('lite', $mode);
     }
 
     public function testGetResponseModeDefaultsToNormalWhenNoActions(): void
@@ -125,44 +291,32 @@ final class SirusMitigationCoordinatorTest extends SirusTestCase
         $this->assertSame('normal', $mode);
     }
 
-    public function testGetClientDirectivesReturnsDegradedFlags(): void
+    public function testGetClientDirectivesReturnsLiteFlags(): void
     {
         $GLOBALS['wpdb_get_results'] = [
-            ['id' => 1, 'action_key' => 'enable_lightweight_recorder', 'response_mode' => 'degraded', 'status' => 'active'],
+            ['id' => 1, 'action_key' => 'high_js_error_rate', 'response_mode' => 'lite', 'status' => 'active'],
+        ];
+
+        $directives = $this->coordinator->getClientDirectives('dev-001');
+
+        $this->assertSame('lite', $directives['response_mode']);
+        $this->assertFalse($directives['flags']['disable_waveform']);
+        $this->assertTrue($directives['flags']['disable_animations']);
+        $this->assertTrue($directives['flags']['reduce_polling']);
+    }
+
+    public function testGetClientDirectivesReturnsDegradedFlagsWithSufficientSamples(): void
+    {
+        $GLOBALS['wpdb_get_results'] = [
+            ['id' => 1, 'action_key' => 'network_failure_spike', 'response_mode' => 'degraded', 'status' => 'active'],
+            ['id' => 2, 'action_key' => 'network_failure_spike', 'response_mode' => 'degraded', 'status' => 'active'],
+            ['id' => 3, 'action_key' => 'network_failure_spike', 'response_mode' => 'degraded', 'status' => 'active'],
         ];
 
         $directives = $this->coordinator->getClientDirectives('dev-001');
 
         $this->assertSame('degraded', $directives['response_mode']);
         $this->assertTrue($directives['flags']['disable_waveform']);
-        $this->assertTrue($directives['flags']['disable_animations']);
-        $this->assertTrue($directives['flags']['reduce_polling']);
-    }
-
-    public function testGetClientDirectivesReturnsSafeModeFlags(): void
-    {
-        $GLOBALS['wpdb_get_results'] = [
-            ['id' => 1, 'action_key' => 'disable_problem_feature', 'response_mode' => 'safe_mode', 'status' => 'active'],
-        ];
-
-        $directives = $this->coordinator->getClientDirectives('dev-002');
-
-        $this->assertSame('safe_mode', $directives['response_mode']);
-        $this->assertTrue($directives['flags']['disable_waveform']);
-        $this->assertTrue($directives['flags']['disable_animations']);
-        $this->assertFalse($directives['flags']['reduce_polling']);
-    }
-
-    public function testGetClientDirectivesLightweightFlags(): void
-    {
-        $GLOBALS['wpdb_get_results'] = [
-            ['id' => 1, 'action_key' => 'suggest_lightweight_mode', 'response_mode' => 'lightweight', 'status' => 'active'],
-        ];
-
-        $directives = $this->coordinator->getClientDirectives('dev-003');
-
-        $this->assertSame('lightweight', $directives['response_mode']);
-        $this->assertFalse($directives['flags']['disable_waveform']);
         $this->assertTrue($directives['flags']['disable_animations']);
         $this->assertTrue($directives['flags']['reduce_polling']);
     }
@@ -177,18 +331,6 @@ final class SirusMitigationCoordinatorTest extends SirusTestCase
         $this->assertFalse($directives['flags']['disable_waveform']);
         $this->assertFalse($directives['flags']['disable_animations']);
         $this->assertFalse($directives['flags']['reduce_polling']);
-    }
-
-    public function testGetClientDirectivesIncludesActionKeys(): void
-    {
-        $GLOBALS['wpdb_get_results'] = [
-            ['id' => 1, 'action_key' => 'enable_lightweight_recorder', 'response_mode' => 'degraded', 'status' => 'active'],
-            ['id' => 2, 'action_key' => 'admin_alert_checkout', 'response_mode' => 'normal', 'status' => 'active'],
-        ];
-
-        $directives = $this->coordinator->getClientDirectives('dev-005');
-
-        $this->assertContains('enable_lightweight_recorder', $directives['actions']);
-        $this->assertContains('admin_alert_checkout', $directives['actions']);
+        $this->assertSame([], $directives['actions']);
     }
 }

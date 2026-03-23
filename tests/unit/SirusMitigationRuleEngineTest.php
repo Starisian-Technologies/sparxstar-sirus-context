@@ -23,94 +23,112 @@ final class SirusMitigationRuleEngineTest extends SirusTestCase
         $this->engine = new SirusMitigationRuleEngine();
     }
 
-    public function testMatchingSignalReturnsShouldApplyTrue(): void
+    public function testNoSignalsReturnsNull(): void
     {
-        $matches = $this->engine->evaluate(
-            [SirusSignalEvaluator::SIGNAL_SLOW_NETWORK_ERROR],
-            ['event_type' => 'network_issue']
-        );
+        $result = $this->engine->evaluate([]);
 
-        $this->assertCount(1, $matches);
-        $this->assertTrue($matches[0]['should_apply']);
-        $this->assertSame('slow_network_recorder_downgrade', $matches[0]['rule_key']);
+        $this->assertNull($result);
     }
 
-    public function testMatchingSignalContainsCorrectFields(): void
+    public function testUnknownSignalReturnsNull(): void
     {
-        $matches = $this->engine->evaluate(
-            [SirusSignalEvaluator::SIGNAL_CHECKOUT_FAILURE],
-            ['event_type' => 'api_error', 'url' => '/checkout']
-        );
+        $result = $this->engine->evaluate(['some_unknown_signal']);
 
-        $this->assertCount(1, $matches);
-        $match = $matches[0];
-        $this->assertArrayHasKey('rule_key', $match);
-        $this->assertArrayHasKey('signal_key', $match);
-        $this->assertArrayHasKey('severity', $match);
-        $this->assertArrayHasKey('action_key', $match);
-        $this->assertArrayHasKey('response_mode', $match);
-        $this->assertArrayHasKey('should_apply', $match);
-        $this->assertArrayHasKey('admin_note', $match);
-        $this->assertSame('checkout_failure_spike', $match['rule_key']);
-        $this->assertSame('critical', $match['severity']);
+        $this->assertNull($result);
     }
 
-    public function testNoMatchingSignalReturnsEmptyArray(): void
+    public function testSingleMatchingSignalReturnsSingleRuleArray(): void
     {
-        $matches = $this->engine->evaluate(
-            ['some_unknown_signal'],
-            ['event_type' => 'session_start']
-        );
+        $result = $this->engine->evaluate([SirusSignalEvaluator::SIGNAL_SLOW_NETWORK_ERROR]);
 
-        $this->assertSame([], $matches);
+        $this->assertIsArray($result);
+        $this->assertSame('network_failure_spike', $result['rule_key']);
     }
 
-    public function testAllFourRulesAreMatchable(): void
+    public function testReturnedRuleHasRequiredFields(): void
+    {
+        $result = $this->engine->evaluate([SirusSignalEvaluator::SIGNAL_REPEATED_JS_ERROR]);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('rule_key', $result);
+        $this->assertArrayHasKey('signal_key', $result);
+        $this->assertArrayHasKey('mode', $result);
+        $this->assertArrayHasKey('priority', $result);
+        $this->assertArrayHasKey('confidence', $result);
+        $this->assertArrayHasKey('reason', $result);
+    }
+
+    public function testHigherPriorityRuleWinsWhenMultipleSignalsMatch(): void
+    {
+        // SIGNAL_SLOW_NETWORK_ERROR → network_failure_spike (priority 100)
+        // SIGNAL_REPEATED_JS_ERROR  → high_js_error_rate    (priority 80)
+        $result = $this->engine->evaluate([
+            SirusSignalEvaluator::SIGNAL_SLOW_NETWORK_ERROR,
+            SirusSignalEvaluator::SIGNAL_REPEATED_JS_ERROR,
+        ]);
+
+        $this->assertIsArray($result);
+        $this->assertSame('network_failure_spike', $result['rule_key']);
+        $this->assertSame(100, $result['priority']);
+    }
+
+    public function testNetworkFailureSpikeHasDegradedMode(): void
+    {
+        $result = $this->engine->evaluate([SirusSignalEvaluator::SIGNAL_SLOW_NETWORK_ERROR]);
+
+        $this->assertIsArray($result);
+        $this->assertSame('degraded', $result['mode']);
+        $this->assertSame(0.82, $result['confidence']);
+    }
+
+    public function testHighJsErrorRateHasLiteMode(): void
+    {
+        $result = $this->engine->evaluate([SirusSignalEvaluator::SIGNAL_REPEATED_JS_ERROR]);
+
+        $this->assertIsArray($result);
+        $this->assertSame('lite', $result['mode']);
+        $this->assertSame(0.75, $result['confidence']);
+    }
+
+    public function testUnstableSessionHasLiteMode(): void
+    {
+        $result = $this->engine->evaluate([SirusSignalEvaluator::SIGNAL_UNSTABLE_SESSION]);
+
+        $this->assertIsArray($result);
+        $this->assertSame('lite', $result['mode']);
+        $this->assertSame(0.70, $result['confidence']);
+        $this->assertSame(60, $result['priority']);
+    }
+
+    public function testRuleConfigHasThreeRules(): void
+    {
+        $rules = SirusRuleConfig::getRules();
+        $this->assertCount(3, $rules);
+    }
+
+    public function testAllThreeRulesAreMatchable(): void
     {
         $all_signals = [
+            SirusSignalEvaluator::SIGNAL_REPEATED_JS_ERROR,
             SirusSignalEvaluator::SIGNAL_SLOW_NETWORK_ERROR,
-            SirusSignalEvaluator::SIGNAL_SAFARI_FEATURE_BREAK,
-            SirusSignalEvaluator::SIGNAL_CHECKOUT_FAILURE,
             SirusSignalEvaluator::SIGNAL_UNSTABLE_SESSION,
         ];
 
-        $matches = $this->engine->evaluate($all_signals, []);
+        // With all signals, the highest-priority rule (network_failure_spike, 100) wins.
+        $result = $this->engine->evaluate($all_signals);
 
-        $this->assertCount(4, $matches, 'All 4 rules should match when all signals are present');
-
-        $rule_keys = array_column($matches, 'rule_key');
-        $this->assertContains('slow_network_recorder_downgrade', $rule_keys);
-        $this->assertContains('safari_feature_break', $rule_keys);
-        $this->assertContains('checkout_failure_spike', $rule_keys);
-        $this->assertContains('unstable_device_session', $rule_keys);
+        $this->assertIsArray($result);
+        $this->assertSame('network_failure_spike', $result['rule_key']);
     }
 
-    public function testSafariRuleHasSafeModeResponse(): void
+    public function testRuleHasDbCompatibilityAliases(): void
     {
-        $matches = $this->engine->evaluate(
-            [SirusSignalEvaluator::SIGNAL_SAFARI_FEATURE_BREAK],
-            ['event_type' => 'js_error', 'browser' => 'Safari']
-        );
+        $result = $this->engine->evaluate([SirusSignalEvaluator::SIGNAL_REPEATED_JS_ERROR]);
 
-        $this->assertCount(1, $matches);
-        $this->assertSame('safe_mode', $matches[0]['response_mode']);
-    }
-
-    public function testUnstableSessionRuleLightweightMode(): void
-    {
-        $matches = $this->engine->evaluate(
-            [SirusSignalEvaluator::SIGNAL_UNSTABLE_SESSION],
-            ['event_type' => 'session_end']
-        );
-
-        $this->assertCount(1, $matches);
-        $this->assertSame('lightweight', $matches[0]['response_mode']);
-        $this->assertSame('medium', $matches[0]['severity']);
-    }
-
-    public function testRuleConfigHasFourRules(): void
-    {
-        $rules = SirusRuleConfig::getRules();
-        $this->assertCount(4, $rules);
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('action_key', $result);
+        $this->assertArrayHasKey('response_mode', $result);
+        $this->assertSame($result['rule_key'], $result['action_key']);
+        $this->assertSame($result['mode'], $result['response_mode']);
     }
 }

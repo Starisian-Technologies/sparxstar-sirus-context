@@ -119,9 +119,9 @@ final class SirusDirectiveController
             );
         }
 
-        $directives = $this->coordinator->getClientDirectives($device_id, $session_id);
+        $directive = $this->coordinator->getDirective($device_id, $session_id);
 
-        return new WP_REST_Response($directives, 200);
+        return new WP_REST_Response($directive, 200);
     }
 
     /**

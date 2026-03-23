@@ -308,8 +308,8 @@
         });
     });
 
-    // ─── 7. Fetch active directives and apply response_mode. ─────────────────
-    (function fetchDirectives() {
+    // ─── 7. Fetch active directive and apply mode. ────────────────────────────
+    (function fetchDirective() {
         if (!DEVICE_ID) return;
         var directiveUrl = ENDPOINT.replace('/event', '/directives')
             + '?device_id=' + encodeURIComponent(DEVICE_ID)
@@ -324,29 +324,50 @@
             credentials: 'same-origin',
         }).then(function (res) {
             return res.ok ? res.json() : null;
-        }).then(function (directives) {
-            if (!directives) return;
+        }).then(function (directive) {
+            if (!directive || typeof directive.mode === 'undefined') return;
+
             window.SIRUS = window.SIRUS || {};
-            window.SIRUS.directives = directives;
+            window.SIRUS.directive = directive;
 
-            var mode = directives.response_mode || 'normal';
-            if (mode !== 'normal') {
-                document.documentElement.classList.add('sirus-' + mode);
-            }
+            // Remove any previously applied Sirus mode classes.
+            document.documentElement.classList.remove(
+                'sirus-normal', 'sirus-lite', 'sirus-degraded'
+            );
 
-            var flags = directives.flags || {};
-            if (flags.disable_animations) {
-                document.documentElement.classList.add('sirus-no-animations');
-            }
-            if (flags.disable_waveform) {
-                document.documentElement.classList.add('sirus-no-waveform');
-            }
-            if (flags.reduce_polling) {
-                document.documentElement.classList.add('sirus-reduce-polling');
+            // Locked 3-mode contract — server is the sole decision maker.
+            switch (directive.mode) {
+                case 'lite':
+                    document.documentElement.classList.add('sirus-lite');
+                    disableHeavyScripts();
+                    break;
+
+                case 'degraded':
+                    document.documentElement.classList.add('sirus-degraded');
+                    enableSafeMode();
+                    break;
+
+                case 'normal':
+                default:
+                    // No adaptation — already cleaned up above.
+                    break;
             }
         }).catch(function () {
             // Directive fetch failure is non-fatal; silently ignore.
         });
+
+        function disableHeavyScripts() {
+            // Signals to cooperating modules to reduce resource usage.
+            document.documentElement.classList.add('sirus-no-animations');
+            document.documentElement.classList.add('sirus-reduce-polling');
+        }
+
+        function enableSafeMode() {
+            // Full degraded mode — disable all non-essential UI enhancements.
+            document.documentElement.classList.add('sirus-no-animations');
+            document.documentElement.classList.add('sirus-no-waveform');
+            document.documentElement.classList.add('sirus-reduce-polling');
+        }
     }());
 
     // ─── Expose public API for direct use. ───────────────────────────────────

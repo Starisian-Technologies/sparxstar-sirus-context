@@ -101,12 +101,66 @@ final class SirusDashboardPage
         $slow_network_count  = $this->repository->getSlowNetworkErrorCount($error_since);
         $mobile_error_count  = $this->repository->getMobileErrorCount($error_since);
 
+        $mitigation_enabled = (bool) get_option(\Starisian\Sparxstar\Sirus\services\SirusMitigationCoordinator::KILL_SWITCH_OPTION, true);
+        if (defined('SIRUS_DISABLE_MITIGATION') && (bool) constant('SIRUS_DISABLE_MITIGATION')) {
+            $mitigation_enabled = false;
+        }
+
         ob_start();
         ?>
         <div class="wrap sirus-dashboard">
             <h1><?php esc_html_e('Sirus Observability Dashboard', 'sparxstar-sirus'); ?></h1>
 
             <div class="sirus-panels" style="display:flex; gap:20px; flex-wrap:wrap; margin-top:20px;">
+
+                <!-- Panel 0: Mitigation Status -->
+                <div class="sirus-panel" style="flex:1; min-width:280px; background:#fff; border:1px solid #ddd; border-radius:4px; padding:16px;">
+                    <h2 style="margin-top:0; font-size:1.1em;">
+                        <?php esc_html_e('Mitigation Status', 'sparxstar-sirus'); ?>
+                    </h2>
+                    <?php if (! $mitigation_enabled) : ?>
+                        <p style="color:#d63638; font-weight:bold;">
+                            <?php esc_html_e('⚠ Mitigation Disabled', 'sparxstar-sirus'); ?>
+                        </p>
+                        <p class="description">
+                            <?php esc_html_e('Enable via sirus_mitigation_enabled option or remove SIRUS_DISABLE_MITIGATION constant.', 'sparxstar-sirus'); ?>
+                        </p>
+                    <?php elseif ($recent_rule_hits !== []) : ?>
+                        <?php
+                        $latest   = $recent_rule_hits[0];
+                        $mode_map = [
+                            'high_js_error_rate'      => 'lite',
+                            'network_failure_spike'   => 'degraded',
+                            'unstable_device_session' => 'lite',
+                        ];
+                        $active_mode = $mode_map[(string) ($latest['rule_key'] ?? '')] ?? 'normal';
+                        ?>
+                        <table class="widefat" style="margin-bottom:0;">
+                            <tbody>
+                                <tr>
+                                    <th style="width:45%;"><?php esc_html_e('Active Mode', 'sparxstar-sirus'); ?></th>
+                                    <td><strong><?php echo esc_html($active_mode); ?></strong></td>
+                                </tr>
+                                <tr>
+                                    <th><?php esc_html_e('Reason', 'sparxstar-sirus'); ?></th>
+                                    <td><?php echo esc_html((string) ($latest['rule_key'] ?? '')); ?></td>
+                                </tr>
+                                <tr>
+                                    <th><?php esc_html_e('Severity', 'sparxstar-sirus'); ?></th>
+                                    <td><?php echo esc_html((string) ($latest['severity'] ?? '')); ?></td>
+                                </tr>
+                                <tr>
+                                    <th><?php esc_html_e('Last Triggered', 'sparxstar-sirus'); ?></th>
+                                    <td><?php echo esc_html(wp_date('H:i', (int) ($latest['created_at'] ?? 0))); ?></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    <?php else : ?>
+                        <p style="color:#46b450; font-weight:bold;">
+                            <?php esc_html_e('✓ Normal — no active mitigation.', 'sparxstar-sirus'); ?>
+                        </p>
+                    <?php endif; ?>
+                </div>
 
                 <!-- Panel 1: Critical Rule Hits -->
                 <div class="sirus-panel" style="flex:2; min-width:300px; background:#fff; border:1px solid #ddd; border-radius:4px; padding:16px;">
