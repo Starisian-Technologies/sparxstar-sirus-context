@@ -236,7 +236,7 @@ final class SirusMitigationCoordinatorTest extends SirusTestCase
 
     // ─── normalizeMode (tested via getDirective) ──────────────────────────────
 
-    public function testNormalizeModeMapsSafeModeToDegragedViaDirective(): void
+    public function testNormalizeModeMapsSafeModeToDegradedViaDirective(): void
     {
         // safe_mode is normalized to degraded before the priority lookup,
         // so 3 safe_mode actions will be selected and normalized correctly.
@@ -253,7 +253,7 @@ final class SirusMitigationCoordinatorTest extends SirusTestCase
         $this->assertSame('degraded', $result['mode']);
     }
 
-    public function testNormalizeModesMapsLightweightToLiteViaGetResponseMode(): void
+    public function testNormalizeModeMapLightweightToLiteViaGetResponseMode(): void
     {
         // lightweight is normalized to lite before the priority lookup.
         $GLOBALS['wpdb_get_results'] = [

@@ -173,7 +173,8 @@ final class SirusMitigationCoordinator
             return null;
         }
 
-        // Sample gate for degraded mode.
+        // Sample gate: degraded mode requires a minimum number of active actions to fire.
+        // This prevents a single isolated network glitch from triggering a site-wide degraded directive.
         if ($mode === 'degraded' && count($all_actions) < self::MIN_SAMPLE_FOR_DEGRADED) {
             return null;
         }

@@ -24,6 +24,7 @@ if (! defined('ABSPATH')) {
 
 use Starisian\Sparxstar\Sirus\core\SirusEventRepository;
 use Starisian\Sparxstar\Sirus\helpers\SirusPriorityScorer;
+use Starisian\Sparxstar\Sirus\helpers\SirusRuleConfig;
 use Starisian\Sparxstar\Sirus\core\SirusRuleHitRepository;
 use Starisian\Sparxstar\Sirus\services\SirusMitigationCoordinator;
 
@@ -128,12 +129,12 @@ final class SirusDashboardPage
                     <?php elseif ($recent_rule_hits !== []) : ?>
                         <?php
                         $latest   = $recent_rule_hits[0];
-                        $mode_map = [
-                            'high_js_error_rate'      => 'lite',
-                            'network_failure_spike'   => 'degraded',
-                            'unstable_device_session' => 'lite',
-                        ];
-                        $active_mode = $mode_map[(string) ($latest['rule_key'] ?? '')] ?? 'normal';
+                        // Derive mode from SirusRuleConfig — single source of truth.
+                        $rule_mode_map = [];
+                        foreach (SirusRuleConfig::getRules() as $rule) {
+                            $rule_mode_map[(string) $rule['rule_key']] = (string) $rule['mode'];
+                        }
+                        $active_mode = $rule_mode_map[(string) ($latest['rule_key'] ?? '')] ?? 'normal';
                         ?>
                         <table class="widefat" style="margin-bottom:0;">
                             <tbody>

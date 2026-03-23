@@ -330,10 +330,8 @@
             window.SIRUS = window.SIRUS || {};
             window.SIRUS.directive = directive;
 
-            // Remove any previously applied Sirus mode classes.
-            document.documentElement.classList.remove(
-                'sirus-normal', 'sirus-lite', 'sirus-degraded'
-            );
+            // Remove any previously applied Sirus mode classes before applying the new one.
+            document.documentElement.classList.remove('sirus-lite', 'sirus-degraded');
 
             // Locked 3-mode contract — server is the sole decision maker.
             switch (directive.mode) {
