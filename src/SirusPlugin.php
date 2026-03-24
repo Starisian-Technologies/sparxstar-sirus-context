@@ -71,7 +71,7 @@ final class SirusPlugin
     {
         add_action('rest_api_init', [$this, 'registerRestRoutes']);
         add_action('wp_enqueue_scripts', [$this, 'enqueueAssets']);
-        add_action('admin_init', [$this, 'initAdminPages']);
+        add_action('plugins_loaded', [$this, 'initAdminPages']);
 
         // Daily telemetry pruning cron.
         add_action(ClientTelemetry::CRON_HOOK, [$this, 'runTelemetryPrune']);
@@ -82,16 +82,24 @@ final class SirusPlugin
     }
 
     /**
-     * Initialises admin and network-admin pages for admin-only requests.
+     * Initialises admin and network-admin pages.
      *
-     * Called on the admin_init hook, which fires only during admin HTTP requests
-     * (including network admin). This prevents admin page classes and their
-     * dependencies from being instantiated on frontend, cron, and CLI requests.
-     * Both admin_menu and network_admin_menu fire after admin_init, so all
-     * menu registrations made in constructor callbacks are captured correctly.
+     * Called on plugins_loaded — the standard WP bootstrap hook. Construction
+     * is gated by is_admin() so admin page classes and their repository/service
+     * dependencies are only instantiated during admin HTTP requests (including
+     * network admin). Frontend, WP-Cron, and WP-CLI requests are excluded.
+     *
+     * plugins_loaded fires before init, admin_menu, and network_admin_menu, so
+     * constructor-registered hook callbacks are captured correctly. If any
+     * downstream logic specifically requires init, it should use
+     * add_action('init', ...) inside the relevant class.
      */
     public function initAdminPages(): void
     {
+        if (! is_admin()) {
+            return;
+        }
+
         global $wpdb;
 
         // Network settings page: super-admin only, registered in network_admin_menu.
