@@ -80,7 +80,7 @@ final class SirusEventControllerTest extends SirusTestCase
     // ── validate_event_type ───────────────────────────────────────────────────
 
     /**
-     * All six canonical event types should pass validation.
+     * All canonical event types defined in SirusEventRepository::VALID_EVENT_TYPES should pass validation.
      */
     public function testValidateEventTypeAcceptsAllValidTypes(): void
     {
