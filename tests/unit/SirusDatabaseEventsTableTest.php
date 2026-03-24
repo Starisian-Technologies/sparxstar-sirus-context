@@ -105,7 +105,7 @@ final class SirusDatabaseEventsTableTest extends SirusTestCase
     /**
      * ensure_schema() should not re-run after the schema version has been written.
      */
-    public function testEnsureSchemaSipsUpdateWhenVersionMatches(): void
+    public function testEnsureSchemaSkipsUpdateWhenVersionMatches(): void
     {
         $db = new SirusDatabase($GLOBALS['wpdb']);
 
