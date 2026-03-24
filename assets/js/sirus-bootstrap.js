@@ -300,12 +300,52 @@
     });
 
     // ─── 6. Session end on page unload. ──────────────────────────────────────
-    window.addEventListener('beforeunload', function () {
-        sendToSirus({
+    function sendSessionEndEvent() {
+        var payload = {
             event_type: 'session_end',
             timestamp:  Math.floor(Date.now() / 1000),
             url:        window.location.pathname,
-        });
+        };
+
+        var data;
+        try {
+            data = JSON.stringify(payload);
+        } catch (e) {
+            // If serialization fails, abort sending to avoid throwing during unload.
+            return;
+        }
+
+        // Prefer navigator.sendBeacon for reliable unload telemetry.
+        if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+            try {
+                var blob = new Blob([data], { type: 'application/json' });
+                navigator.sendBeacon(ENDPOINT, blob);
+                return;
+            } catch (e) {
+                // Fallback to fetch keepalive below.
+            }
+        }
+
+        // Fallback: use fetch with keepalive to reduce cancellation on unload.
+        if (typeof window.fetch === 'function') {
+            try {
+                window.fetch(ENDPOINT, {
+                    method:      'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body:      data,
+                    keepalive: true
+                });
+            } catch (e) {
+                // Swallow errors during unload.
+            }
+        }
+    }
+
+    window.addEventListener('beforeunload', function () {
+        sendSessionEndEvent();
     });
 
     // ─── 7. Fetch active directive and apply mode. ────────────────────────────
