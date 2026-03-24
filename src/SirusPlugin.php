@@ -71,7 +71,7 @@ final class SirusPlugin
     {
         add_action('rest_api_init', [$this, 'registerRestRoutes']);
         add_action('wp_enqueue_scripts', [$this, 'enqueueAssets']);
-        add_action('init', [$this, 'initAdminPages']);
+        add_action('admin_init', [$this, 'initAdminPages']);
 
         // Daily telemetry pruning cron.
         add_action(ClientTelemetry::CRON_HOOK, [$this, 'runTelemetryPrune']);
@@ -82,10 +82,13 @@ final class SirusPlugin
     }
 
     /**
-     * Initialises admin and network-admin pages after plugins are loaded.
+     * Initialises admin and network-admin pages for admin-only requests.
      *
-     * Called on the plugins_loaded hook so both admin_menu and network_admin_menu
-     * actions are available by the time WordPress fires them.
+     * Called on the admin_init hook, which fires only during admin HTTP requests
+     * (including network admin). This prevents admin page classes and their
+     * dependencies from being instantiated on frontend, cron, and CLI requests.
+     * Both admin_menu and network_admin_menu fire after admin_init, so all
+     * menu registrations made in constructor callbacks are captured correctly.
      */
     public function initAdminPages(): void
     {
