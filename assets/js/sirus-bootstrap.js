@@ -40,6 +40,8 @@
     }
 
     var ENDPOINT = baseRestUrl + '/sirus/v1/event';
+    // For sendBeacon (which cannot set custom headers) embed the nonce as a query param.
+    var SIGNED_ENDPOINT = ENDPOINT + '?_wpnonce=' + encodeURIComponent(ctx.nonce || '');
     // Capture fetch before any interceptor override so directive fetches never self-log.
     var _directiveFetch = window.fetch;
 
@@ -321,10 +323,11 @@
         }
 
         // Prefer navigator.sendBeacon for reliable unload telemetry.
+        // sendBeacon cannot set custom headers, so the nonce is embedded as ?_wpnonce= in the URL.
         if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
             try {
                 var blob = new Blob([data], { type: 'application/json' });
-                navigator.sendBeacon(ENDPOINT, blob);
+                navigator.sendBeacon(SIGNED_ENDPOINT, blob);
                 return;
             } catch (e) {
                 // Fallback to fetch keepalive below.
@@ -338,7 +341,8 @@
                     method:      'POST',
                     credentials: 'same-origin',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-WP-Nonce':   ctx.nonce || '',
                     },
                     body:      data,
                     keepalive: true

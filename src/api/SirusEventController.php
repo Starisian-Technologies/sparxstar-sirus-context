@@ -46,6 +46,45 @@ final class SirusEventController
     ) {}
 
     /**
+     * Permission callback: verifies the WordPress REST nonce before accepting an event.
+     *
+     * Accepts the nonce from the `X-WP-Nonce` header (standard REST path used by
+     * fetch/XHR) **or** from a `_wpnonce` query-string parameter (required for
+     * `navigator.sendBeacon()`, which cannot set custom headers).
+     *
+     * @param WP_REST_Request $request The current REST request.
+     * @return bool|WP_Error True if the nonce is valid, otherwise WP_Error(403).
+     */
+    public function verify_rest_nonce(WP_REST_Request $request): bool|WP_Error
+    {
+        $nonce = $request->get_header('X-WP-Nonce');
+
+        if (! is_string($nonce) || $nonce === '') {
+            $nonce = sanitize_text_field(
+                wp_unslash((string) ($request->get_param('_wpnonce') ?? ''))
+            );
+        }
+
+        if ($nonce === '') {
+            return new WP_Error(
+                'sirus_rest_nonce_missing',
+                __('REST nonce is missing.', 'sparxstar-sirus'),
+                ['status' => 403]
+            );
+        }
+
+        if (! wp_verify_nonce($nonce, 'wp_rest')) {
+            return new WP_Error(
+                'sirus_rest_nonce_invalid',
+                __('REST nonce is invalid or expired.', 'sparxstar-sirus'),
+                ['status' => 403]
+            );
+        }
+
+        return true;
+    }
+
+    /**
      * Registers the REST API route for event ingestion.
      */
     public function register_routes(): void
@@ -56,7 +95,7 @@ final class SirusEventController
             [
                 'methods'             => 'POST',
                 'callback'            => [$this, 'create_event'],
-                'permission_callback' => '__return_true',
+                'permission_callback' => [$this, 'verify_rest_nonce'],
                 'args'                => [
                     'event_type' => [
                         'required'          => true,
