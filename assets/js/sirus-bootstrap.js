@@ -33,8 +33,13 @@
     }
 
     var ctx   = window.SirusContext;
-    var ENDPOINT = (ctx.rest_url || '/wp-json') + '/sirus/v1/event';
+    var baseRestUrl = ctx.rest_url || '/wp-json';
 
+    if (baseRestUrl.charAt(baseRestUrl.length - 1) === '/') {
+        baseRestUrl = baseRestUrl.slice(0, -1);
+    }
+
+    var ENDPOINT = baseRestUrl + '/sirus/v1/event';
     // Capture fetch before any interceptor override so directive fetches never self-log.
     var _directiveFetch = window.fetch;
 
