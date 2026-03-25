@@ -78,11 +78,6 @@ final class SirusDirectiveController
                         'sanitize_callback' => 'absint',
                         'default'           => 100,
                     ],
-                    'severity' => [
-                        'required'          => false,
-                        'type'              => 'string',
-                        'sanitize_callback' => 'sanitize_text_field',
-                    ],
                 ],
             ]
         );
