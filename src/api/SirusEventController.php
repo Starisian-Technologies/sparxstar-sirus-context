@@ -23,6 +23,7 @@ use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 use Starisian\Sparxstar\Sirus\core\SirusEventRepository;
+use Starisian\Sparxstar\Sirus\helpers\IpAnonymizer;
 use Starisian\Sparxstar\Sirus\helpers\SirusRateLimit;
 use Starisian\Sparxstar\Sirus\services\SirusMitigationCoordinator;
 
@@ -207,12 +208,20 @@ final class SirusEventController
             );
         }
 
-        if ($this->rateLimiter !== null && ! $this->rateLimiter->allow($device_id)) {
-            return new WP_Error(
-                'sirus_event_rate_limited',
-                __('Rate limit exceeded. Please slow down.', 'sparxstar-sirus'),
-                ['status' => 429]
-            );
+        if ($this->rateLimiter !== null) {
+            // Derive an anonymized IP subnet for the second rate-limit dimension.
+            // Using a /24 (IPv4) or /48 (IPv6) subnet prevents easy bypass via
+            // device_id rotation while respecting the privacy model (no raw IPs).
+            $ip_raw    = (string) ($_SERVER['REMOTE_ADDR'] ?? ''); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated
+            $ip_subnet = IpAnonymizer::ipSubnet($ip_raw);
+
+            if (! $this->rateLimiter->allow($device_id, $ip_subnet)) {
+                return new WP_Error(
+                    'sirus_event_rate_limited',
+                    __('Rate limit exceeded. Please slow down.', 'sparxstar-sirus'),
+                    ['status' => 429]
+                );
+            }
         }
 
         if ($session_id === '') {

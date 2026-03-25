@@ -93,8 +93,9 @@ final class SirusMitigationCoordinatorTest extends SirusTestCase
 
     public function testProcessEventInvalidatesTransientCache(): void
     {
-        $device_id = 'dev-cache-test';
-        $cache_key = 'sirus_dir_' . md5($device_id);
+        $device_id  = 'dev-cache-test';
+        $session_id = '';
+        $cache_key  = 'sirus_dir_' . md5($device_id . '|' . $session_id);
         $GLOBALS['transients'][$cache_key] = ['mode' => 'lite', 'ttl' => 300, 'reason' => 'x', 'confidence' => 0.75];
 
         $event = [
@@ -102,7 +103,7 @@ final class SirusMitigationCoordinatorTest extends SirusTestCase
             'url'        => '/page',
             'network'    => '2g',
             'device_id'  => $device_id,
-            'session_id' => '',
+            'session_id' => $session_id,
             'timestamp'  => time(),
         ];
 
@@ -202,6 +203,23 @@ final class SirusMitigationCoordinatorTest extends SirusTestCase
         $this->assertSame('degraded', $result['mode']);
         $this->assertSame(0.82, $result['confidence']);
         $this->assertSame('network_failure_spike', $result['reason']);
+    }
+
+    public function testGetDirectiveReturnsNullForDegradedWithMixedModesUnderSampleThreshold(): void
+    {
+        // 2 normal/lite actions + 1 degraded action.
+        // Old (buggy) code: count($all_actions) = 3 ≥ MIN_SAMPLE → passes → wrong.
+        // Fixed code: count($degraded_actions) = 1 < MIN_SAMPLE → null.
+        $GLOBALS['wpdb_get_results'] = [
+            ['id' => 1, 'action_key' => 'high_js_error_rate',    'response_mode' => 'lite',     'status' => 'active'],
+            ['id' => 2, 'action_key' => 'high_js_error_rate',    'response_mode' => 'normal',   'status' => 'active'],
+            ['id' => 3, 'action_key' => 'network_failure_spike', 'response_mode' => 'degraded', 'status' => 'active'],
+        ];
+
+        $result = $this->coordinator->getDirective('dev-mixed');
+
+        // degraded wins mode selection, but only 1 degraded action < MIN_SAMPLE_FOR_DEGRADED (3).
+        $this->assertNull($result);
     }
 
     public function testGetDirectiveUsesTransientCacheOnSecondCall(): void

@@ -59,7 +59,7 @@ final class SirusRateLimitTest extends SirusTestCase
     public function testAllowReturnsFalseOnceLimitExceeded(): void
     {
         $device = 'device-limit-exceeded-xyz';
-        $key    = 'sirus_rl_' . md5($device);
+        $key    = 'sirus_rl_' . md5('device:' . $device);
 
         // Pre-seed the transient to simulate 200 events already in the window.
         $GLOBALS['transients'][$key] = [
@@ -79,7 +79,7 @@ final class SirusRateLimitTest extends SirusTestCase
     public function testAllowReturnsTrueAfterWindowExpires(): void
     {
         $device = 'device-window-reset-abc';
-        $key    = 'sirus_rl_' . md5($device);
+        $key    = 'sirus_rl_' . md5('device:' . $device);
 
         // Pre-seed a transient with an old window_start (2 hours ago) and a full count.
         $GLOBALS['transients'][$key] = [
@@ -105,7 +105,7 @@ final class SirusRateLimitTest extends SirusTestCase
     public function testAllowIncrementsCounter(): void
     {
         $device = 'device-counter-abc12345';
-        $key    = 'sirus_rl_' . md5($device);
+        $key    = 'sirus_rl_' . md5('device:' . $device);
 
         $this->limiter->allow($device); // call 1 → count=1
         $this->limiter->allow($device); // call 2 → count=2
@@ -114,5 +114,49 @@ final class SirusRateLimitTest extends SirusTestCase
         $data = $GLOBALS['transients'][$key];
         $this->assertIsArray($data);
         $this->assertSame(3, $data['count']);
+    }
+
+    // ── allow: IP dimension ───────────────────────────────────────────────────
+
+    /**
+     * allow() returns false when the IP subnet is at the rate limit, even if the
+     * device dimension is still under limit. Device counter must not be incremented.
+     */
+    public function testAllowReturnsFalseWhenIpAtLimit(): void
+    {
+        $device    = 'device-ip-blocked-abc123';
+        $ip_subnet = '192.168.1.0';
+        $ip_key    = 'sirus_rl_' . md5('ip:' . $ip_subnet);
+        $dev_key   = 'sirus_rl_' . md5('device:' . $device);
+
+        // Simulate IP subnet at the rate limit.
+        $GLOBALS['transients'][$ip_key] = [
+            'count'        => 200,
+            'window_start' => time(),
+        ];
+
+        $result = $this->limiter->allow($device, $ip_subnet);
+        $this->assertFalse($result);
+
+        // Device counter must not have been incremented when IP blocked.
+        $this->assertArrayNotHasKey($dev_key, $GLOBALS['transients']);
+    }
+
+    /**
+     * allow() returns true for a new IP subnet alongside a new device.
+     * Both dimension counters should be initialised to 1.
+     */
+    public function testAllowReturnsTrueForNewIpAndDevice(): void
+    {
+        $device    = 'device-ip-new-abc12345';
+        $ip_subnet = '10.0.0.0';
+        $dev_key   = 'sirus_rl_' . md5('device:' . $device);
+        $ip_key    = 'sirus_rl_' . md5('ip:' . $ip_subnet);
+
+        $result = $this->limiter->allow($device, $ip_subnet);
+        $this->assertTrue($result);
+
+        $this->assertSame(1, $GLOBALS['transients'][$dev_key]['count']);
+        $this->assertSame(1, $GLOBALS['transients'][$ip_key]['count']);
     }
 }

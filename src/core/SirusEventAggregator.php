@@ -142,9 +142,10 @@ final class SirusEventAggregator
             FROM {$events_table}
             WHERE timestamp >= %d AND timestamp < %d
             GROUP BY event_type, browser, device_type, network
+            AS src
             ON DUPLICATE KEY UPDATE
-                event_count   = VALUES(event_count),
-                session_count = VALUES(session_count)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                event_count   = src.event_count,
+                session_count = src.session_count", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $bucket_start,
             $bucket_size,
             $site_id,
