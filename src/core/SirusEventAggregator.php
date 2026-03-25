@@ -53,13 +53,20 @@ final class SirusEventAggregator
     }
 
     /**
-     * Compiles events from the last 2 windows into aggregate rows.
+     * Compiles events from the current and previous windows into aggregate rows.
+     *
+     * Both the current and the immediately preceding bucket are compiled on every
+     * cron run, so a late or missed cron interval will not permanently skip a bucket.
      * Safe to call repeatedly — uses INSERT ... ON DUPLICATE KEY UPDATE.
      */
     public function compile(): void
     {
-        $this->compile_bucket(self::BUCKET_5M, 300);   // 5 minutes = 300 seconds
-        $this->compile_bucket(self::BUCKET_1H, 3600);  // 1 hour = 3600 seconds
+        $now = time();
+
+        $this->compile_bucket(self::BUCKET_5M, 300, $now);          // current 5-minute bucket
+        $this->compile_bucket(self::BUCKET_5M, 300, $now - 300);    // previous 5-minute bucket
+        $this->compile_bucket(self::BUCKET_1H, 3600, $now);         // current 1-hour bucket
+        $this->compile_bucket(self::BUCKET_1H, 3600, $now - 3600);  // previous 1-hour bucket
     }
 
     /**
@@ -102,18 +109,19 @@ final class SirusEventAggregator
     }
 
     /**
-     * Compiles events from the current bucket window into aggregate rows.
+     * Compiles events from the given bucket window into aggregate rows.
      *
      * @param string $bucket_size Bucket label ('5m' or '1h').
      * @param int    $window_secs Window size in seconds.
+     * @param int    $now         Reference timestamp (defaults to current time if 0).
      */
-    private function compile_bucket(string $bucket_size, int $window_secs): void
+    private function compile_bucket(string $bucket_size, int $window_secs, int $now = 0): void
     {
         $events_table = $this->wpdb->prefix . 'sirus_events';
         $agg_table    = $this->wpdb->prefix . 'sirus_event_aggregates';
 
         // Round now down to the start of this bucket window.
-        $now          = time();
+        $now          = $now > 0 ? $now : time();
         $bucket_start = (int) (floor($now / $window_secs) * $window_secs);
         $bucket_end   = $bucket_start + $window_secs;
         $site_id      = (int) get_current_blog_id();

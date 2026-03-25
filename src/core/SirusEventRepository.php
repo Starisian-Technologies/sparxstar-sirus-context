@@ -78,7 +78,8 @@ final class SirusEventRepository
                 return self::DEDUP_SKIPPED;
             }
 
-            set_transient($dedup_key, 1, self::DEDUP_WINDOW);
+            // NOTE: dedup transient is set only after a successful insert below,
+            // so a DB failure will not permanently suppress the next attempt.
         }
 
         $table = $this->wpdb->prefix . 'sirus_events';
@@ -106,7 +107,14 @@ final class SirusEventRepository
             return 0;
         }
 
-        return (int) $this->wpdb->insert_id;
+        $inserted_id = (int) $this->wpdb->insert_id;
+
+        // Set dedup transient only after confirming the row was actually stored.
+        if (in_array($event_type_raw, self::DEDUP_EVENT_TYPES, true) && isset($dedup_key)) {
+            set_transient($dedup_key, 1, self::DEDUP_WINDOW);
+        }
+
+        return $inserted_id;
     }
 
     /**

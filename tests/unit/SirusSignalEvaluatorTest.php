@@ -125,8 +125,10 @@ final class SirusSignalEvaluatorTest extends SirusTestCase
 
     public function testNonErrorEventTypeProducesNoErrorSignals(): void
     {
+        // page_ready is a genuine non-error event type; it should never trigger
+        // error-class signals such as repeated_js_error or safari_feature_break.
         $signals = $this->evaluator->detectSignals([
-            'event_type' => 'api_error',
+            'event_type' => 'page_ready',
             'url'        => '/page',
             'browser'    => 'Chrome',
             'network'    => '4g',

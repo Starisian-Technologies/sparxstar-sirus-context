@@ -97,10 +97,11 @@ final class SirusMitigationCoordinator
             'expires_at'    => time() + (int) ($match['ttl'] ?? self::DEFAULT_TTL),
         ]);
 
-        // Invalidate the cached directive for this device so it is recomputed fresh.
-        $device_id = (string) ($event['device_id'] ?? '');
+        // Invalidate the cached directive for this device+session so it is recomputed fresh.
+        $device_id  = (string) ($event['device_id'] ?? '');
+        $session_id = (string) ($event['session_id'] ?? '');
         if ($device_id !== '') {
-            delete_transient(self::DIRECTIVE_CACHE_PREFIX . md5($device_id));
+            delete_transient(self::DIRECTIVE_CACHE_PREFIX . md5($device_id . '|' . $session_id));
         }
     }
 
@@ -124,7 +125,9 @@ final class SirusMitigationCoordinator
         }
 
         // TTL gate: return cached directive if not expired.
-        $cache_key = self::DIRECTIVE_CACHE_PREFIX . md5($deviceId);
+        // Include sessionId so that different sessions on the same device never share
+        // a directive that may reflect the other session's session-scoped actions.
+        $cache_key = self::DIRECTIVE_CACHE_PREFIX . md5($deviceId . '|' . $sessionId);
         $cached    = get_transient($cache_key);
         if (is_array($cached)) {
             return $cached;
