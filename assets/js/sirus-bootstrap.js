@@ -312,6 +312,9 @@
             event_type: 'session_end',
             timestamp:  Math.floor(Date.now() / 1000),
             url:        window.location.pathname,
+            device_id:  DEVICE_ID,
+            session_id: SESSION_ID,
+            context:    buildContext(),
         };
 
         var data;
