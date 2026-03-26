@@ -230,7 +230,7 @@ final class SirusEventControllerTest extends SirusTestCase
         $repo = new SirusEventRepository($this->wpdb);
 
         $device = 'device-rate-limited-1234';
-        $key    = 'sirus_rl_' . md5($device);
+        $key    = 'sirus_rl_' . md5('device:' . $device);
 
         // Pre-seed transient to simulate the rate limit being hit.
         $GLOBALS['transients'][$key] = [
