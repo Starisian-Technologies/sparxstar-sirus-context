@@ -2,7 +2,7 @@
 
 namespace Starisian\SparxstarUEC\helpers;
 
-if (!defined('ABSPATH')) {
+if (! defined('ABSPATH')) {
     exit;
 }
 
@@ -50,15 +50,16 @@ class StarLogger
 
     protected static array $timers = [];
 
-    /*==============================================================
+    /*
+    ==============================================================
      * CONFIGURATION
      *=============================================================*/
 
     public static function setMinLogLevel(string $level_name): void
     {
         $level_name = strtolower($level_name);
-        if (isset(self::$levels[$level_name])) {
-            self::$min_log_level = self::$levels[$level_name];
+        if (isset(self::$levels[ $level_name ])) {
+            self::$min_log_level = self::$levels[ $level_name ];
         }
     }
 
@@ -81,13 +82,14 @@ class StarLogger
         self::$correlation_id = $id ?? wp_generate_uuid4();
     }
 
-    /*==============================================================
+    /*
+    ==============================================================
      * CORE LOGGING
      *=============================================================*/
 
     protected static function getLevelInt(string $level_name): int
     {
-        return self::$levels[strtolower($level_name)] ?? self::ERROR;
+        return self::$levels[ strtolower($level_name) ] ?? self::ERROR;
     }
 
     protected static function sanitizeData(array $data): array
@@ -127,13 +129,16 @@ class StarLogger
 
         // Construct the log line
         if (self::$json_mode) {
-            $log_entry = json_encode([
-                'level'   => $level_name,
-                'context' => $context,
-                'message' => $message_content,
-                'extra'   => $extra_clean,
-                'cid'     => self::$correlation_id
-            ], JSON_UNESCAPED_UNICODE);
+            $log_entry = json_encode(
+                [
+                    'level'   => $level_name,
+                    'context' => $context,
+                    'message' => $message_content,
+                    'extra'   => $extra_clean,
+                    'cid'     => self::$correlation_id,
+                ],
+                JSON_UNESCAPED_UNICODE
+            );
         } else {
             // Format: [SPARXSTAR UEC] [LEVEL] [Context] Message | Data: {...}
             // Note: error_log automatically adds the Timestamp.
@@ -169,28 +174,30 @@ class StarLogger
         return is_array($msg) || is_object($msg) ? print_r($msg, true) : (string) $msg;
     }
 
-    /*==============================================================
+    /*
+    ==============================================================
      * TIMER UTILITIES
      *=============================================================*/
 
     public static function timeStart(string $label): void
     {
-        self::$timers[$label] = microtime(true);
+        self::$timers[ $label ] = microtime(true);
     }
 
     public static function timeEnd(string $label, string $context = 'Timer'): void
     {
-        if (!isset(self::$timers[$label])) {
+        if (! isset(self::$timers[ $label ])) {
             return;
         }
 
-        $duration = round((microtime(true) - self::$timers[$label]) * 1000, 2);
-        unset(self::$timers[$label]);
+        $duration = round((microtime(true) - self::$timers[ $label ]) * 1000, 2);
+        unset(self::$timers[ $label ]);
         // Log timer results as debug
         self::debug($context, sprintf('%s completed in %sms', $label, $duration));
     }
 
-    /*==============================================================
+    /*
+    ==============================================================
      * CONVENIENCE WRAPPERS
      *=============================================================*/
     public static function debug(string $context, mixed $msg, array $extra = []): void
@@ -238,7 +245,8 @@ class StarLogger
         self::log($context, $msg, 'emergency', $extra);
     }
 
-    /*==============================================================
+    /*
+    ==============================================================
      * BOOTSTRAP
      *=============================================================*/
     public static function boot(): void

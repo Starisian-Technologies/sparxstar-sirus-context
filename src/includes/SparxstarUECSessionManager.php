@@ -29,7 +29,7 @@ final class SparxstarUECSessionManager
 
             self::ensure_session();
             foreach ($data as $key => $value) {
-                $_SESSION[self::SESSION_NAMESPACE][$key] = $value;
+                $_SESSION[ self::SESSION_NAMESPACE ][ $key ] = $value;
             }
         } catch (\Throwable $throwable) {
             StarLogger::log('SparxstarUECSessionManager', $throwable);
@@ -41,7 +41,7 @@ final class SparxstarUECSessionManager
     {
         try {
             self::ensure_session();
-            return $_SESSION[self::SESSION_NAMESPACE][$key] ?? $default;
+            return $_SESSION[ self::SESSION_NAMESPACE ][ $key ] ?? $default;
         } catch (\Throwable $throwable) {
             StarLogger::log('SparxstarUECSessionManager', $throwable);
             return $default;
@@ -61,8 +61,8 @@ final class SparxstarUECSessionManager
                 );
             }
 
-            if (! isset($_SESSION[self::SESSION_NAMESPACE])) {
-                $_SESSION[self::SESSION_NAMESPACE] = [];
+            if (! isset($_SESSION[ self::SESSION_NAMESPACE ])) {
+                $_SESSION[ self::SESSION_NAMESPACE ] = [];
             }
         } catch (\Throwable $throwable) {
             StarLogger::log('SparxstarUECSessionManager', $throwable);
@@ -101,7 +101,7 @@ final class SparxstarUECSessionManager
     {
         try {
             self::ensure_session();
-            unset($_SESSION[self::SESSION_NAMESPACE]['spx_snapshot_created']);
+            unset($_SESSION[ self::SESSION_NAMESPACE ]['spx_snapshot_created']);
             StarLogger::debug('SparxstarUECSessionManager', 'Snapshot creation flag cleared - next frontend visit will generate snapshot.');
         } catch (\Throwable $throwable) {
             StarLogger::log('SparxstarUECSessionManager', $throwable);
@@ -117,7 +117,7 @@ final class SparxstarUECSessionManager
                     return $default;
                 }
 
-                $array = $array[$key];
+                $array = $array[ $key ];
             }
 
             // Only return scalar values as strings; otherwise return default.

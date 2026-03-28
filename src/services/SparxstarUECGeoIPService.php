@@ -82,8 +82,8 @@ final class SparxstarUECGeoIPService
              * location data. The default contract remains region-level only.
              * Any override must handle consent verification independently.
              *
-             * @param array  $location_data Region-level location data.
-             * @param string $ip_address    The (non-anonymized) IP being resolved.
+             * @param array $location_data Region-level location data.
+             * @param string $ip_address The (non-anonymized) IP being resolved.
              */
             $location_data = (array) apply_filters('sparxstar_env_geolocation_lookup', $location_data, $ip_address);
 
@@ -114,8 +114,8 @@ final class SparxstarUECGeoIPService
     {
         return [
             'country'    => sanitize_text_field((string) ($raw['country'] ?? '')),
-            'region'     => sanitize_text_field((string) ($raw['region']  ?? '')),
-            'approx_lat' => isset($raw['latitude'])  ? round((float) $raw['latitude'],  1) : null,
+            'region'     => sanitize_text_field((string) ($raw['region'] ?? '')),
+            'approx_lat' => isset($raw['latitude']) ? round((float) $raw['latitude'], 1) : null,
             'approx_lng' => isset($raw['longitude']) ? round((float) $raw['longitude'], 1) : null,
         ];
     }
@@ -150,10 +150,10 @@ final class SparxstarUECGeoIPService
             }
 
             return [
-                'country'   => sanitize_text_field($data['country']  ?? ''),
-                'region'    => sanitize_text_field($data['region']   ?? ''),
-                'latitude'  => isset($data['loc']) ? (float) explode(',', $data['loc'])[0] : null,
-                'longitude' => isset($data['loc']) ? (float) explode(',', $data['loc'])[1] : null,
+                'country'   => sanitize_text_field($data['country'] ?? ''),
+                'region'    => sanitize_text_field($data['region'] ?? ''),
+                'latitude'  => isset($data['loc']) ? (float) explode(',', (string) $data['loc'])[0] : null,
+                'longitude' => isset($data['loc']) ? (float) explode(',', (string) $data['loc'])[1] : null,
             ];
         } catch (\Throwable $throwable) {
             StarLogger::log('SparxstarUECGeoIPService', $throwable);
@@ -180,7 +180,7 @@ final class SparxstarUECGeoIPService
                 StarLogger::warning(
                     'SparxstarUECGeoIPService',
                     'MaxMind GeoIP2 library not found. Run: composer require geoip2/geoip2',
-                    ['method' => 'lookup_maxmind']
+                    [ 'method' => 'lookup_maxmind' ]
                 );
                 return null;
             }
@@ -189,8 +189,8 @@ final class SparxstarUECGeoIPService
             $record = $reader->city($ip_address);
 
             return [
-                'country'   => sanitize_text_field($record->country->name                    ?? ''),
-                'region'    => sanitize_text_field($record->mostSpecificSubdivision->name    ?? ''),
+                'country'   => sanitize_text_field($record->country->name ?? ''),
+                'region'    => sanitize_text_field($record->mostSpecificSubdivision->name ?? ''),
                 'latitude'  => $record->location->latitude  ?? null,
                 'longitude' => $record->location->longitude ?? null,
             ];

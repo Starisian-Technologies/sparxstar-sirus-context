@@ -12,7 +12,7 @@ declare(strict_types=1);
 
 namespace Starisian\SparxstarUEC\core;
 
-if (!defined('ABSPATH')) {
+if (! defined('ABSPATH')) {
     exit;
 }
 
@@ -34,7 +34,7 @@ final class SparxstarUECSnapshotRepository
      */
     public static function get(?string $fingerprint, ?string $device_hash): ?array
     {
-        if (!$fingerprint || !$device_hash) {
+        if (! $fingerprint || ! $device_hash) {
             return null;
         }
 
@@ -51,7 +51,7 @@ final class SparxstarUECSnapshotRepository
             );
 
             $row = $wpdb->get_row($sql, ARRAY_A);
-            if (!$row) {
+            if (! $row) {
                 return null;
             }
 
@@ -86,7 +86,7 @@ final class SparxstarUECSnapshotRepository
             );
 
             $row = $wpdb->get_row($sql, ARRAY_A);
-            if (!$row) {
+            if (! $row) {
                 return null;
             }
 
@@ -106,7 +106,7 @@ final class SparxstarUECSnapshotRepository
         $payload = [];
 
         // Stored JSON
-        if (!empty($row['snapshot_data'])) {
+        if (! empty($row['snapshot_data'])) {
             $decoded = json_decode((string) $row['snapshot_data'], true);
             if (is_array($decoded)) {
                 $payload = $decoded;
@@ -129,7 +129,7 @@ final class SparxstarUECSnapshotRepository
      */
     public static function flush(?string $fingerprint = null, ?string $device_hash = null): void
     {
-        if (!$fingerprint || !$device_hash) {
+        if (! $fingerprint || ! $device_hash) {
             return;
         }
 

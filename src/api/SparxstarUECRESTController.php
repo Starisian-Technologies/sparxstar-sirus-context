@@ -23,7 +23,9 @@ if (! defined('ABSPATH')) {
 
 final readonly class SparxstarUECRESTController
 {
-    public function __construct(private SparxstarUECDatabase $database) {}
+    public function __construct(private SparxstarUECDatabase $database)
+    {
+    }
 
     /**
      * Register REST endpoints for logging snapshots and recorder events.
@@ -59,16 +61,20 @@ final readonly class SparxstarUECRESTController
         $payload = $request->get_json_params();
         if (! is_array($payload) || $payload === []) {
             StarLogger::warning('REST', 'Received empty or invalid JSON payload.');
-            return new WP_Error('invalid_data', 'Invalid JSON payload.', ['status' => 400]);
+            return new WP_Error('invalid_data', 'Invalid JSON payload.', [ 'status' => 400 ]);
         }
 
         // 1. Identify the User
         $user_id = get_current_user_id(); // Returns 0 if guest, ID if logged in
 
         // DEBUG: Log exactly who the server thinks this is
-        StarLogger::info('REST', 'Processing snapshot. Detected User ID: ' . $user_id, [
-            'fingerprint' => $payload['client_side_data']['identifiers']['fingerprint'] ?? 'unknown'
-        ]);
+        StarLogger::info(
+            'REST',
+            'Processing snapshot. Detected User ID: ' . $user_id,
+            [
+                'fingerprint' => $payload['client_side_data']['identifiers']['fingerprint'] ?? 'unknown',
+            ]
+        );
 
         // 2. Enrich the payload with server-side data.
         $client_ip                    = StarUserEnv::get_current_visitor_ip();
@@ -83,7 +89,7 @@ final readonly class SparxstarUECRESTController
         $result = $this->database->store_snapshot($normalized_data);
 
         if (is_wp_error($result)) {
-            StarLogger::error('REST', 'Failed to store snapshot', ['error' => $result->get_error_message()]);
+            StarLogger::error('REST', 'Failed to store snapshot', [ 'error' => $result->get_error_message() ]);
             return $result;
         }
 
@@ -92,7 +98,7 @@ final readonly class SparxstarUECRESTController
                 'status'        => 'ok',
                 'action'        => $result['status'], // 'inserted' or 'updated'
                 'id'            => $result['id'],
-                'user_detected' => $user_id // Send this back to console for debugging
+                'user_detected' => $user_id, // Send this back to console for debugging
             ],
             200
         );
@@ -110,21 +116,25 @@ final readonly class SparxstarUECRESTController
         $data = json_decode($body, true);
 
         if (! is_array($data)) {
-            return new WP_REST_Response(['status' => 'invalid_json'], 400);
+            return new WP_REST_Response([ 'status' => 'invalid_json' ], 400);
         }
 
         // Log the recorder event if WP_DEBUG_LOG is enabled
         if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
-            StarLogger::info('RecorderEvent', 'External plugin event received', [
-                'event_type'   => $data['type'] ?? 'unknown',
-                'timestamp'    => $data['ts']   ?? '',
-                'has_env_data' => isset($data['env']),
-                'event_data'   => $data['event'] ?? []
-            ]);
+            StarLogger::info(
+                'RecorderEvent',
+                'External plugin event received',
+                [
+                    'event_type'   => $data['type'] ?? 'unknown',
+                    'timestamp'    => $data['ts']   ?? '',
+                    'has_env_data' => isset($data['env']),
+                    'event_data'   => $data['event'] ?? [],
+                ]
+            );
             error_log('[SparxstarUEC Recorder] ' . wp_json_encode($data));
         }
 
-        return new WP_REST_Response(['status' => 'ok'], 200);
+        return new WP_REST_Response([ 'status' => 'ok' ], 200);
     }
 
     /**
@@ -141,12 +151,14 @@ final readonly class SparxstarUECRESTController
         $session_id  = sanitize_text_field($identifiers['session_id'] ?? '');
 
         // Generate the stable device hash from server-collected Client Hints.
-        $h_payload = wp_json_encode([
-            $hints['Sec-CH-UA']          ?? '',
-            $hints['Sec-CH-UA-Platform'] ?? '',
-            $hints['Sec-CH-UA-Model']    ?? '',
-            $hints['Sec-CH-UA-Bitness']  ?? '',
-        ]);
+        $h_payload = wp_json_encode(
+            [
+                $hints['Sec-CH-UA']          ?? '',
+                $hints['Sec-CH-UA-Platform'] ?? '',
+                $hints['Sec-CH-UA-Model']    ?? '',
+                $hints['Sec-CH-UA-Bitness']  ?? '',
+            ]
+        );
         $device_hash = hash('sha256', $h_payload);
 
         return [
@@ -166,7 +178,7 @@ final readonly class SparxstarUECRESTController
         $nonce = $request->get_header('X-WP-Nonce');
         if (! $nonce || ! wp_verify_nonce($nonce, 'wp_rest')) {
             StarLogger::warning('REST', 'Permission check failed: Invalid Nonce.');
-            return new WP_Error('invalid_nonce', 'Invalid security token.', ['status' => 403]);
+            return new WP_Error('invalid_nonce', 'Invalid security token.', [ 'status' => 403 ]);
         }
 
         return true;
@@ -217,8 +229,8 @@ final readonly class SparxstarUECRESTController
 
         foreach ($hint_headers as $header) {
             $server_key = 'HTTP_' . strtoupper(str_replace('-', '_', $header));
-            if (! empty($_SERVER[$server_key])) {
-                $client_hints[$header] = sanitize_text_field(wp_unslash($_SERVER[$server_key]));
+            if (! empty($_SERVER[ $server_key ])) {
+                $client_hints[ $header ] = sanitize_text_field(wp_unslash($_SERVER[ $server_key ]));
             }
         }
 

@@ -31,18 +31,21 @@ if (! defined('ABSPATH')) {
  */
 final class SirusPriorityScorer
 {
-    public const PRIORITY_HIGH   = 'HIGH';
-    public const PRIORITY_MEDIUM = 'MEDIUM';
-    public const PRIORITY_LOW    = 'LOW';
+    public const PRIORITY_HIGH = 'HIGH';
 
-    private const THRESHOLD_HIGH   = 50;
+    public const PRIORITY_MEDIUM = 'MEDIUM';
+
+    public const PRIORITY_LOW = 'LOW';
+
+    private const THRESHOLD_HIGH = 50;
+
     private const THRESHOLD_MEDIUM = 10;
 
     /**
      * Calculates impact_score = error_count * affected_sessions,
      * then maps to a priority label.
      *
-     * @param int $errorCount       Total number of error events.
+     * @param int $errorCount Total number of error events.
      * @param int $affectedSessions Number of distinct sessions that experienced errors.
      * @return array{impact_score: int, priority: string}
      */

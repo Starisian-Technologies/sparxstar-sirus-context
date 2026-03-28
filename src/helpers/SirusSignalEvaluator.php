@@ -21,13 +21,17 @@ if (! defined('ABSPATH')) {
  */
 final class SirusSignalEvaluator
 {
-    public const SIGNAL_REPEATED_JS_ERROR    = 'repeated_js_error';
-    public const SIGNAL_CHECKOUT_FAILURE     = 'checkout_failure';
-    public const SIGNAL_SLOW_NETWORK_ERROR   = 'slow_network_high_error_rate';
-    public const SIGNAL_SAFARI_FEATURE_BREAK = 'safari_feature_break';
-    public const SIGNAL_UNSTABLE_SESSION     = 'unstable_device_session';
+    public const SIGNAL_REPEATED_JS_ERROR = 'repeated_js_error';
 
-    private const SLOW_NETWORKS = ['slow-2g', '2g', 'slow-3g'];
+    public const SIGNAL_CHECKOUT_FAILURE = 'checkout_failure';
+
+    public const SIGNAL_SLOW_NETWORK_ERROR = 'slow_network_high_error_rate';
+
+    public const SIGNAL_SAFARI_FEATURE_BREAK = 'safari_feature_break';
+
+    public const SIGNAL_UNSTABLE_SESSION = 'unstable_device_session';
+
+    private const SLOW_NETWORKS = [ 'slow-2g', '2g', 'slow-3g' ];
 
     /**
      * Transforms a single raw event array into normalized signal keys.
@@ -48,15 +52,13 @@ final class SirusSignalEvaluator
         }
 
         if (
-            ($event_type === 'api_error' || $event_type === 'js_error') &&
-            str_contains($url, '/checkout')
+            ($event_type === 'api_error' || $event_type === 'js_error') && str_contains($url, '/checkout')
         ) {
             $signals[] = self::SIGNAL_CHECKOUT_FAILURE;
         }
 
         if (
-            ($event_type === 'network_issue' || $event_type === 'js_error') &&
-            in_array($network, self::SLOW_NETWORKS, true)
+            ($event_type === 'network_issue' || $event_type === 'js_error') && in_array($network, self::SLOW_NETWORKS, true)
         ) {
             $signals[] = self::SIGNAL_SLOW_NETWORK_ERROR;
         }

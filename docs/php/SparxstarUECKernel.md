@@ -12,7 +12,7 @@ Kernel: Constructs and wires all service objects.
 This is the dependency injection container for the plugin.
 It builds all services with their dependencies and exposes them
 to the orchestrator. No WordPress hooks or side effects here.
-@package SparxstarUserEnvironmentCheck
+@package Starisian\SparxstarUEC
 /
 
 declare(strict_types=1);

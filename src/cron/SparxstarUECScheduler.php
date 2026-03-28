@@ -58,7 +58,7 @@ final class SparxstarUECScheduler
                 StarLogger::warning(
                     'SparxstarUECScheduler',
                     sprintf("Could not map %ds to a standard WP-Cron key. Defaulting to 'daily'.", $interval_in_seconds),
-                    ['hook' => $hook]
+                    [ 'hook' => $hook ]
                 );
                 $schedule_key = 'daily';
             }
@@ -66,12 +66,15 @@ final class SparxstarUECScheduler
             if (! \wp_next_scheduled($hook, $args)) {
                 \wp_schedule_event(time(), $schedule_key, $hook, $args);
             }
-
         } catch (\Throwable $throwable) {
-            StarLogger::error('SparxstarUECScheduler', $throwable, [
-                'method' => 'schedule_recurring',
-                'hook'   => $hook
-            ]);
+            StarLogger::error(
+                'SparxstarUECScheduler',
+                $throwable,
+                [
+                    'method' => 'schedule_recurring',
+                    'hook'   => $hook,
+                ]
+            );
         }
     }
 
@@ -93,7 +96,14 @@ final class SparxstarUECScheduler
                 $timestamp = \wp_next_scheduled($hook, $args);
             }
         } catch (\Throwable $throwable) {
-            StarLogger::error('SparxstarUECScheduler', $throwable, [ 'method' => 'clear', 'hook' => $hook ]);
+            StarLogger::error(
+                'SparxstarUECScheduler',
+                $throwable,
+                [
+                    'method' => 'clear',
+                    'hook'   => $hook,
+                ]
+            );
         }
     }
 
@@ -119,7 +129,7 @@ final class SparxstarUECScheduler
         // 2. Check any custom schedules added by other plugins/themes
         $schedules = \wp_get_schedules();
         foreach ($schedules as $key => $data) {
-            if (isset($data['interval']) && (int)$data['interval'] === $seconds) {
+            if (isset($data['interval']) && (int) $data['interval'] === $seconds) {
                 return $key;
             }
         }

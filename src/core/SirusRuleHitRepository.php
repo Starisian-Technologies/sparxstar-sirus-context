@@ -18,9 +18,11 @@ if (! defined('ABSPATH')) {
  * Provides strict read/write access to the sirus_rule_hits table.
  * All queries are prepared. No business logic lives here.
  */
-final class SirusRuleHitRepository
+final readonly class SirusRuleHitRepository
 {
-    public function __construct(private readonly \wpdb $wpdb) {}
+    public function __construct(private \wpdb $wpdb)
+    {
+    }
 
     /**
      * Inserts a new rule hit row.
@@ -46,7 +48,7 @@ final class SirusRuleHitRepository
             'updated_at' => time(),
         ];
 
-        $formats = ['%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%d', '%d'];
+        $formats = [ '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%d', '%d' ];
 
         $result = $this->wpdb->insert($table, $row, $formats);
 
@@ -67,7 +69,7 @@ final class SirusRuleHitRepository
 
         $existing = $this->wpdb->get_row(
             $this->wpdb->prepare(
-                "SELECT id, hit_count FROM {$table} WHERE rule_key = %s AND device_id = %s AND session_id = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                sprintf('SELECT id, hit_count FROM %s WHERE rule_key = %%s AND device_id = %%s AND session_id = %%s LIMIT 1', $table), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                 $ruleKey,
                 $deviceId,
                 $sessionId
@@ -79,7 +81,7 @@ final class SirusRuleHitRepository
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $this->wpdb->query(
                 $this->wpdb->prepare(
-                    "UPDATE {$table} SET hit_count = hit_count + 1, updated_at = %d WHERE id = %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                    'UPDATE %s SET hit_count = hit_count + 1, updated_at = %d WHERE id = ' . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                     time(),
                     (int) $existing['id']
                 )
@@ -87,14 +89,16 @@ final class SirusRuleHitRepository
             return;
         }
 
-        $this->insert([
-            'rule_key'   => $ruleKey,
-            'signal_key' => '',
-            'device_id'  => $deviceId,
-            'session_id' => $sessionId,
-            'severity'   => 'low',
-            'action_key' => '',
-        ]);
+        $this->insert(
+            [
+                'rule_key'   => $ruleKey,
+                'signal_key' => '',
+                'device_id'  => $deviceId,
+                'session_id' => $sessionId,
+                'severity'   => 'low',
+                'action_key' => '',
+            ]
+        );
     }
 
     /**
@@ -107,7 +111,7 @@ final class SirusRuleHitRepository
         $table = $this->wpdb->prefix . 'sirus_rule_hits';
 
         $sql = $this->wpdb->prepare(
-            "SELECT * FROM {$table} ORDER BY created_at DESC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            'SELECT * FROM %s ORDER BY created_at DESC LIMIT ' . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $limit
         );
 
@@ -126,7 +130,7 @@ final class SirusRuleHitRepository
         $table = $this->wpdb->prefix . 'sirus_rule_hits';
 
         $sql = $this->wpdb->prepare(
-            "SELECT * FROM {$table} WHERE severity = %s AND created_at >= %d ORDER BY created_at DESC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            sprintf('SELECT * FROM %s WHERE severity = %%s AND created_at >= %%d ORDER BY created_at DESC', $table), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $severity,
             $since
         );
@@ -149,7 +153,7 @@ final class SirusRuleHitRepository
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $result = $this->wpdb->query(
             $this->wpdb->prepare(
-                "DELETE FROM {$table} WHERE created_at < %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                'DELETE FROM %s WHERE created_at < ' . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                 $cutoff
             )
         );

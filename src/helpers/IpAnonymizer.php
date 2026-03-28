@@ -26,7 +26,9 @@ if (! defined('ABSPATH')) {
 final class IpAnonymizer
 {
     /** Prevent instantiation. */
-    private function __construct() {}
+    private function __construct()
+    {
+    }
 
     /**
      * Anonymizes an IPv4 or IPv6 address.
@@ -81,14 +83,13 @@ final class IpAnonymizer
     }
 
     /**
-     *
      * @param string $ip Valid IPv4 string.
      * @return string Anonymized IPv4 string.
      */
     private static function anonymize_ipv4(string $ip): string
     {
-        $parts      = explode('.', $ip);
-        $parts[3]   = '0';
+        $parts    = explode('.', $ip);
+        $parts[3] = '0';
         return implode('.', $parts);
     }
 

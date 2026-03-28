@@ -20,9 +20,9 @@ use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 use Starisian\SparxstarUEC\StarUserEnv;
+use Starisian\SparxstarUEC\helpers\StarLogger;
 use Starisian\SparxstarUEC\core\SparxstarUECDatabase;
-use Starisian\SparxstarUEC\services\SparxstarUECGeoIPService;
-use Starisian\SparxstarUEC\helpers\StarLogger; // Import Logger
+use Starisian\SparxstarUEC\services\SparxstarUECGeoIPService; // Import Logger
 
 if (! defined('ABSPATH')) {
     exit;
@@ -30,7 +30,9 @@ if (! defined('ABSPATH')) {
 
 final readonly class SparxstarUECRESTController
 {
-    public function __construct(private SparxstarUECDatabase $database) {}
+    public function __construct(private SparxstarUECDatabase $database)
+    {
+    }
 
     /**
 Register REST endpoints for logging snapshots and recorder events.
@@ -42,10 +44,10 @@ Handle the incoming snapshot payload.
 ### `handle_recorder_log(WP_REST_Request $request)`
 
 Handle incoming recorder event logs from external plugins.
-
 @param WP_REST_Request $request The incoming request
 @return WP_REST_Response The response
 
 ### `map_and_normalize_snapshot(array $payload)`
 
 Transform the raw incoming payload into the canonical database schema.
+

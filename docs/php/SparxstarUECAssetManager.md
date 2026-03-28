@@ -6,19 +6,19 @@
 
 ## Description
 
-Modern asset loader for Sparxstar User Environment Check plugin.
+Asset loader for SPARXSTAR Sirus — Context Engine.
 Version 4.0.1: Fixed REST API namespace and JS localization keys.
 
 ## Methods
 
 ### `enqueue_frontend()`
 
-Modern asset loader for Sparxstar User Environment Check plugin.
+Asset loader for SPARXSTAR Sirus — Context Engine.
 Version 4.0.1: Fixed REST API namespace and JS localization keys.
 /
 final class SparxstarUECAssetManager
 {
-    private const VERSION     = '4.0.1';
+    private const VERSION = '4.0.1';
 
     private const TEXT_DOMAIN = 'sparxstar-user-environment-check';
 
@@ -26,7 +26,7 @@ final class SparxstarUECAssetManager
     private const HANDLE_BOOTSTRAP = 'sparxstar-uec-bootstrap';
 
     // --- Style Handles ---
-    private const STYLE_HANDLE       = 'sparxstar-user-environment-check-styles';
+    private const STYLE_HANDLE = 'sparxstar-user-environment-check-styles';
 
     private const ADMIN_STYLE_HANDLE = 'sparxstar-uec-admin';
 

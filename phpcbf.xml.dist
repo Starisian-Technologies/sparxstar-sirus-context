@@ -28,30 +28,35 @@
   <rule ref="WordPress-Extra"/>
   <rule ref="WordPress-Docs"/>
 
-  <!-- VIP: only apply formatting-type sniffs -->
+  <!-- VIP: only apply formatting-type sniffs; exclude detection-only and non-fixable rules -->
   <rule ref="WordPressVIPMinimum">
     <exclude name="WordPressVIPMinimum.Functions.RestrictedFunctions"/>
     <exclude name="WordPressVIPMinimum.Constants.RestrictedConstants"/>
-    <exclude name="WordPressVIPMinimum.Variables.VariableAnalysis"/>
+    <exclude name="WordPressVIPMinimum.JS.DangerouslySetInnerHTML"/>
+    <exclude name="WordPressVIPMinimum.JS.StrippingTags"/>
+    <exclude name="WordPressVIPMinimum.JS.Window"/>
+    <exclude name="WordPressVIPMinimum.JS.InnerHTML"/>
+    <exclude name="WordPressVIPMinimum.JS.HTMLExecutingFunctions"/>
+    <exclude name="WordPressVIPMinimum.JS.StringConcat"/>
   </rule>
 
   <!-- Naming convention fixes -->
   <rule ref="WordPress.NamingConventions.PrefixAllGlobals">
     <properties>
-      <property name="prefixes" type="array" value="sparxstar,star"/>
+      <property name="prefixes" type="array">
+        <element value="sparxstar"/>
+        <element value="star"/>
+      </property>
     </properties>
   </rule>
 
   <!-- Text domain formatting -->
   <rule ref="WordPress.WP.I18n">
     <properties>
-      <property name="text_domain" type="array" value="sparxstar"/>
+      <property name="text_domain" type="array">
+        <element value="sparxstar"/>
+      </property>
     </properties>
   </rule>
-
-  <!-- Remove compatibility / modernization from fixer (too invasive) -->
-  <exclude-pattern>PHPCompatibility*</exclude-pattern>
-  <exclude-pattern>Modernize*</exclude-pattern>
-  <exclude-pattern>Universal*</exclude-pattern>
 
 </ruleset>

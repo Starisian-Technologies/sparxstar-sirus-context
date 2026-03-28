@@ -18,15 +18,14 @@ if (! defined('ABSPATH')) {
  * Handles all database interactions for the sirus_devices table.
  * All queries use prepared statements via $wpdb.
  */
-final class DeviceRepository implements DeviceRepositoryInterface
+final readonly class DeviceRepository implements DeviceRepositoryInterface
 {
-    /** @var string */
     private string $table;
 
     /**
      * @param \wpdb $wpdb WordPress database abstraction object.
      */
-    public function __construct(private readonly \wpdb $wpdb)
+    public function __construct(private \wpdb $wpdb)
     {
         $this->table = $this->wpdb->prefix . 'sirus_devices';
     }
@@ -39,7 +38,7 @@ final class DeviceRepository implements DeviceRepositoryInterface
     public function findByDeviceId(string $device_id): ?DeviceRecord
     {
         $sql = $this->wpdb->prepare(
-            "SELECT * FROM `{$this->table}` WHERE `device_id` = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            sprintf('SELECT * FROM `%s` WHERE `device_id` = %%s LIMIT 1', $this->table), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $device_id
         );
 
@@ -61,7 +60,7 @@ final class DeviceRepository implements DeviceRepositoryInterface
     public function findByFingerprintHash(string $fingerprint_hash): ?DeviceRecord
     {
         $sql = $this->wpdb->prepare(
-            "SELECT * FROM `{$this->table}` WHERE `fingerprint_hash` = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            sprintf('SELECT * FROM `%s` WHERE `fingerprint_hash` = %%s LIMIT 1', $this->table), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $fingerprint_hash
         );
 
@@ -94,7 +93,7 @@ final class DeviceRepository implements DeviceRepositoryInterface
                 'trust_level'      => $record->trust_level,
                 'drift_score'      => $record->drift_score,
             ],
-            ['%s', '%s', '%s', '%s', '%d', '%d', '%s', '%d']
+            [ '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%d' ]
         );
 
         return $result !== false;
@@ -109,10 +108,10 @@ final class DeviceRepository implements DeviceRepositoryInterface
     {
         $this->wpdb->update(
             $this->table,
-            ['last_seen' => time()],
-            ['device_id' => $device_id],
-            ['%d'],
-            ['%s']
+            [ 'last_seen' => time() ],
+            [ 'device_id' => $device_id ],
+            [ '%d' ],
+            [ '%s' ]
         );
     }
 
@@ -123,7 +122,7 @@ final class DeviceRepository implements DeviceRepositoryInterface
      * via its device_secret. The device_id remains the stable identity; we simply
      * record the new fingerprint so subsequent visits resolve correctly.
      *
-     * @param string $device_id        The device UUID to update.
+     * @param string $device_id The device UUID to update.
      * @param string $fingerprint_hash New SHA-256 fingerprint hash.
      */
     public function updateFingerprintHash(string $device_id, string $fingerprint_hash): void
@@ -134,9 +133,9 @@ final class DeviceRepository implements DeviceRepositoryInterface
                 'fingerprint_hash' => $fingerprint_hash,
                 'last_seen'        => time(),
             ],
-            ['device_id' => $device_id],
-            ['%s', '%d'],
-            ['%s']
+            [ 'device_id' => $device_id ],
+            [ '%s', '%d' ],
+            [ '%s' ]
         );
     }
 
@@ -153,7 +152,7 @@ final class DeviceRepository implements DeviceRepositoryInterface
     {
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         $sql = $this->wpdb->prepare(
-            "UPDATE `{$this->table}` SET `drift_score` = `drift_score` + 1, `last_seen` = %d WHERE `device_id` = %s",
+            'UPDATE `%s` SET `drift_score` = `drift_score` + 1, `last_seen` = %d WHERE `device_id` = ' . $this->table,
             time(),
             $device_id
         );

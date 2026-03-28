@@ -23,7 +23,7 @@ if (! defined('ABSPATH')) {
  * Handles creation and migration of all Sirus database tables.
  * Uses dbDelta() for safe, idempotent schema management.
  */
-final class SirusDatabase
+final readonly class SirusDatabase
 {
     /** Current schema version. */
     private const SCHEMA_VERSION = '1.5.0';
@@ -34,7 +34,9 @@ final class SirusDatabase
     /**
      * @param \wpdb $wpdb WordPress database abstraction object.
      */
-    public function __construct(private readonly \wpdb $wpdb) {}
+    public function __construct(private \wpdb $wpdb)
+    {
+    }
 
     /**
      * Ensures the schema is at the current version, running an update only if needed.

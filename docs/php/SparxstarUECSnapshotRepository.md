@@ -19,11 +19,10 @@ declare(strict_types=1);
 
 namespace Starisian\SparxstarUEC\core;
 
-if (!defined('ABSPATH')) {
+if (! defined('ABSPATH')) {
     exit;
 }
 
-use wpdb;
 use Starisian\SparxstarUEC\helpers\StarLogger;
 
 final class SparxstarUECSnapshotRepository

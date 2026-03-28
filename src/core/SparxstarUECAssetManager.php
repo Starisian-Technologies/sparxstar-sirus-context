@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Starisian\SparxstarUEC\core;
 
-if (!defined('ABSPATH')) {
+if (! defined('ABSPATH')) {
     exit;
 }
 
@@ -37,8 +37,8 @@ final class SparxstarUECAssetManager
      */
     public static function enqueue_frontend(): void
     {
-        $base_uri    = plugins_url('assets/js', dirname(__FILE__, 2));
-        $base_path   = plugin_dir_path(dirname(__FILE__, 2)) . 'assets/js/';
+        $base_uri    = plugins_url('assets/js', dirname(__DIR__, 1));
+        $base_path   = plugin_dir_path(dirname(__DIR__, 1)) . 'assets/js/';
         $bundle      = 'sirus-context.js';
         $bundle_path = $base_path . $bundle;
 
@@ -77,8 +77,8 @@ final class SparxstarUECAssetManager
      */
     private static function enqueue_frontend_styles(): void
     {
-        $base_uri  = plugins_url('assets/css', dirname(__FILE__, 2));
-        $base_path = plugin_dir_path(dirname(__FILE__, 2)) . 'assets/css/';
+        $base_uri  = plugins_url('assets/css', dirname(__DIR__, 1));
+        $base_path = plugin_dir_path(dirname(__DIR__, 1)) . 'assets/css/';
 
         $style_file = file_exists($base_path . 'sparxstar-user-environment-check.min.css')
             ? 'sparxstar-user-environment-check.min.css'
@@ -101,12 +101,12 @@ final class SparxstarUECAssetManager
     {
         $screen = get_current_screen();
 
-        if (!$screen || !str_contains((string) $screen->id, 'sparxstar')) {
+        if (! $screen || ! str_contains((string) $screen->id, 'sparxstar')) {
             return;
         }
 
-        $base_uri  = plugins_url('assets', dirname(__FILE__, 2));
-        $base_path = plugin_dir_path(dirname(__FILE__, 2)) . 'assets/';
+        $base_uri  = plugins_url('assets', dirname(__DIR__, 1));
+        $base_path = plugin_dir_path(dirname(__DIR__, 1)) . 'assets/';
 
         $admin_css = file_exists($base_path . 'css/sparxstar-user-environment-check-admin.css')
             ? 'css/sparxstar-user-environment-check-admin.css'
@@ -125,7 +125,7 @@ final class SparxstarUECAssetManager
             wp_enqueue_script(
                 self::ADMIN_STYLE_HANDLE,
                 $base_uri . '/js/sparxstar-admin.js',
-                ['jquery'],
+                [ 'jquery' ],
                 filemtime($base_path . 'js/sparxstar-admin.js'),
                 true
             );

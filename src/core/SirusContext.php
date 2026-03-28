@@ -1,4 +1,5 @@
 <?php
+
 /**
  * SirusContext - The main Context Data Transfer Object.
  *
@@ -16,42 +17,43 @@ if (! defined('ABSPATH')) {
 /**
  * Immutable value object representing the full context for a single request.
  */
-final class SirusContext
+final readonly class SirusContext
 {
     public const CONTEXT_VERSION = 1;
 
     /**
      * Constructs a new SirusContext.
      *
-     * @param string      $context_id     Unique identifier for this context instance.
-     * @param string      $environment_id Hashed identifier for the site environment.
-     * @param string      $network_id     Multisite network identifier.
-     * @param string      $site_id        Blog/site identifier.
-     * @param string      $device_id      Device continuity identifier.
-     * @param string      $session_id     Session identifier.
-     * @param string|null $identity_id    Authenticated identity, or null.
-     * @param string|null $authority_id   Resolved authority type, or null.
-     * @param array       $role_set       WordPress roles associated with the context.
-     * @param array       $capabilities   Resolved capability strings.
-     * @param string      $trust_level    One of: anonymous, device, contributor, user, authority.
-     * @param int         $issued_at      Unix timestamp when the context was issued.
-     * @param int         $expires        Unix timestamp when the context expires.
+     * @param string $context_id Unique identifier for this context instance.
+     * @param string $environment_id Hashed identifier for the site environment.
+     * @param string $network_id Multisite network identifier.
+     * @param string $site_id Blog/site identifier.
+     * @param string $device_id Device continuity identifier.
+     * @param string $session_id Session identifier.
+     * @param string|null $identity_id Authenticated identity, or null.
+     * @param string|null $authority_id Resolved authority type, or null.
+     * @param array $role_set WordPress roles associated with the context.
+     * @param array $capabilities Resolved capability strings.
+     * @param string $trust_level One of: anonymous, device, contributor, user, authority.
+     * @param int $issued_at Unix timestamp when the context was issued.
+     * @param int $expires Unix timestamp when the context expires.
      */
     public function __construct(
-        public readonly string  $context_id,
-        public readonly string  $environment_id,
-        public readonly string  $network_id,
-        public readonly string  $site_id,
-        public readonly string  $device_id,
-        public readonly string  $session_id,
-        public readonly ?string $identity_id,
-        public readonly ?string $authority_id,
-        public readonly array   $role_set,
-        public readonly array   $capabilities,
-        public readonly string  $trust_level,
-        public readonly int     $issued_at,
-        public readonly int     $expires,
-    ) {}
+        public string $context_id,
+        public string $environment_id,
+        public string $network_id,
+        public string $site_id,
+        public string $device_id,
+        public string $session_id,
+        public ?string $identity_id,
+        public ?string $authority_id,
+        public array $role_set,
+        public array $capabilities,
+        public string $trust_level,
+        public int $issued_at,
+        public int $expires,
+    ) {
+    }
 
     /**
      * Returns true if the context has passed its expiry timestamp.

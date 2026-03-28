@@ -6,8 +6,9 @@
 
 ## Description
 
-Bootstrapper for the SPARXSTAR User Environment Check plugin.
-@package SparxstarUserEnvironmentCheck
+Legacy orchestrator — maintained for backward compatibility with
+SPARXSTAR Sirus — Context Engine.
+@package Starisian\SparxstarUEC
 /
 
 declare(strict_types=1);
@@ -18,16 +19,11 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-use Exception;
 use Throwable;
 use LogicException;
 use Starisian\SparxstarUEC\helpers\StarLogger;
-use Starisian\SparxstarUEC\admin\SparxstarUECAdmin;
 use Starisian\SparxstarUEC\core\SparxstarUECKernel;
-use Starisian\SparxstarUEC\core\SparxstarUECDatabase;
-use Starisian\SparxstarUEC\core\SparxstarUECAssetManager;
 use Starisian\SparxstarUEC\api\SparxstarUECRESTController;
-use Starisian\SparxstarUEC\includes\SparxstarUECSessionManager;
 
 /**
 Orchestrates plugin services and exposes shared dependencies.
@@ -37,8 +33,9 @@ This is a thin WordPress integration layer - the Kernel handles service construc
 
 ### `$instance`
 
-Bootstrapper for the SPARXSTAR User Environment Check plugin.
-@package SparxstarUserEnvironmentCheck
+Legacy orchestrator — maintained for backward compatibility with
+SPARXSTAR Sirus — Context Engine.
+@package Starisian\SparxstarUEC
 /
 
 declare(strict_types=1);
@@ -49,16 +46,11 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-use Exception;
 use Throwable;
 use LogicException;
 use Starisian\SparxstarUEC\helpers\StarLogger;
-use Starisian\SparxstarUEC\admin\SparxstarUECAdmin;
 use Starisian\SparxstarUEC\core\SparxstarUECKernel;
-use Starisian\SparxstarUEC\core\SparxstarUECDatabase;
-use Starisian\SparxstarUEC\core\SparxstarUECAssetManager;
 use Starisian\SparxstarUEC\api\SparxstarUECRESTController;
-use Starisian\SparxstarUEC\includes\SparxstarUECSessionManager;
 
 /**
 Orchestrates plugin services and exposes shared dependencies.
@@ -77,8 +69,9 @@ REST API handler used to persist environment snapshots.
 
 ### `spx_uec_get_instance()`
 
-Bootstrapper for the SPARXSTAR User Environment Check plugin.
-@package SparxstarUserEnvironmentCheck
+Legacy orchestrator — maintained for backward compatibility with
+SPARXSTAR Sirus — Context Engine.
+@package Starisian\SparxstarUEC
 /
 
 declare(strict_types=1);
@@ -89,16 +82,11 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-use Exception;
 use Throwable;
 use LogicException;
 use Starisian\SparxstarUEC\helpers\StarLogger;
-use Starisian\SparxstarUEC\admin\SparxstarUECAdmin;
 use Starisian\SparxstarUEC\core\SparxstarUECKernel;
-use Starisian\SparxstarUEC\core\SparxstarUECDatabase;
-use Starisian\SparxstarUEC\core\SparxstarUECAssetManager;
 use Starisian\SparxstarUEC\api\SparxstarUECRESTController;
-use Starisian\SparxstarUEC\includes\SparxstarUECSessionManager;
 
 /**
 Orchestrates plugin services and exposes shared dependencies.

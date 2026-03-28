@@ -20,7 +20,7 @@
 
     function getCookie(name) {
         try {
-            const value = document.cookie.split('; ').find(row => row.startsWith(name + '='));
+            const value = document.cookie.split('; ').find((row) => row.startsWith(name + '='));
             return value ? decodeURIComponent(value.split('=')[1]) : null;
         } catch (e) {
             log('getCookie failed', e.message);
@@ -30,9 +30,13 @@
 
     function setCookie(name, value, days) {
         try {
-            const expires = new Date(Date.now() + (days * 864e5)).toUTCString();
-            document.cookie = name + '=' + encodeURIComponent(value) +
-                '; expires=' + expires +
+            const expires = new Date(Date.now() + days * 864e5).toUTCString();
+            document.cookie =
+                name +
+                '=' +
+                encodeURIComponent(value) +
+                '; expires=' +
+                expires +
                 '; path=/; SameSite=Lax';
         } catch (e) {
             log('setCookie failed', e.message);
@@ -47,7 +51,12 @@
             if (window.crypto && crypto.getRandomValues) {
                 const arr = new Uint8Array(16);
                 crypto.getRandomValues(arr);
-                return prefix + Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+                return (
+                    prefix +
+                    Array.from(arr)
+                        .map((b) => b.toString(16).padStart(2, '0'))
+                        .join('')
+                );
             }
         } catch (e) {
             log('secure random ID failed, falling back', e.message);
@@ -65,7 +74,7 @@
             effectiveType: (conn && conn.effectiveType) || 'unknown',
             rtt: (conn && conn.rtt) || null,
             downlink: (conn && conn.downlink) || null,
-            saveData: !!(conn && conn.saveData)
+            saveData: !!(conn && conn.saveData),
         };
         log('Network collected', current);
         return current;
@@ -80,7 +89,7 @@
             const battery = await navigator.getBattery();
             const result = {
                 level: battery.level,
-                charging: battery.charging
+                charging: battery.charging,
             };
             log('Battery collected', result);
             return result;
@@ -93,7 +102,7 @@
     const getPerformance = async () => {
         const result = {
             hardwareConcurrency: navigator.hardwareConcurrency || 1,
-            deviceMemory: ('deviceMemory' in navigator) ? navigator.deviceMemory : 0 // in GB
+            deviceMemory: 'deviceMemory' in navigator ? navigator.deviceMemory : 0, // in GB
         };
         log('Performance collected', result);
         return result;
@@ -132,7 +141,10 @@
             }
             const safeIsSupported = (mimeType) => {
                 try {
-                    return typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(mimeType);
+                    return (
+                        typeof MediaRecorder !== 'undefined' &&
+                        MediaRecorder.isTypeSupported(mimeType)
+                    );
                 } catch {
                     return false;
                 }
@@ -159,10 +171,10 @@
                 supportedMimeTypes: {
                     'audio/webm;codecs=opus': safeIsSupported('audio/webm;codecs=opus'),
                     'audio/ogg;codecs=opus': safeIsSupported('audio/ogg;codecs=opus'),
-                    'audio/mp4': safeIsSupported('audio/mp4')
+                    'audio/mp4': safeIsSupported('audio/mp4'),
                 },
                 serviceWorker: 'serviceWorker' in navigator,
-                indexedDB: 'indexedDB' in window
+                indexedDB: 'indexedDB' in window,
             };
             cache = Object.freeze(caps);
             log('Browser capabilities collected', caps);
@@ -195,7 +207,7 @@
             getPerformance(),
             getTechnicalDevice(),
             getBrowserCapabilities(),
-            getSessionId()
+            getSessionId(),
         ]);
 
         const technical = {
@@ -204,7 +216,7 @@
             performance: results[2].status === 'fulfilled' ? results[2].value : {},
             device: results[3].status === 'fulfilled' ? results[3].value : {},
             browser: results[4].status === 'fulfilled' ? results[4].value : {},
-            sessionId: results[5].status === 'fulfilled' ? results[5].value : null
+            sessionId: results[5].status === 'fulfilled' ? results[5].value : null,
         };
         log('Technical data consolidated', technical);
         return technical;
@@ -226,7 +238,10 @@
 
         try {
             // Prefer a wrapper if you've loaded it.
-            if (window.SparxstarFingerprint && typeof window.SparxstarFingerprint.getId === 'function') {
+            if (
+                window.SparxstarFingerprint &&
+                typeof window.SparxstarFingerprint.getId === 'function'
+            ) {
                 newId = await window.SparxstarFingerprint.getId();
             } else if (window.FingerprintJS) {
                 const fp = await window.FingerprintJS.load();
@@ -274,13 +289,13 @@
         const results = await Promise.allSettled([
             getVisitorId(),
             getDeviceDetails(),
-            getIpAddress()
+            getIpAddress(),
         ]);
 
         const identifiers = {
             visitorId: results[0].status === 'fulfilled' ? results[0].value : null,
             deviceDetails: results[1].status === 'fulfilled' ? results[1].value : null,
-            ipAddress: results[2].status === 'fulfilled' ? results[2].value : null
+            ipAddress: results[2].status === 'fulfilled' ? results[2].value : null,
         };
         log('Identifiers consolidated', identifiers);
         return identifiers;
@@ -288,7 +303,6 @@
 
     window.SPARXSTAR.Collectors = {
         collectTechnicalData,
-        collectIdentifyingData
+        collectIdentifyingData,
     };
-
 })(window, document);

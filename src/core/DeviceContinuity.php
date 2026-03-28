@@ -42,15 +42,17 @@ final class DeviceContinuity
     /**
      * @param DeviceRepositoryInterface $repository The device persistence layer.
      */
-    public function __construct(private readonly DeviceRepositoryInterface $repository) {}
+    public function __construct(private readonly DeviceRepositoryInterface $repository)
+    {
+    }
 
     /**
      * Resolves a device by ID/secret pair or fingerprint hash, or registers a new one.
      *
-     * @param string $device_id        The device UUID from the client's localStorage.
-     * @param string $device_secret    The device secret from the client's localStorage.
+     * @param string $device_id The device UUID from the client's localStorage.
+     * @param string $device_secret The device secret from the client's localStorage.
      * @param string $fingerprint_hash SHA-256 hash of the client fingerprint (server-derived).
-     * @param array  $environment_data Raw environment data from the client.
+     * @param array $environment_data Raw environment data from the client.
      */
     public function resolveDevice(
         string $device_id,
@@ -64,9 +66,7 @@ final class DeviceContinuity
 
             if ($existing !== null && $existing->isActive() && $existing->verifySecret($device_secret)) {
                 if (
-                    $fingerprint_hash !== '' &&
-                    $existing->fingerprint_hash !== '' &&
-                    $existing->fingerprint_hash !== $fingerprint_hash
+                    $fingerprint_hash !== '' && $existing->fingerprint_hash !== '' && $existing->fingerprint_hash !== $fingerprint_hash
                 ) {
                     // Fingerprint drift on a verified device.
                     // Update the stored fingerprint and increment drift_score.
@@ -112,7 +112,7 @@ final class DeviceContinuity
      * Both device_id and device_secret are always server-generated.
      *
      * @param string $fingerprint_hash SHA-256 hash of the client fingerprint.
-     * @param array  $environment_data Raw environment data from the client.
+     * @param array $environment_data Raw environment data from the client.
      */
     public function registerDevice(string $fingerprint_hash, array $environment_data): DeviceRecord
     {

@@ -21,7 +21,7 @@ if (! defined('ABSPATH')) {
  * Provides strict read/write access to the sirus_events table.
  * All queries are prepared. No business logic lives here.
  */
-final class SirusEventRepository
+final readonly class SirusEventRepository
 {
     /**
      * Valid event types (canonical enum).
@@ -42,7 +42,7 @@ final class SirusEventRepository
     public const DEDUP_SKIPPED = -1;
 
     /** Event types that use deduplication (error signals only). */
-    private const DEDUP_EVENT_TYPES = ['js_error', 'api_error', 'network_issue', 'capability_failure'];
+    private const DEDUP_EVENT_TYPES = [ 'js_error', 'api_error', 'network_issue', 'capability_failure' ];
 
     /** Deduplication window in seconds (transient TTL). */
     private const DEDUP_WINDOW = 60;
@@ -57,7 +57,9 @@ final class SirusEventRepository
     /**
      * @param \wpdb $wpdb WordPress database abstraction object.
      */
-    public function __construct(private readonly \wpdb $wpdb) {}
+    public function __construct(private \wpdb $wpdb)
+    {
+    }
 
     /**
      * Inserts a single event record into the database.
@@ -99,7 +101,7 @@ final class SirusEventRepository
             'error_json'   => isset($event['error']) ? (wp_json_encode($event['error']) ?: null) : null,
         ];
 
-        $formats = ['%s', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s'];
+        $formats = [ '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ];
 
         $result = $this->wpdb->insert($table, $row, $formats);
 
@@ -128,7 +130,7 @@ final class SirusEventRepository
         $table = $this->wpdb->prefix . 'sirus_events';
 
         $sql = $this->wpdb->prepare(
-            "SELECT * FROM {$table} ORDER BY timestamp DESC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            'SELECT * FROM %s ORDER BY timestamp DESC LIMIT ' . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $limit
         );
 
@@ -140,8 +142,8 @@ final class SirusEventRepository
     /**
      * Returns events of a specific type occurring since a given timestamp.
      *
-     * @param string $type  Event type to filter by.
-     * @param int    $since Unix timestamp lower bound (inclusive).
+     * @param string $type Event type to filter by.
+     * @param int $since Unix timestamp lower bound (inclusive).
      * @return array<int, array<string, mixed>>
      */
     public function getEventsByType(string $type, int $since): array
@@ -149,7 +151,7 @@ final class SirusEventRepository
         $table = $this->wpdb->prefix . 'sirus_events';
 
         $sql = $this->wpdb->prepare(
-            "SELECT * FROM {$table} WHERE event_type = %s AND timestamp >= %d ORDER BY timestamp DESC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            sprintf('SELECT * FROM %s WHERE event_type = %%s AND timestamp >= %%d ORDER BY timestamp DESC', $table), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $type,
             $since
         );
@@ -174,7 +176,7 @@ final class SirusEventRepository
         $since = time() - $windowSeconds;
 
         $sql = $this->wpdb->prepare(
-            "SELECT COUNT(DISTINCT session_id) FROM {$table} WHERE timestamp >= %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            'SELECT COUNT(DISTINCT session_id) FROM %s WHERE timestamp >= ' . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $since
         );
 
@@ -192,7 +194,7 @@ final class SirusEventRepository
         $table = $this->wpdb->prefix . 'sirus_events';
 
         $sql = $this->wpdb->prepare(
-            "SELECT event_type, COUNT(*) AS cnt FROM {$table} WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND timestamp >= %d GROUP BY event_type", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            sprintf("SELECT event_type, COUNT(*) AS cnt FROM %s WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND timestamp >= %%d GROUP BY event_type", $table), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $since
         );
 
@@ -201,17 +203,18 @@ final class SirusEventRepository
         $result = [];
         if (is_array($rows)) {
             foreach ($rows as $row) {
-                $result[(string) $row['event_type']] = (int) $row['cnt'];
+                $result[ (string) $row['event_type'] ] = (int) $row['cnt'];
             }
         }
+
         return $result;
     }
 
     /**
      * Returns the count of distinct affected sessions per URL for error events.
      *
-     * @param int $since  Unix timestamp lower bound.
-     * @param int $limit  Maximum number of URLs to return.
+     * @param int $since Unix timestamp lower bound.
+     * @param int $limit Maximum number of URLs to return.
      * @return array<int, array<string, mixed>> Each row: url, error_count, affected_sessions.
      */
     public function getTopFailingUrls(int $since, int $limit = 10): array
@@ -219,7 +222,7 @@ final class SirusEventRepository
         $table = $this->wpdb->prefix . 'sirus_events';
 
         $sql = $this->wpdb->prepare(
-            "SELECT url, COUNT(*) AS error_count, COUNT(DISTINCT session_id) AS affected_sessions FROM {$table} WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND url IS NOT NULL AND timestamp >= %d GROUP BY url ORDER BY error_count DESC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            "SELECT url, COUNT(*) AS error_count, COUNT(DISTINCT session_id) AS affected_sessions FROM %s WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND url IS NOT NULL AND timestamp >= %d GROUP BY url ORDER BY error_count DESC LIMIT " . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $since,
             $limit
         );
@@ -241,7 +244,7 @@ final class SirusEventRepository
         $table = $this->wpdb->prefix . 'sirus_events';
 
         $sql = $this->wpdb->prepare(
-            "SELECT event_type, context_json, error_json, url, timestamp, device_id, session_id FROM {$table} WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND timestamp >= %d ORDER BY timestamp DESC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            "SELECT event_type, context_json, error_json, url, timestamp, device_id, session_id FROM %s WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND timestamp >= %d ORDER BY timestamp DESC LIMIT " . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $since,
             $limit
         );
@@ -271,7 +274,7 @@ final class SirusEventRepository
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $result = $this->wpdb->query(
             $this->wpdb->prepare(
-                "DELETE FROM {$table} WHERE timestamp < %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                'DELETE FROM %s WHERE timestamp < ' . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                 $cutoff
             )
         );
@@ -283,12 +286,12 @@ final class SirusEventRepository
      * Returns error counts grouped by a denormalized column (browser, device_type, or network).
      *
      * @param string $column One of: 'browser', 'device_type', 'network'.
-     * @param int    $since  Unix timestamp lower bound.
+     * @param int $since Unix timestamp lower bound.
      * @return array<string, int> Map of column value → count.
      */
     public function getErrorCountsByColumn(string $column, int $since): array
     {
-        $allowed = ['browser', 'device_type', 'network'];
+        $allowed = [ 'browser', 'device_type', 'network' ];
         if (! in_array($column, $allowed, true)) {
             return [];
         }
@@ -297,7 +300,7 @@ final class SirusEventRepository
 
         // Column name is validated against allowlist above; safe to interpolate.
         $sql = $this->wpdb->prepare(
-            "SELECT {$column}, COUNT(*) AS count FROM {$table} WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND timestamp >= %d GROUP BY {$column} ORDER BY count DESC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            sprintf("SELECT %s, COUNT(*) AS count FROM %s WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND timestamp >= %%d GROUP BY %s ORDER BY count DESC", $column, $table, $column), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $since
         );
 
@@ -306,7 +309,7 @@ final class SirusEventRepository
         $result = [];
         if (is_array($rows)) {
             foreach ($rows as $row) {
-                $result[(string) ($row[$column] ?? '')] = (int) ($row['count'] ?? 0);
+                $result[ (string) ($row[ $column ] ?? '') ] = (int) ($row['count'] ?? 0);
             }
         }
 
@@ -317,14 +320,13 @@ final class SirusEventRepository
      * Returns the count of error events on slow networks since a given timestamp.
      *
      * @param int $since Unix timestamp lower bound.
-     * @return int
      */
     public function getSlowNetworkErrorCount(int $since): int
     {
         $table = $this->wpdb->prefix . 'sirus_events';
 
         $sql = $this->wpdb->prepare(
-            "SELECT COUNT(*) FROM {$table} WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND network IN ('slow-2g','2g','slow-3g') AND timestamp >= %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            "SELECT COUNT(*) FROM %s WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND network IN ('slow-2g','2g','slow-3g') AND timestamp >= " . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $since
         );
 
@@ -335,14 +337,13 @@ final class SirusEventRepository
      * Returns the count of error events on mobile devices since a given timestamp.
      *
      * @param int $since Unix timestamp lower bound.
-     * @return int
      */
     public function getMobileErrorCount(int $since): int
     {
         $table = $this->wpdb->prefix . 'sirus_events';
 
         $sql = $this->wpdb->prepare(
-            "SELECT COUNT(*) FROM {$table} WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND device_type = 'mobile' AND timestamp >= %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            "SELECT COUNT(*) FROM %s WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND device_type = 'mobile' AND timestamp >= " . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $since
         );
 

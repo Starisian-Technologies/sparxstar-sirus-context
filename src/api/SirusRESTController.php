@@ -30,9 +30,9 @@ use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 use Starisian\Sparxstar\Sirus\core\ContextEngine;
+use Starisian\Sparxstar\Sirus\helpers\IpAnonymizer;
 use Starisian\Sparxstar\Sirus\core\DeviceContinuity;
 use Starisian\Sparxstar\Sirus\core\NetworkContextBroker;
-use Starisian\Sparxstar\Sirus\helpers\IpAnonymizer;
 use Starisian\Sparxstar\Sirus\services\SirusDeviceParser;
 
 /**
@@ -53,7 +53,8 @@ final class SirusRESTController
      */
     public function __construct(
         private readonly DeviceContinuity $device_continuity,
-    ) {}
+    ) {
+    }
 
     /**
      * Permission callback to enforce REST nonce validation and mitigate CSRF.
@@ -61,7 +62,7 @@ final class SirusRESTController
      * Expects a valid X-WP-Nonce header created for the 'wp_rest' action.
      *
      * @param WP_REST_Request $request The current REST request.
-     * @return bool|WP_Error           True if the nonce is valid, otherwise WP_Error.
+     * @return bool|WP_Error True if the nonce is valid, otherwise WP_Error.
      */
     public function verify_rest_nonce(WP_REST_Request $request): bool|WP_Error
     {
@@ -71,7 +72,7 @@ final class SirusRESTController
             return new WP_Error(
                 'sparxstar_sirus_rest_nonce_missing',
                 __('REST nonce is missing.', 'sparxstar'),
-                ['status' => 403]
+                [ 'status' => 403 ]
             );
         }
 
@@ -79,7 +80,7 @@ final class SirusRESTController
             return new WP_Error(
                 'sparxstar_sirus_rest_nonce_invalid',
                 __('REST nonce is invalid.', 'sparxstar'),
-                ['status' => 403]
+                [ 'status' => 403 ]
             );
         }
 
@@ -96,8 +97,8 @@ final class SirusRESTController
             '/device',
             [
                 'methods'             => 'POST',
-                'callback'            => [$this, 'handle_device_register'],
-                'permission_callback' => [$this, 'verify_rest_nonce'],
+                'callback'            => [ $this, 'handle_device_register' ],
+                'permission_callback' => [ $this, 'verify_rest_nonce' ],
                 'args'                => [
                     // visitor_id from FingerprintJS — used SERVER-SIDE to derive fingerprint_hash.
                     'visitor_id' => [
@@ -131,8 +132,8 @@ final class SirusRESTController
             '/context',
             [
                 'methods'             => 'GET',
-                'callback'            => [$this, 'handle_get_context'],
-                'permission_callback' => [$this, 'verify_rest_nonce'],
+                'callback'            => [ $this, 'handle_get_context' ],
+                'permission_callback' => [ $this, 'verify_rest_nonce' ],
                 'args'                => [
                     // Optional: resolve context for a specific device.
                     'device_id' => [
@@ -170,7 +171,7 @@ final class SirusRESTController
             return new WP_Error(
                 'sirus_rate_limited',
                 __('Too many requests. Please try again later.', 'sparxstar-sirus'),
-                ['status' => 429]
+                [ 'status' => 429 ]
             );
         }
 
@@ -182,7 +183,7 @@ final class SirusRESTController
             return new WP_Error(
                 'sirus_missing_visitor_id',
                 __('visitor_id is required.', 'sparxstar-sirus'),
-                ['status' => 400]
+                [ 'status' => 400 ]
             );
         }
 
@@ -198,7 +199,7 @@ final class SirusRESTController
 
         // Server-side fingerprint derivation: sha256(visitorId + userAgent + ipSubnet).
         // This ensures the fingerprint is under server control and cannot be spoofed.
-        $user_agent       = sanitize_text_field(
+        $user_agent = sanitize_text_field(
             wp_unslash((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''))
         );
         $ip_subnet        = IpAnonymizer::ipSubnet($raw_ip);
@@ -216,18 +217,21 @@ final class SirusRESTController
 
         // Merge server-parsed device info into the environment snapshot.
         // Existing client signals are preserved; server data takes precedence for device keys.
-        $environment_data = array_merge($environment_data, [
-            'server_ua_browser'         => $device_info['browser'],
-            'server_ua_browser_version' => $device_info['browser_version'],
-            'server_ua_os'              => $device_info['os'],
-            'server_ua_os_version'      => $device_info['os_version'],
-            'server_ua_device_type'     => $device_info['device_type'],
-            'server_ua_brand'           => $device_info['brand'],
-            'server_ua_model'           => $device_info['model'],
-            'server_ua_is_bot'          => $device_info['is_bot'] ? '1' : '0',
-            // Anonymized IP for storage — last octet zeroed, never full IP.
-            'ip_anonymized'             => IpAnonymizer::anonymize($raw_ip),
-        ]);
+        $environment_data = array_merge(
+            $environment_data,
+            [
+                'server_ua_browser'         => $device_info['browser'],
+                'server_ua_browser_version' => $device_info['browser_version'],
+                'server_ua_os'              => $device_info['os'],
+                'server_ua_os_version'      => $device_info['os_version'],
+                'server_ua_device_type'     => $device_info['device_type'],
+                'server_ua_brand'           => $device_info['brand'],
+                'server_ua_model'           => $device_info['model'],
+                'server_ua_is_bot'          => $device_info['is_bot'] ? '1' : '0',
+                // Anonymized IP for storage — last octet zeroed, never full IP.
+                'ip_anonymized' => IpAnonymizer::anonymize($raw_ip),
+            ]
+        );
 
         // 1. Resolve (or register) the device.
         // Pass both device_id and device_secret — the secret authenticates the device_id claim.
@@ -239,8 +243,8 @@ final class SirusRESTController
         );
 
         // 2. Build context FROM the resolved device — ensures device and context always
-        //    reference the same device_id. This primes ContextCache so that any subsequent
-        //    call to ContextEngine::current() in this request returns the same context.
+        // reference the same device_id. This primes ContextCache so that any subsequent
+        // call to ContextEngine::current() in this request returns the same context.
         $context = ContextEngine::buildFromDevice($device_record);
 
         $broker = new NetworkContextBroker();
@@ -286,7 +290,7 @@ final class SirusRESTController
                 return new WP_Error(
                     'sirus_invalid_ctx_token',
                     __('Invalid or expired context token.', 'sparxstar-sirus'),
-                    ['status' => 401]
+                    [ 'status' => 401 ]
                 );
             }
 
@@ -350,9 +354,9 @@ final class SirusRESTController
             }
             if (is_array($value)) {
                 // Flatten nested arrays to JSON string.
-                $sanitized[$clean_key] = wp_json_encode($value) ?: '';
+                $sanitized[ $clean_key ] = wp_json_encode($value) ?: '';
             } else {
-                $sanitized[$clean_key] = sanitize_text_field(wp_unslash((string) $value));
+                $sanitized[ $clean_key ] = sanitize_text_field(wp_unslash((string) $value));
             }
         }
         return $sanitized;

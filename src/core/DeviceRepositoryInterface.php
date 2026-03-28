@@ -53,7 +53,7 @@ interface DeviceRepositoryInterface
     /**
      * Updates the fingerprint_hash (and last_seen) for the given device_id.
      *
-     * @param string $device_id        The device UUID to update.
+     * @param string $device_id The device UUID to update.
      * @param string $fingerprint_hash New SHA-256 fingerprint hash.
      */
     public function updateFingerprintHash(string $device_id, string $fingerprint_hash): void;

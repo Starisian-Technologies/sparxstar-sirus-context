@@ -1,4 +1,5 @@
 <?php
+
 /**
  * NetworkContextBroker - Generates and verifies signed cross-domain context tokens.
  *
@@ -32,8 +33,8 @@ final class NetworkContextBroker
      */
     public function generateToken(SirusContext $context): string
     {
-        $now     = time();
-        $payload = $context->toPortablePayload();
+        $now            = time();
+        $payload        = $context->toPortablePayload();
         $payload['nbf'] = $now;
         $payload['exp'] = $now + self::TOKEN_TTL;
 
@@ -88,17 +89,17 @@ final class NetworkContextBroker
         }
 
         return new SirusContext(
-            context_id:     (string) ($data['ctx']  ?? ''),
-            environment_id: (string) ($data['env']  ?? ''),
-            network_id:     (string) ($data['net']  ?? ''),
+            context_id:     (string) ($data['ctx'] ?? ''),
+            environment_id: (string) ($data['env'] ?? ''),
+            network_id:     (string) ($data['net'] ?? ''),
             site_id:        (string) ($data['site'] ?? ''),
-            device_id:      (string) ($data['dev']  ?? ''),
+            device_id:      (string) ($data['dev'] ?? ''),
             session_id:     '',
             identity_id:    null,
             authority_id:   isset($data['auth']) ? (string) $data['auth'] : null,
             role_set:       [],
             capabilities:   isset($data['caps']) && is_array($data['caps'])
-                                ? array_map('strval', $data['caps'])
+                                ? array_map(strval(...), $data['caps'])
                                 : [],
             trust_level:    'anonymous',
             issued_at:      (int) ($data['iat'] ?? 0),

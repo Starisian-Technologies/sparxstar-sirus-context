@@ -21,8 +21,8 @@ if (! defined('ABSPATH')) {
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
-use Starisian\Sparxstar\Sirus\services\SirusMitigationCoordinator;
 use Starisian\Sparxstar\Sirus\core\SirusRuleHitRepository;
+use Starisian\Sparxstar\Sirus\services\SirusMitigationCoordinator;
 
 /**
  * Registers and handles the directive and rule-hit REST routes.
@@ -34,7 +34,8 @@ final class SirusDirectiveController
     public function __construct(
         private readonly SirusMitigationCoordinator $coordinator,
         private readonly SirusRuleHitRepository $ruleHitRepo,
-    ) {}
+    ) {
+    }
 
     /**
      * Registers the REST API routes.
@@ -46,7 +47,7 @@ final class SirusDirectiveController
             '/directives',
             [
                 'methods'             => 'GET',
-                'callback'            => [$this, 'get_directives'],
+                'callback'            => [ $this, 'get_directives' ],
                 'permission_callback' => '__return_true',
                 'args'                => [
                     'device_id' => [
@@ -69,8 +70,8 @@ final class SirusDirectiveController
             '/rule-hits',
             [
                 'methods'             => 'GET',
-                'callback'            => [$this, 'get_rule_hits'],
-                'permission_callback' => [$this, 'admin_permission_callback'],
+                'callback'            => [ $this, 'get_rule_hits' ],
+                'permission_callback' => [ $this, 'admin_permission_callback' ],
                 'args'                => [
                     'limit' => [
                         'required'          => false,
@@ -93,7 +94,7 @@ final class SirusDirectiveController
      */
     public function get_directives(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
-        $device_id  = sanitize_text_field(
+        $device_id = sanitize_text_field(
             wp_unslash((string) ($request->get_param('device_id') ?? ''))
         );
         $session_id = sanitize_text_field(
@@ -104,7 +105,7 @@ final class SirusDirectiveController
             return new WP_Error(
                 'sirus_directive_missing_device_id',
                 __('device_id is required.', 'sparxstar-sirus'),
-                ['status' => 400]
+                [ 'status' => 400 ]
             );
         }
 

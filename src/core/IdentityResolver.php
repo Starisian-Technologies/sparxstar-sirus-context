@@ -1,4 +1,5 @@
 <?php
+
 /**
  * IdentityResolver - Resolves a trust level for the current SirusContext.
  *
@@ -22,7 +23,7 @@ use Starisian\Sparxstar\Sirus\integrations\HeliosClient;
  *
  * Trust levels (ascending): anonymous → device → contributor → user → authority
  */
-final class IdentityResolver
+final readonly class IdentityResolver
 {
     /** @var array<string, int> Numeric weight for each trust level (for comparison). */
     private const TRUST_WEIGHTS = [
@@ -36,7 +37,9 @@ final class IdentityResolver
     /**
      * @param HeliosClient|null $helios_client Optional Helios integration for external trust resolution.
      */
-    public function __construct(private readonly ?HeliosClient $helios_client = null) {}
+    public function __construct(private ?HeliosClient $helios_client = null)
+    {
+    }
 
     /**
      * Resolves and returns the highest applicable trust level string for the context.
@@ -61,7 +64,7 @@ final class IdentityResolver
             }
         }
 
-        if ($this->helios_client !== null) {
+        if ($this->helios_client instanceof \Starisian\Sparxstar\Sirus\integrations\HeliosClient) {
             $helios = $this->helios_client->resolve(
                 $context->device_id,
                 $context->session_id,
@@ -79,7 +82,7 @@ final class IdentityResolver
      * Returns the higher trust level of the two provided values.
      * Ignores unknown levels (treats them as 'anonymous') and logs a warning.
      *
-     * @param string $current   The currently resolved trust level.
+     * @param string $current The currently resolved trust level.
      * @param string $candidate The candidate trust level to compare.
      */
     private function escalate(string $current, string $candidate): string
@@ -87,12 +90,13 @@ final class IdentityResolver
         if (! array_key_exists($current, self::TRUST_WEIGHTS)) {
             $current = 'anonymous';
         }
+
         if (! array_key_exists($candidate, self::TRUST_WEIGHTS)) {
             // Unknown candidate is silently ignored rather than trusted.
             return $current;
         }
 
-        return self::TRUST_WEIGHTS[$candidate] > self::TRUST_WEIGHTS[$current]
+        return self::TRUST_WEIGHTS[ $candidate ] > self::TRUST_WEIGHTS[ $current ]
             ? $candidate
             : $current;
     }

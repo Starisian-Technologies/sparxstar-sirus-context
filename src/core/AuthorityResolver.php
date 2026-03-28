@@ -1,4 +1,5 @@
 <?php
+
 /**
  * AuthorityResolver - Resolves the authority type for a given SirusContext.
  *

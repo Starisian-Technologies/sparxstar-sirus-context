@@ -1,4 +1,5 @@
 <?php
+
 /**
  * CapabilityEngine - Resolves the capability set for a given SirusContext.
  *
@@ -21,10 +22,10 @@ final class CapabilityEngine
 {
     /** @var array<string, list<string>> Capabilities granted per trust level. */
     private const BASE_CAPABILITIES = [
-        'anonymous'   => ['read_context'],
-        'device'      => ['read_context', 'submit_environment'],
-        'contributor' => ['read_context', 'submit_environment', 'submit_content'],
-        'user'        => ['read_context', 'submit_environment', 'submit_content', 'read_profile'],
+        'anonymous'   => [ 'read_context' ],
+        'device'      => [ 'read_context', 'submit_environment' ],
+        'contributor' => [ 'read_context', 'submit_environment', 'submit_content' ],
+        'user'        => [ 'read_context', 'submit_environment', 'submit_content', 'read_profile' ],
         'authority'   => [
             'read_context',
             'submit_environment',
@@ -44,7 +45,7 @@ final class CapabilityEngine
      */
     public function resolve(SirusContext $context): array
     {
-        $capabilities = self::BASE_CAPABILITIES[$context->trust_level]
+        $capabilities = self::BASE_CAPABILITIES[ $context->trust_level ]
             ?? self::BASE_CAPABILITIES['anonymous'];
 
         /** @var list<string> $capabilities */

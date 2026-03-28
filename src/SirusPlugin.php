@@ -14,27 +14,27 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-use Starisian\Sparxstar\Sirus\api\SirusRESTController;
-use Starisian\Sparxstar\Sirus\api\SirusEventController;
-use Starisian\Sparxstar\Sirus\api\SirusDirectiveController;
-use Starisian\Sparxstar\Sirus\admin\SirusDashboardPage;
-use Starisian\Sparxstar\Sirus\admin\SirusNetworkSettingsPage;
-use Starisian\Sparxstar\Sirus\core\ClientTelemetry;
 use Starisian\Sparxstar\Sirus\core\ContextEngine;
+use Starisian\Sparxstar\Sirus\core\SirusDatabase;
+use Starisian\Sparxstar\Sirus\core\ClientTelemetry;
 use Starisian\Sparxstar\Sirus\core\DeviceContinuity;
 use Starisian\Sparxstar\Sirus\core\DeviceRepository;
+use Starisian\Sparxstar\Sirus\helpers\SirusRateLimit;
+use Starisian\Sparxstar\Sirus\api\SirusRESTController;
+use Starisian\Sparxstar\Sirus\admin\SirusDashboardPage;
+use Starisian\Sparxstar\Sirus\api\SirusEventController;
 use Starisian\Sparxstar\Sirus\core\NetworkContextBroker;
-use Starisian\Sparxstar\Sirus\core\SirusDatabase;
 use Starisian\Sparxstar\Sirus\core\SirusEventAggregator;
 use Starisian\Sparxstar\Sirus\core\SirusEventRepository;
-use Starisian\Sparxstar\Sirus\core\SirusMitigationActionRepository;
-use Starisian\Sparxstar\Sirus\core\SirusRuleHitRepository;
 use Starisian\Sparxstar\Sirus\helpers\SirusImpactScorer;
-use Starisian\Sparxstar\Sirus\helpers\SirusMitigationRuleEngine;
+use Starisian\Sparxstar\Sirus\core\SirusRuleHitRepository;
 use Starisian\Sparxstar\Sirus\helpers\SirusPriorityScorer;
-use Starisian\Sparxstar\Sirus\helpers\SirusRateLimit;
+use Starisian\Sparxstar\Sirus\api\SirusDirectiveController;
 use Starisian\Sparxstar\Sirus\helpers\SirusSignalEvaluator;
+use Starisian\Sparxstar\Sirus\admin\SirusNetworkSettingsPage;
+use Starisian\Sparxstar\Sirus\helpers\SirusMitigationRuleEngine;
 use Starisian\Sparxstar\Sirus\services\SirusMitigationCoordinator;
+use Starisian\Sparxstar\Sirus\core\SirusMitigationActionRepository;
 
 /**
  * Singleton orchestrator for the Sirus Context Engine plugin.
@@ -69,16 +69,16 @@ final class SirusPlugin
      */
     private function registerHooks(): void
     {
-        add_action('rest_api_init', [$this, 'registerRestRoutes']);
-        add_action('wp_enqueue_scripts', [$this, 'enqueueAssets']);
-        add_action('plugins_loaded', [$this, 'initAdminPages']);
+        add_action('rest_api_init', [ $this, 'registerRestRoutes' ]);
+        add_action('wp_enqueue_scripts', [ $this, 'enqueueAssets' ]);
+        add_action('plugins_loaded', [ $this, 'initAdminPages' ]);
 
         // Daily telemetry pruning cron.
-        add_action(ClientTelemetry::CRON_HOOK, [$this, 'runTelemetryPrune']);
+        add_action(ClientTelemetry::CRON_HOOK, [ $this, 'runTelemetryPrune' ]);
 
         // 5-minute event aggregation cron.
-        add_action(SirusEventAggregator::CRON_HOOK, [$this, 'runEventAggregation']);
-        add_filter('cron_schedules', [$this, 'addCronSchedules']);
+        add_action(SirusEventAggregator::CRON_HOOK, [ $this, 'runEventAggregation' ]);
+        add_filter('cron_schedules', [ $this, 'addCronSchedules' ]);
     }
 
     /**
@@ -106,10 +106,10 @@ final class SirusPlugin
         new SirusNetworkSettingsPage();
 
         // Build coordinator dependencies.
-        $event_repo   = new SirusEventRepository($wpdb);
+        $event_repo    = new SirusEventRepository($wpdb);
         $rule_hit_repo = new SirusRuleHitRepository($wpdb);
-        $action_repo  = new SirusMitigationActionRepository($wpdb);
-        $coordinator  = new SirusMitigationCoordinator(
+        $action_repo   = new SirusMitigationActionRepository($wpdb);
+        $coordinator   = new SirusMitigationCoordinator(
             new SirusSignalEvaluator(),
             new SirusImpactScorer(),
             new SirusMitigationRuleEngine(),
@@ -132,10 +132,10 @@ final class SirusPlugin
         $controller        = new SirusRESTController($device_continuity);
         $controller->register_routes();
 
-        $event_repo       = new SirusEventRepository($wpdb);
-        $rule_hit_repo    = new SirusRuleHitRepository($wpdb);
-        $action_repo      = new SirusMitigationActionRepository($wpdb);
-        $coordinator      = new SirusMitigationCoordinator(
+        $event_repo    = new SirusEventRepository($wpdb);
+        $rule_hit_repo = new SirusRuleHitRepository($wpdb);
+        $action_repo   = new SirusMitigationActionRepository($wpdb);
+        $coordinator   = new SirusMitigationCoordinator(
             new SirusSignalEvaluator(),
             new SirusImpactScorer(),
             new SirusMitigationRuleEngine(),
@@ -200,7 +200,7 @@ final class SirusPlugin
             wp_enqueue_script(
                 'sparxstar-sirus-bootstrap',
                 plugins_url('assets/js/sirus-bootstrap.js', SIRUS_PLUGIN_FILE),
-                ['sparxstar-sirus-context'],
+                [ 'sparxstar-sirus-context' ],
                 SIRUS_VERSION,
                 true
             );

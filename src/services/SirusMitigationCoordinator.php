@@ -16,20 +16,20 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-use Starisian\Sparxstar\Sirus\helpers\SirusSignalEvaluator;
-use Starisian\Sparxstar\Sirus\helpers\SirusImpactScorer;
-use Starisian\Sparxstar\Sirus\helpers\SirusMitigationRuleEngine;
 use Starisian\Sparxstar\Sirus\helpers\SirusRuleConfig;
+use Starisian\Sparxstar\Sirus\helpers\SirusImpactScorer;
 use Starisian\Sparxstar\Sirus\core\SirusRuleHitRepository;
+use Starisian\Sparxstar\Sirus\helpers\SirusSignalEvaluator;
+use Starisian\Sparxstar\Sirus\helpers\SirusMitigationRuleEngine;
 use Starisian\Sparxstar\Sirus\core\SirusMitigationActionRepository;
 
 /**
  * Coordinates the full adaptive-response pipeline for a single event.
  */
-final class SirusMitigationCoordinator
+final readonly class SirusMitigationCoordinator
 {
     /** Response mode priority (higher index = higher priority). */
-    private const MODE_PRIORITY = ['normal', 'lite', 'degraded'];
+    private const MODE_PRIORITY = [ 'normal', 'lite', 'degraded' ];
 
     /** Minimum confidence score to fire a directive. */
     public const MIN_CONFIDENCE = 0.6;
@@ -47,12 +47,13 @@ final class SirusMitigationCoordinator
     public const KILL_SWITCH_OPTION = 'sirus_mitigation_enabled';
 
     public function __construct(
-        private readonly SirusSignalEvaluator $evaluator,
-        private readonly SirusImpactScorer $scorer,
-        private readonly SirusMitigationRuleEngine $ruleEngine,
-        private readonly SirusRuleHitRepository $ruleHitRepo,
-        private readonly SirusMitigationActionRepository $actionRepo,
-    ) {}
+        private SirusSignalEvaluator $evaluator,
+        private SirusImpactScorer $scorer,
+        private SirusMitigationRuleEngine $ruleEngine,
+        private SirusRuleHitRepository $ruleHitRepo,
+        private SirusMitigationActionRepository $actionRepo,
+    ) {
+    }
 
     /**
      * Full processing pipeline: signals → rules → score → store hit → store action → invalidate cache.
@@ -80,22 +81,26 @@ final class SirusMitigationCoordinator
         $score    = $this->scorer->score($event);
         $severity = $this->scorer->severityFromScore($score);
 
-        $this->ruleHitRepo->insert([
-            'rule_key'   => $match['rule_key'],
-            'signal_key' => $match['signal_key'],
-            'device_id'  => (string) ($event['device_id'] ?? ''),
-            'session_id' => (string) ($event['session_id'] ?? ''),
-            'severity'   => $severity,
-            'action_key' => $match['action_key'],
-        ]);
+        $this->ruleHitRepo->insert(
+            [
+                'rule_key'   => $match['rule_key'],
+                'signal_key' => $match['signal_key'],
+                'device_id'  => (string) ($event['device_id'] ?? ''),
+                'session_id' => (string) ($event['session_id'] ?? ''),
+                'severity'   => $severity,
+                'action_key' => $match['action_key'],
+            ]
+        );
 
-        $this->actionRepo->insert([
-            'action_key'    => $match['action_key'],
-            'device_id'     => (string) ($event['device_id'] ?? ''),
-            'session_id'    => (string) ($event['session_id'] ?? ''),
-            'response_mode' => $match['response_mode'],
-            'expires_at'    => time() + (int) ($match['ttl'] ?? self::DEFAULT_TTL),
-        ]);
+        $this->actionRepo->insert(
+            [
+                'action_key'    => $match['action_key'],
+                'device_id'     => (string) ($event['device_id'] ?? ''),
+                'session_id'    => (string) ($event['session_id'] ?? ''),
+                'response_mode' => $match['response_mode'],
+                'expires_at'    => time() + (int) ($match['ttl'] ?? self::DEFAULT_TTL),
+            ]
+        );
 
         // Invalidate the cached directive for this device+session so it is recomputed fresh.
         $device_id  = (string) ($event['device_id'] ?? '');
@@ -182,7 +187,7 @@ final class SirusMitigationCoordinator
         if ($mode === 'degraded') {
             $degraded_actions = array_filter(
                 $all_actions,
-                fn(array $a) => $this->normalizeMode((string) ($a['response_mode'] ?? 'normal')) === 'degraded'
+                fn (array $a): bool => $this->normalizeMode((string) ($a['response_mode'] ?? 'normal')) === 'degraded'
             );
             if (count($degraded_actions) < self::MIN_SAMPLE_FOR_DEGRADED) {
                 return null;
@@ -232,14 +237,15 @@ final class SirusMitigationCoordinator
                 ],
             ];
         }
+
         $mode = $directive['mode'];
         return [
             'response_mode' => $mode,
-            'actions'       => [$directive['reason']],
+            'actions'       => [ $directive['reason'] ],
             'flags'         => [
-                'disable_waveform'   => in_array($mode, ['degraded'], true),
-                'disable_animations' => in_array($mode, ['degraded', 'lite'], true),
-                'reduce_polling'     => in_array($mode, ['degraded', 'lite'], true),
+                'disable_waveform'   => $mode === 'degraded',
+                'disable_animations' => in_array($mode, [ 'degraded', 'lite' ], true),
+                'reduce_polling'     => in_array($mode, [ 'degraded', 'lite' ], true),
             ],
         ];
     }
@@ -252,6 +258,7 @@ final class SirusMitigationCoordinator
         if (defined('SIRUS_DISABLE_MITIGATION') && (bool) constant('SIRUS_DISABLE_MITIGATION')) {
             return false;
         }
+
         return (bool) get_option(self::KILL_SWITCH_OPTION, true);
     }
 
@@ -262,8 +269,8 @@ final class SirusMitigationCoordinator
     {
         return match ($mode) {
             'degraded', 'safe_mode' => 'degraded',
-            'lightweight', 'lite'   => 'lite',
-            default                 => 'normal',
+            'lightweight', 'lite' => 'lite',
+            default => 'normal',
         };
     }
 
@@ -277,6 +284,7 @@ final class SirusMitigationCoordinator
                 return (float) ($rule['confidence'] ?? self::MIN_CONFIDENCE);
             }
         }
+
         return self::MIN_CONFIDENCE;
     }
 }

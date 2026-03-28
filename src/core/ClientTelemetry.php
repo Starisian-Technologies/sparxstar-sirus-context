@@ -34,7 +34,9 @@ final class ClientTelemetry
     /**
      * @param \wpdb $wpdb WordPress database abstraction object.
      */
-    public function __construct(private readonly \wpdb $wpdb) {}
+    public function __construct(private readonly \wpdb $wpdb)
+    {
+    }
 
     // -------------------------------------------------------------------------
     // Schema management
@@ -91,10 +93,10 @@ final class ClientTelemetry
     /**
      * Records a client error report and updates the aggregation stats table.
      *
-     * @param string      $error_type    Short error type slug (e.g. 'js_error').
-     * @param string      $error_message Human-readable error message.
-     * @param array       $context       Additional structured context.
-     * @param string|null $device_id     Optional device UUID.
+     * @param string $error_type Short error type slug (e.g. 'js_error').
+     * @param string $error_message Human-readable error message.
+     * @param array $context Additional structured context.
+     * @param string|null $device_id Optional device UUID.
      */
     public function record(
         string $error_type,
@@ -102,7 +104,7 @@ final class ClientTelemetry
         array $context = [],
         ?string $device_id = null
     ): void {
-        $site_id    = (int) get_current_blog_id();
+        $site_id = (int) get_current_blog_id();
         // Use a null byte as separator to eliminate delimiter-collision hash attacks
         // (e.g., 'type:msg' vs 'ty:pe:msg' producing the same input).
         $error_hash = hash('sha256', $error_type . "\x00" . $error_message);
@@ -123,7 +125,7 @@ final class ClientTelemetry
                 'error_context' => wp_json_encode($context) ?: '{}',
                 'timestamp'     => $now,
             ],
-            ['%s', '%d', '%s', '%s', '%s', '%s', '%s']
+            [ '%s', '%d', '%s', '%s', '%s', '%s', '%s' ]
         );
 
         // 2. Upsert aggregation stats — increment count, update last_seen.
@@ -146,7 +148,7 @@ final class ClientTelemetry
                     'first_seen' => $now,
                     'last_seen'  => $now,
                 ],
-                ['%s', '%d', '%d', '%s', '%s']
+                [ '%s', '%d', '%d', '%s', '%s' ]
             );
         } else {
             $this->wpdb->update(
@@ -155,9 +157,12 @@ final class ClientTelemetry
                     'count'     => (int) $existing + 1,
                     'last_seen' => $now,
                 ],
-                ['error_hash' => $error_hash, 'site_id' => $site_id],
-                ['%d', '%s'],
-                ['%s', '%d']
+                [
+                    'error_hash' => $error_hash,
+                    'site_id'    => $site_id,
+                ],
+                [ '%d', '%s' ],
+                [ '%s', '%d' ]
             );
         }
     }

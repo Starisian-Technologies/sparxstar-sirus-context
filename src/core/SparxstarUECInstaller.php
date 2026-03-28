@@ -31,7 +31,7 @@ class SparxstarUECInstaller
                 return;
             }
 
-            $sites = get_sites(['number' => 0]);
+            $sites = get_sites([ 'number' => 0 ]);
             foreach ($sites as $site) {
                 $blog_id = (int) $site->blog_id;
 
@@ -39,6 +39,7 @@ class SparxstarUECInstaller
                 self::activate_site($wpdb);
                 restore_current_blog();
             }
+
             return;
         }
 
@@ -59,13 +60,14 @@ class SparxstarUECInstaller
                 return;
             }
 
-            $sites = get_sites(['number' => 0]);
+            $sites = get_sites([ 'number' => 0 ]);
             foreach ($sites as $site) {
                 $blog_id = (int) $site->blog_id;
                 switch_to_blog($blog_id);
                 self::deactivate_site();
                 restore_current_blog();
             }
+
             return;
         }
 
@@ -85,7 +87,7 @@ class SparxstarUECInstaller
 
         global $wpdb;
 
-        $blog_id = $new_site instanceof \WP_Site ? (int) $new_site->blog_id : (int) $new_site;
+        $blog_id = $new_site instanceof \WP_Site ? (int) $new_site->blog_id : $new_site;
 
         switch_to_blog($blog_id);
         self::activate_site($wpdb);

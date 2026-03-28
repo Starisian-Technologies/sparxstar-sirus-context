@@ -16,7 +16,7 @@
  *   3. Calls history.replaceState() to REMOVE the parameter from the URL immediately.
  *      This is a security requirement — the token must never persist in browser history,
  *      server logs, or referrer headers.
-
+*/
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
 
 // Expose fingerprint globally (used by collectors to send visitor_id to the server).

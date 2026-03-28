@@ -1,4 +1,5 @@
 <?php
+
 /**
  * ContextCache - Request-level in-memory cache for the current SirusContext.
  *
@@ -23,7 +24,9 @@ final class ContextCache
     private static ?SirusContext $context = null;
 
     /** Prevent instantiation. */
-    private function __construct() {}
+    private function __construct()
+    {
+    }
 
     /**
      * Returns the cached SirusContext, or null if none has been set.

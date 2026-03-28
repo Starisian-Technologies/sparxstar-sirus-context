@@ -19,15 +19,19 @@ if (! defined('ABSPATH')) {
  */
 final class SirusImpactScorer
 {
-    public const SEVERITY_LOW      = 'low';
-    public const SEVERITY_MEDIUM   = 'medium';
-    public const SEVERITY_HIGH     = 'high';
+    public const SEVERITY_LOW = 'low';
+
+    public const SEVERITY_MEDIUM = 'medium';
+
+    public const SEVERITY_HIGH = 'high';
+
     public const SEVERITY_CRITICAL = 'critical';
 
-    private const CHECKOUT_WEIGHT     = 10;
+    private const CHECKOUT_WEIGHT = 10;
+
     private const SLOW_NETWORK_WEIGHT = 5;
 
-    private const SLOW_NETWORKS = ['slow-2g', '2g', 'slow-3g'];
+    private const SLOW_NETWORKS = [ 'slow-2g', '2g', 'slow-3g' ];
 
     /**
      * Computes an integer impact score for an event + optional cluster context.
@@ -39,9 +43,8 @@ final class SirusImpactScorer
      *
      * For single events (no cluster data), error_count = 1, affected_sessions = 1.
      *
-     * @param array<string, mixed> $event   Event data.
+     * @param array<string, mixed> $event Event data.
      * @param array<string, mixed> $context Optional aggregated cluster context.
-     * @return int
      */
     public function score(array $event, array $context = []): int
     {

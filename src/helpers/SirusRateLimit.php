@@ -25,9 +25,14 @@ if (! defined('ABSPATH')) {
  */
 final class SirusRateLimit
 {
-    private const RATE_LIMIT_WINDOW       = 3600; // 1 hour
-    private const RATE_LIMIT_MAX          = 200;  // events per dimension per hour
-    private const KEY_PREFIX              = 'sirus_rl_';
+    private const RATE_LIMIT_WINDOW = 3600;
+
+    // 1 hour
+    private const RATE_LIMIT_MAX = 200;
+
+    // events per dimension per hour
+    private const KEY_PREFIX = 'sirus_rl_';
+
     /**
      * Extra TTL added beyond the window to guard against clock drift and
      * ensure WP's transient GC does not prune entries mid-window.
@@ -45,8 +50,8 @@ final class SirusRateLimit
      * Both counters are incremented only when both dimensions pass, preventing
      * over-counting when one dimension blocks.
      *
-     * @param string $device_id  The device identifier (client-supplied).
-     * @param string $ip_subnet  Anonymous IP subnet from IpAnonymizer::ipSubnet() (optional).
+     * @param string $device_id The device identifier (client-supplied).
+     * @param string $ip_subnet Anonymous IP subnet from IpAnonymizer::ipSubnet() (optional).
      * @return bool True when the request is within both limits.
      */
     public function allow(string $device_id, string $ip_subnet = ''): bool
@@ -58,6 +63,7 @@ final class SirusRateLimit
         if ($this->isAtLimit($device_key)) {
             return false;
         }
+
         if ($ip_key !== '' && $this->isAtLimit($ip_key)) {
             return false;
         }
@@ -76,7 +82,6 @@ final class SirusRateLimit
      * Does not modify any stored value.
      *
      * @param string $key Fully-formed transient key.
-     * @return bool
      */
     private function isAtLimit(string $key): bool
     {
@@ -86,7 +91,10 @@ final class SirusRateLimit
             return false;
         }
 
-        $data  = is_array($data) ? $data : ['count' => 0, 'window_start' => time()];
+        $data = is_array($data) ? $data : [
+            'count'        => 0,
+            'window_start' => time(),
+        ];
         $start = (int) ($data['window_start'] ?? time());
         $count = (int) ($data['count'] ?? 0);
 
@@ -109,17 +117,34 @@ final class SirusRateLimit
         $data = get_transient($key);
 
         if ($data === false) {
-            set_transient($key, ['count' => 1, 'window_start' => time()], self::RATE_LIMIT_WINDOW + self::RATE_LIMIT_GRACE_PERIOD);
+            set_transient(
+                $key,
+                [
+                    'count'        => 1,
+                    'window_start' => time(),
+                ],
+                self::RATE_LIMIT_WINDOW + self::RATE_LIMIT_GRACE_PERIOD
+            );
             return;
         }
 
-        $data  = is_array($data) ? $data : ['count' => 0, 'window_start' => time()];
+        $data = is_array($data) ? $data : [
+            'count'        => 0,
+            'window_start' => time(),
+        ];
         $start = (int) ($data['window_start'] ?? time());
         $count = (int) ($data['count'] ?? 0);
 
         if ((time() - $start) >= self::RATE_LIMIT_WINDOW) {
             // Window expired — reset.
-            set_transient($key, ['count' => 1, 'window_start' => time()], self::RATE_LIMIT_WINDOW + self::RATE_LIMIT_GRACE_PERIOD);
+            set_transient(
+                $key,
+                [
+                    'count'        => 1,
+                    'window_start' => time(),
+                ],
+                self::RATE_LIMIT_WINDOW + self::RATE_LIMIT_GRACE_PERIOD
+            );
             return;
         }
 

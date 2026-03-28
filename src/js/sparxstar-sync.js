@@ -12,9 +12,9 @@
     window.SPARXSTAR = window.SPARXSTAR || {};
 
     const localized = window.sparxstarUserEnvData || {};
-    const nonce     = localized.nonce || '';
-    const restUrls  = localized.rest_urls || {};
-    const debug     = !!localized.debug;
+    const nonce = localized.nonce || '';
+    const restUrls = localized.rest_urls || {};
+    const debug = !!localized.debug;
 
     const log = (msg, data) => {
         if (debug && window.console && console.debug) {
@@ -24,7 +24,7 @@
 
     function send(endpointUrl, payload) {
         if (!endpointUrl) return log('Missing endpoint URL.');
-        if (!nonce)       return log('Missing nonce.');
+        if (!nonce) return log('Missing nonce.');
 
         const json = JSON.stringify(payload || {});
 
@@ -33,25 +33,29 @@
             // -------------------------------------------------------
             // 1. AUTHENTICATION FIX (Admin View)
             // -------------------------------------------------------
-            credentials: 'same-origin', 
-            
+            credentials: 'same-origin',
+
             headers: {
                 'Content-Type': 'application/json',
-                'X-WP-Nonce': nonce
+                'X-WP-Nonce': nonce,
             },
             body: json,
-            keepalive: true
+            keepalive: true,
         })
-            .then(response => {
+            .then((response) => {
                 if (!response.ok) {
-                    console.error('[SPARXSTAR Sync] Server Error:', response.status, response.statusText);
+                    console.error(
+                        '[SPARXSTAR Sync] Server Error:',
+                        response.status,
+                        response.statusText
+                    );
                 }
                 return response.json();
             })
-            .then(data => {
+            .then((data) => {
                 log('Sent successfully.', { endpointUrl, serverResponse: data });
             })
-            .catch(err => {
+            .catch((err) => {
                 console.error('[SPARXSTAR Sync] Fetch failed:', err);
                 log('Fetch failed.', err.message);
             });
@@ -69,11 +73,11 @@
                     session_id: sessionId || '',
                     // Note: Device Hash is recalculated by PHP v2.1 using Client Hints,
                     // but we send it here for completeness/legacy support.
-                    device_hash: deviceHash || ''
+                    device_hash: deviceHash || '',
                 },
                 // Merge the specific technical/identity data into the main object
-                ...customData
-            }
+                ...customData,
+            },
         };
     }
 
@@ -86,12 +90,9 @@
         // 2. STRUCTURE FIX (PHP Compatibility)
         // Wrap data in 'client_side_data' so PHP finds it.
         // -------------------------------------------------------
-        const payload = wrapForController(
-            fingerprint, 
-            deviceHash, 
-            sessionId, 
-            { technical: technicalData || {} }
-        );
+        const payload = wrapForController(fingerprint, deviceHash, sessionId, {
+            technical: technicalData || {},
+        });
 
         send(restUrls.technical, payload);
     }
@@ -101,19 +102,15 @@
             return log('Identifiers endpoint missing.');
         }
 
-        const payload = wrapForController(
-            fingerprint, 
-            deviceHash, 
-            sessionId, 
-            { identifiers_extra: identifiersData || {} }
-        );
+        const payload = wrapForController(fingerprint, deviceHash, sessionId, {
+            identifiers_extra: identifiersData || {},
+        });
 
         send(restUrls.identifiers, payload);
     }
 
     window.SPARXSTAR.Sync = {
         sendTechnicalSnapshot,
-        sendIdentifyingSnapshot
+        sendIdentifyingSnapshot,
     };
-
 })(window);

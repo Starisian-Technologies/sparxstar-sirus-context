@@ -34,6 +34,7 @@ final class SirusMitigationRuleEngine
             if (! in_array($rule['signal_key'], $signals, true)) {
                 continue;
             }
+
             $matches[] = $rule;
         }
 
@@ -41,7 +42,7 @@ final class SirusMitigationRuleEngine
             return null;
         }
 
-        usort($matches, static fn(array $a, array $b): int => (int) $b['priority'] <=> (int) $a['priority']);
+        usort($matches, static fn (array $a, array $b): int => (int) $b['priority'] <=> (int) $a['priority']);
 
         return $matches[0];
     }

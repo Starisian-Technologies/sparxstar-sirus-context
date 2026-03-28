@@ -202,16 +202,16 @@
         },
         {
             "name": "maxmind/web-service-common",
-            "version": "v0.11.0",
+            "version": "v0.11.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/maxmind/web-service-common-php.git",
-                "reference": "5b9e3d3472213361eebdb3ab8879e91b8952091b"
+                "reference": "c309236b5a5555b96cf560089ec3cead12d845d2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/maxmind/web-service-common-php/zipball/5b9e3d3472213361eebdb3ab8879e91b8952091b",
-                "reference": "5b9e3d3472213361eebdb3ab8879e91b8952091b",
+                "url": "https://api.github.com/repos/maxmind/web-service-common-php/zipball/c309236b5a5555b96cf560089ec3cead12d845d2",
+                "reference": "c309236b5a5555b96cf560089ec3cead12d845d2",
                 "shasum": ""
             },
             "require": {
@@ -223,7 +223,7 @@
             "require-dev": {
                 "friendsofphp/php-cs-fixer": "3.*",
                 "phpstan/phpstan": "*",
-                "phpunit/phpunit": "^8.0 || ^9.0",
+                "phpunit/phpunit": "^10.0",
                 "squizlabs/php_codesniffer": "4.*"
             },
             "type": "library",
@@ -247,28 +247,28 @@
             "homepage": "https://github.com/maxmind/web-service-common-php",
             "support": {
                 "issues": "https://github.com/maxmind/web-service-common-php/issues",
-                "source": "https://github.com/maxmind/web-service-common-php/tree/v0.11.0"
+                "source": "https://github.com/maxmind/web-service-common-php/tree/v0.11.1"
             },
-            "time": "2025-11-20T18:33:17+00:00"
+            "time": "2026-01-13T17:56:03+00:00"
         }
     ],
     "packages-dev": [
         {
             "name": "automattic/eslint-changed",
-            "version": "v2.1.5",
+            "version": "v2.1.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Automattic/eslint-changed.git",
-                "reference": "c9962ffed6426933ef01fb48dd06a466b5de3c2d"
+                "reference": "110db23460171a8388e426b1b38e78e97a172e4c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Automattic/eslint-changed/zipball/c9962ffed6426933ef01fb48dd06a466b5de3c2d",
-                "reference": "c9962ffed6426933ef01fb48dd06a466b5de3c2d",
+                "url": "https://api.github.com/repos/Automattic/eslint-changed/zipball/110db23460171a8388e426b1b38e78e97a172e4c",
+                "reference": "110db23460171a8388e426b1b38e78e97a172e4c",
                 "shasum": ""
             },
             "require-dev": {
-                "automattic/jetpack-changelogger": "^6.0.11"
+                "automattic/jetpack-changelogger": "^6.0.14"
             },
             "type": "library",
             "extra": {
@@ -288,9 +288,9 @@
             ],
             "description": "description",
             "support": {
-                "source": "https://github.com/Automattic/eslint-changed/tree/v2.1.5"
+                "source": "https://github.com/Automattic/eslint-changed/tree/v2.1.6"
             },
-            "time": "2025-12-04T16:37:37+00:00"
+            "time": "2026-02-24T19:06:52+00:00"
         },
         {
             "name": "automattic/eslint-config-target-es",
@@ -1823,16 +1823,16 @@
         },
         {
             "name": "phpcsstandards/phpcsutils",
-            "version": "1.2.1",
+            "version": "1.2.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PHPCSStandards/PHPCSUtils.git",
-                "reference": "d71128c702c180ca3b27c761b6773f883394f162"
+                "reference": "c216317e96c8b3f5932808f9b0f1f7a14e3bbf55"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PHPCSStandards/PHPCSUtils/zipball/d71128c702c180ca3b27c761b6773f883394f162",
-                "reference": "d71128c702c180ca3b27c761b6773f883394f162",
+                "url": "https://api.github.com/repos/PHPCSStandards/PHPCSUtils/zipball/c216317e96c8b3f5932808f9b0f1f7a14e3bbf55",
+                "reference": "c216317e96c8b3f5932808f9b0f1f7a14e3bbf55",
                 "shasum": ""
             },
             "require": {
@@ -1912,7 +1912,7 @@
                     "type": "thanks_dev"
                 }
             ],
-            "time": "2025-11-17T12:58:33+00:00"
+            "time": "2025-12-08T14:27:58+00:00"
         },
         {
             "name": "phpstan/extension-installer",
@@ -1964,11 +1964,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.1.42",
+            "version": "2.1.44",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/1279e1ce86ba768f0780c9d889852b4e02ff40d0",
-                "reference": "1279e1ce86ba768f0780c9d889852b4e02ff40d0",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/4a88c083c668b2c364a425c9b3171b2d9ea5d218",
+                "reference": "4a88c083c668b2c364a425c9b3171b2d9ea5d218",
                 "shasum": ""
             },
             "require": {
@@ -2013,7 +2013,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-03-17T14:58:32+00:00"
+            "time": "2026-03-25T17:34:21+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",

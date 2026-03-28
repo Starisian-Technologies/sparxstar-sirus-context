@@ -141,18 +141,18 @@ final class SparxstarUECAdmin
         StarUserEnv::allow_snapshot_if_none_exist();
 
         ob_start();
-?>
-        <div class="wrap">
-            <h1><?php esc_html_e('SPARXSTAR Sirus Settings', 'sparxstar-user-environment-check'); ?></h1>
-            <form action="options.php" method="post">
-                <?php
-                settings_fields('sparxstar_uec_options_group');
-                do_settings_sections(self::PAGE_SLUG);
-                submit_button(esc_html__('Save Settings', 'sparxstar-user-environment-check'));
-                ?>
-            </form>
-        </div>
-    <?php
+        ?>
+		<div class="wrap">
+			<h1><?php esc_html_e('SPARXSTAR Sirus Settings', 'sparxstar-user-environment-check'); ?></h1>
+			<form action="options.php" method="post">
+				<?php
+                        settings_fields('sparxstar_uec_options_group');
+        do_settings_sections(self::PAGE_SLUG);
+        submit_button(esc_html__('Save Settings', 'sparxstar-user-environment-check'));
+        ?>
+			</form>
+		</div>
+		<?php
         echo ob_get_clean();
     }
 
@@ -162,22 +162,22 @@ final class SparxstarUECAdmin
     public function render_provider_field(): void
     {
         $provider = get_option(self::OPTION_KEY_PROVIDER, 'none');
-    ?>
-        <select name="<?php echo esc_attr(self::OPTION_KEY_PROVIDER); ?>">
-            <option value="none" <?php selected($provider, 'none'); ?>>
-                <?php esc_html_e('None (Disabled)', 'sparxstar-user-environment-check'); ?>
-            </option>
-            <option value="ipinfo" <?php selected($provider, 'ipinfo'); ?>>
-                <?php esc_html_e('ipinfo.io (API)', 'sparxstar-user-environment-check'); ?>
-            </option>
-            <option value="maxmind" <?php selected($provider, 'maxmind'); ?>>
-                <?php esc_html_e('MaxMind GeoIP2 (Local Database)', 'sparxstar-user-environment-check'); ?>
-            </option>
-        </select>
-        <p class="description">
-            <?php esc_html_e('Select your preferred GeoIP lookup provider.', 'sparxstar-user-environment-check'); ?>
-        </p>
-<?php
+        ?>
+		<select name="<?php echo esc_attr(self::OPTION_KEY_PROVIDER); ?>">
+			<option value="none" <?php selected($provider, 'none'); ?>>
+				<?php esc_html_e('None (Disabled)', 'sparxstar-user-environment-check'); ?>
+			</option>
+			<option value="ipinfo" <?php selected($provider, 'ipinfo'); ?>>
+				<?php esc_html_e('ipinfo.io (API)', 'sparxstar-user-environment-check'); ?>
+			</option>
+			<option value="maxmind" <?php selected($provider, 'maxmind'); ?>>
+				<?php esc_html_e('MaxMind GeoIP2 (Local Database)', 'sparxstar-user-environment-check'); ?>
+			</option>
+		</select>
+		<p class="description">
+			<?php esc_html_e('Select your preferred GeoIP lookup provider.', 'sparxstar-user-environment-check'); ?>
+		</p>
+		<?php
     }
 
     /**
@@ -258,7 +258,10 @@ final class SparxstarUECAdmin
                 StarLogger::error(
                     'SparxstarUECAdmin',
                     $display_error,
-                    ['method' => 'render_snapshot_viewer_section', 'context' => 'snapshot_display']
+                    [
+                        'method'  => 'render_snapshot_viewer_section',
+                        'context' => 'snapshot_display',
+                    ]
                 );
 
                 echo '<div class="notice notice-error inline">';
@@ -270,7 +273,10 @@ final class SparxstarUECAdmin
             StarLogger::error(
                 'SparxstarUECAdmin',
                 $throwable,
-                ['method' => 'render_snapshot_viewer_section', 'context' => 'snapshot_retrieval']
+                [
+                    'method'  => 'render_snapshot_viewer_section',
+                    'context' => 'snapshot_retrieval',
+                ]
             );
 
             echo '<div class="notice notice-error inline">';

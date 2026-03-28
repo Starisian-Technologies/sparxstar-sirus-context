@@ -21,15 +21,19 @@ if (! defined('ABSPATH')) {
 /**
  * Compiles raw sirus_events into pre-aggregated summary rows.
  */
-final class SirusEventAggregator
+final readonly class SirusEventAggregator
 {
-    public const CRON_HOOK         = 'sirus_aggregate_events';
+    public const CRON_HOOK = 'sirus_aggregate_events';
+
     public const CRON_INTERVAL_SEC = 300; // 5 minutes
 
     private const BUCKET_5M = '5m';
+
     private const BUCKET_1H = '1h';
 
-    public function __construct(private readonly \wpdb $wpdb) {}
+    public function __construct(private \wpdb $wpdb)
+    {
+    }
 
     /**
      * Schedules the 5-minute aggregation cron if not already scheduled.
@@ -73,8 +77,8 @@ final class SirusEventAggregator
      * Returns aggregate rows for a given bucket size since a given timestamp.
      *
      * @param string $bucket_size '5m' or '1h'
-     * @param int    $since       Unix timestamp lower bound for bucket_start.
-     * @param int    $limit       Max rows to return.
+     * @param int $since Unix timestamp lower bound for bucket_start.
+     * @param int $limit Max rows to return.
      * @return array<int, array<string, mixed>>
      */
     public function getAggregates(string $bucket_size, int $since, int $limit = 200): array
@@ -82,7 +86,7 @@ final class SirusEventAggregator
         $table = $this->wpdb->prefix . 'sirus_event_aggregates';
 
         $sql = $this->wpdb->prepare(
-            "SELECT id, bucket_start, bucket_size, site_id, event_type, browser, device_type, network, event_count, session_count FROM {$table} WHERE bucket_size = %s AND bucket_start >= %d ORDER BY bucket_start DESC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            sprintf('SELECT id, bucket_start, bucket_size, site_id, event_type, browser, device_type, network, event_count, session_count FROM %s WHERE bucket_size = %%s AND bucket_start >= %%d ORDER BY bucket_start DESC LIMIT %%d', $table), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $bucket_size,
             $since,
             $limit
@@ -102,7 +106,7 @@ final class SirusEventAggregator
 
         $this->wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             $this->wpdb->prepare(
-                "DELETE FROM {$table} WHERE bucket_start < %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                'DELETE FROM %s WHERE bucket_start < ' . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                 $threshold
             )
         );
@@ -112,8 +116,8 @@ final class SirusEventAggregator
      * Compiles events from the given bucket window into aggregate rows.
      *
      * @param string $bucket_size Bucket label ('5m' or '1h').
-     * @param int    $window_secs Window size in seconds.
-     * @param int    $now         Reference timestamp (defaults to current time if 0).
+     * @param int $window_secs Window size in seconds.
+     * @param int $now Reference timestamp (defaults to current time if 0).
      */
     private function compile_bucket(string $bucket_size, int $window_secs, int $now = 0): void
     {

@@ -22,9 +22,9 @@ if (! defined('ABSPATH')) {
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
-use Starisian\Sparxstar\Sirus\core\SirusEventRepository;
 use Starisian\Sparxstar\Sirus\helpers\IpAnonymizer;
 use Starisian\Sparxstar\Sirus\helpers\SirusRateLimit;
+use Starisian\Sparxstar\Sirus\core\SirusEventRepository;
 use Starisian\Sparxstar\Sirus\services\SirusMitigationCoordinator;
 
 /**
@@ -36,15 +36,16 @@ final class SirusEventController
     private const NAMESPACE = 'sirus/v1';
 
     /**
-     * @param SirusEventRepository            $repository   The event data access layer.
-     * @param SirusMitigationCoordinator|null $coordinator  Optional mitigation coordinator.
-     * @param SirusRateLimit|null             $rateLimiter  Optional rate limiter.
+     * @param SirusEventRepository $repository The event data access layer.
+     * @param SirusMitigationCoordinator|null $coordinator Optional mitigation coordinator.
+     * @param SirusRateLimit|null $rateLimiter Optional rate limiter.
      */
     public function __construct(
         private readonly SirusEventRepository $repository,
         private readonly ?SirusMitigationCoordinator $coordinator = null,
         private readonly ?SirusRateLimit $rateLimiter = null,
-    ) {}
+    ) {
+    }
 
     /**
      * Permission callback: verifies the WordPress REST nonce before accepting an event.
@@ -70,7 +71,7 @@ final class SirusEventController
             return new WP_Error(
                 'sirus_rest_nonce_missing',
                 __('REST nonce is missing.', 'sparxstar-sirus'),
-                ['status' => 403]
+                [ 'status' => 403 ]
             );
         }
 
@@ -78,7 +79,7 @@ final class SirusEventController
             return new WP_Error(
                 'sirus_rest_nonce_invalid',
                 __('REST nonce is invalid or expired.', 'sparxstar-sirus'),
-                ['status' => 403]
+                [ 'status' => 403 ]
             );
         }
 
@@ -95,14 +96,14 @@ final class SirusEventController
             '/event',
             [
                 'methods'             => 'POST',
-                'callback'            => [$this, 'create_event'],
-                'permission_callback' => [$this, 'verify_rest_nonce'],
+                'callback'            => [ $this, 'create_event' ],
+                'permission_callback' => [ $this, 'verify_rest_nonce' ],
                 'args'                => [
                     'event_type' => [
                         'required'          => true,
                         'type'              => 'string',
                         'sanitize_callback' => 'sanitize_text_field',
-                        'validate_callback' => [self::class, 'validate_event_type'],
+                        'validate_callback' => [ self::class, 'validate_event_type' ],
                     ],
                     'timestamp' => [
                         'required'          => true,
@@ -172,7 +173,7 @@ final class SirusEventController
             return new WP_Error(
                 'sirus_event_missing_event_type',
                 __('event_type is required.', 'sparxstar-sirus'),
-                ['status' => 400]
+                [ 'status' => 400 ]
             );
         }
 
@@ -180,7 +181,7 @@ final class SirusEventController
             return new WP_Error(
                 'sirus_event_invalid_event_type',
                 __('event_type is not a recognised value.', 'sparxstar-sirus'),
-                ['status' => 400]
+                [ 'status' => 400 ]
             );
         }
 
@@ -188,7 +189,7 @@ final class SirusEventController
             return new WP_Error(
                 'sirus_event_missing_timestamp',
                 __('timestamp is required and must be a positive integer.', 'sparxstar-sirus'),
-                ['status' => 400]
+                [ 'status' => 400 ]
             );
         }
 
@@ -196,7 +197,7 @@ final class SirusEventController
             return new WP_Error(
                 'sirus_event_missing_device_id',
                 __('device_id is required.', 'sparxstar-sirus'),
-                ['status' => 400]
+                [ 'status' => 400 ]
             );
         }
 
@@ -204,7 +205,7 @@ final class SirusEventController
             return new WP_Error(
                 'sirus_event_invalid_device_id',
                 __('device_id format is invalid.', 'sparxstar-sirus'),
-                ['status' => 400]
+                [ 'status' => 400 ]
             );
         }
 
@@ -219,7 +220,7 @@ final class SirusEventController
                 return new WP_Error(
                     'sirus_event_rate_limited',
                     __('Rate limit exceeded. Please slow down.', 'sparxstar-sirus'),
-                    ['status' => 429]
+                    [ 'status' => 429 ]
                 );
             }
         }
@@ -228,7 +229,7 @@ final class SirusEventController
             return new WP_Error(
                 'sirus_event_missing_session_id',
                 __('session_id is required.', 'sparxstar-sirus'),
-                ['status' => 400]
+                [ 'status' => 400 ]
             );
         }
 
@@ -264,14 +265,14 @@ final class SirusEventController
         $id = $this->repository->insert($event);
 
         if ($id === SirusEventRepository::DEDUP_SKIPPED) {
-            return new WP_REST_Response(['status' => 'deduplicated'], 200);
+            return new WP_REST_Response([ 'status' => 'deduplicated' ], 200);
         }
 
         if ($id === 0) {
             return new WP_Error(
                 'sirus_event_insert_failed',
                 __('Failed to record event.', 'sparxstar-sirus'),
-                ['status' => 500]
+                [ 'status' => 500 ]
             );
         }
 
@@ -279,7 +280,13 @@ final class SirusEventController
             $this->coordinator->processEvent($event);
         }
 
-        return new WP_REST_Response(['id' => $id, 'status' => 'recorded'], 201);
+        return new WP_REST_Response(
+            [
+                'id'     => $id,
+                'status' => 'recorded',
+            ],
+            201
+        );
     }
 
     /**
@@ -294,7 +301,7 @@ final class SirusEventController
             return new WP_Error(
                 'sirus_event_invalid_type',
                 __('event_type must be a string.', 'sparxstar-sirus'),
-                ['status' => 400]
+                [ 'status' => 400 ]
             );
         }
 
@@ -306,7 +313,7 @@ final class SirusEventController
                     __('Unknown event_type: %s', 'sparxstar-sirus'),
                     $value
                 ),
-                ['status' => 400]
+                [ 'status' => 400 ]
             );
         }
 
@@ -346,15 +353,15 @@ final class SirusEventController
             }
 
             if (is_array($value)) {
-                $clean[$safe_key] = $this->sanitize_json_object($value);
+                $clean[ $safe_key ] = $this->sanitize_json_object($value);
             } elseif (is_int($value) || is_float($value)) {
-                $clean[$safe_key] = $value;
+                $clean[ $safe_key ] = $value;
             } elseif (is_bool($value)) {
-                $clean[$safe_key] = $value;
+                $clean[ $safe_key ] = $value;
             } elseif ($value === null) {
-                $clean[$safe_key] = null;
+                $clean[ $safe_key ] = null;
             } else {
-                $clean[$safe_key] = sanitize_text_field(wp_unslash((string) $value));
+                $clean[ $safe_key ] = sanitize_text_field(wp_unslash((string) $value));
             }
         }
 

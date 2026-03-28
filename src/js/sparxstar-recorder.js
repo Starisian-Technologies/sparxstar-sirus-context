@@ -11,7 +11,7 @@
 
     /**
      * Log a recorder event with environment context.
-     * 
+     *
      * @param {Object} eventData - Event data from external plugins
      */
     window.SPARXSTAR.logRecorderEvent = function (eventData) {
@@ -22,9 +22,8 @@
             }
 
             // Get minimal environment snapshot (not full State - too large)
-            const baseEnv = window.SPARXSTAR && window.SPARXSTAR.State 
-                ? window.SPARXSTAR.State 
-                : null;
+            const baseEnv =
+                window.SPARXSTAR && window.SPARXSTAR.State ? window.SPARXSTAR.State : null;
 
             // Safe environment extraction - handles incomplete/partial State objects
             const env = (() => {
@@ -40,7 +39,7 @@
                 return {
                     deviceClass: profile.deviceClass || null,
                     networkProfile: profile.networkProfile || null,
-                    browser: browserData.name || null
+                    browser: browserData.name || null,
                 };
             })();
 
@@ -52,9 +51,9 @@
                     onLine: navigator.onLine,
                     effectiveType: navigator.connection?.effectiveType || 'unknown',
                     rtt: navigator.connection?.rtt || null,
-                    saveData: navigator.connection?.saveData || false
+                    saveData: navigator.connection?.saveData || false,
                 },
-                event: eventData || {}
+                event: eventData || {},
             };
 
             const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
@@ -68,10 +67,10 @@
                 fetch(window.sparxstarUECRecorderLog.endpoint, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
                     },
                     body: JSON.stringify(payload),
-                    keepalive: true
+                    keepalive: true,
                 }).catch(() => {
                     // Silent fail - don't break the page
                 });
@@ -92,7 +91,9 @@
             // Still expose SPARXSTAR.Recorder for manual logs.
             if (!window.SPARXSTAR.__warnedNoStarmus) {
                 if (window.sparxstarUserEnvData && window.sparxstarUserEnvData.debug) {
-                    console.info('[SparxstarUEC] Starmus not detected. Running in standalone mode.');
+                    console.info(
+                        '[SparxstarUEC] Starmus not detected. Running in standalone mode.'
+                    );
                 }
                 window.SPARXSTAR.__warnedNoStarmus = true;
             }
@@ -110,14 +111,12 @@
             return;
         }
 
-        window.StarmusHooks.addAction(
-            'starmus_event',
-            'UECRecorderMonitor',
-            (data) => window.SPARXSTAR.logRecorderEvent(data)
+        window.StarmusHooks.addAction('starmus_event', 'UECRecorderMonitor', (data) =>
+            window.SPARXSTAR.logRecorderEvent(data)
         );
 
         window.SPARXSTAR.__listenerAttached = true;
-        
+
         if (window.sparxstarUserEnvData && window.sparxstarUserEnvData.debug) {
             console.info('[SparxstarUEC] Starmus event listener attached.');
         }
@@ -125,7 +124,6 @@
 
     // Export to SPARXSTAR namespace
     window.SPARXSTAR.Recorder = {
-        logEvent: window.SPARXSTAR.logRecorderEvent
+        logEvent: window.SPARXSTAR.logRecorderEvent,
     };
-
 })(window);

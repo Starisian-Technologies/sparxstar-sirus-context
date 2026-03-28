@@ -18,9 +18,11 @@ if (! defined('ABSPATH')) {
  * Provides strict read/write access to the sirus_mitigation_actions table.
  * All queries are prepared. No business logic lives here.
  */
-final class SirusMitigationActionRepository
+final readonly class SirusMitigationActionRepository
 {
-    public function __construct(private readonly \wpdb $wpdb) {}
+    public function __construct(private \wpdb $wpdb)
+    {
+    }
 
     /**
      * Inserts a new mitigation action row.
@@ -37,18 +39,18 @@ final class SirusMitigationActionRepository
             : null;
 
         $row = [
-            'action_key'   => (string) ($action['action_key'] ?? ''),
-            'site_id'      => (int) get_current_blog_id(),
-            'device_id'    => (string) ($action['device_id'] ?? ''),
-            'session_id'   => (string) ($action['session_id'] ?? ''),
-            'response_mode'=> (string) ($action['response_mode'] ?? 'normal'),
-            'payload_json' => $payload,
-            'status'       => 'active',
-            'expires_at'   => isset($action['expires_at']) ? (int) $action['expires_at'] : null,
-            'created_at'   => time(),
+            'action_key'    => (string) ($action['action_key'] ?? ''),
+            'site_id'       => (int) get_current_blog_id(),
+            'device_id'     => (string) ($action['device_id'] ?? ''),
+            'session_id'    => (string) ($action['session_id'] ?? ''),
+            'response_mode' => (string) ($action['response_mode'] ?? 'normal'),
+            'payload_json'  => $payload,
+            'status'        => 'active',
+            'expires_at'    => isset($action['expires_at']) ? (int) $action['expires_at'] : null,
+            'created_at'    => time(),
         ];
 
-        $formats = ['%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d'];
+        $formats = [ '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d' ];
 
         $result = $this->wpdb->insert($table, $row, $formats);
 
@@ -70,7 +72,7 @@ final class SirusMitigationActionRepository
         $now   = time();
 
         $sql = $this->wpdb->prepare(
-            "SELECT * FROM {$table} WHERE device_id = %s AND status = 'active' AND (expires_at IS NULL OR expires_at > %d)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            sprintf("SELECT * FROM %s WHERE device_id = %%s AND status = 'active' AND (expires_at IS NULL OR expires_at > %%d)", $table), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $deviceId,
             $now
         );
@@ -91,7 +93,7 @@ final class SirusMitigationActionRepository
         $now   = time();
 
         $sql = $this->wpdb->prepare(
-            "SELECT * FROM {$table} WHERE session_id = %s AND status = 'active' AND (expires_at IS NULL OR expires_at > %d)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            sprintf("SELECT * FROM %s WHERE session_id = %%s AND status = 'active' AND (expires_at IS NULL OR expires_at > %%d)", $table), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $sessionId,
             $now
         );
@@ -111,7 +113,7 @@ final class SirusMitigationActionRepository
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $this->wpdb->query(
             $this->wpdb->prepare(
-                "UPDATE {$table} SET status = 'expired', expires_at = %d WHERE id = %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                "UPDATE %s SET status = 'expired', expires_at = %d WHERE id = " . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                 time(),
                 $actionId
             )
@@ -131,7 +133,7 @@ final class SirusMitigationActionRepository
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $result = $this->wpdb->query(
             $this->wpdb->prepare(
-                "DELETE FROM {$table} WHERE created_at < %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                'DELETE FROM %s WHERE created_at < ' . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                 $cutoff
             )
         );

@@ -22,7 +22,7 @@ final class SparxstarUECCacheHelper
 {
     private const GROUP = 'sparxstar_env';
 
-    private const TTL   = DAY_IN_SECONDS;
+    private const TTL = DAY_IN_SECONDS;
 
     /**
 Retrieve a snapshot from the object cache.

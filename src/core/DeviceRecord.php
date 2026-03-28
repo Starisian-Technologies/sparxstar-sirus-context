@@ -29,30 +29,31 @@ if (! defined('ABSPATH')) {
 /**
  * Immutable value object representing a persisted device record.
  */
-final class DeviceRecord
+final readonly class DeviceRecord
 {
     /**
      * Constructs a new DeviceRecord.
      *
-     * @param string $device_id        UUID identifying this device (server-issued).
-     * @param string $device_secret    64-char hex secret returned to client on registration.
+     * @param string $device_id UUID identifying this device (server-issued).
+     * @param string $device_secret 64-char hex secret returned to client on registration.
      * @param string $fingerprint_hash SHA-256 hash of the client fingerprint (soft signal).
      * @param string $environment_json JSON-encoded environment data snapshot.
-     * @param int    $first_seen       Unix timestamp of first registration.
-     * @param int    $last_seen        Unix timestamp of most recent activity.
-     * @param string $trust_level      Current trust level for this device.
-     * @param int    $drift_score      Number of fingerprint changes detected (default 0).
+     * @param int $first_seen Unix timestamp of first registration.
+     * @param int $last_seen Unix timestamp of most recent activity.
+     * @param string $trust_level Current trust level for this device.
+     * @param int $drift_score Number of fingerprint changes detected (default 0).
      */
     public function __construct(
-        public readonly string $device_id,
-        public readonly string $device_secret,
-        public readonly string $fingerprint_hash,
-        public readonly string $environment_json,
-        public readonly int    $first_seen,
-        public readonly int    $last_seen,
-        public readonly string $trust_level,
-        public readonly int    $drift_score = 0,
-    ) {}
+        public string $device_id,
+        public string $device_secret,
+        public string $fingerprint_hash,
+        public string $environment_json,
+        public int $first_seen,
+        public int $last_seen,
+        public string $trust_level,
+        public int $drift_score = 0,
+    ) {
+    }
 
     /**
      * Returns true if the device has been seen within the configured TTL window.

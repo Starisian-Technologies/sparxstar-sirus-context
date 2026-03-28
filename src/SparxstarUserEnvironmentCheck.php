@@ -20,7 +20,6 @@ use LogicException;
 use Starisian\SparxstarUEC\helpers\StarLogger;
 use Starisian\SparxstarUEC\core\SparxstarUECKernel;
 use Starisian\SparxstarUEC\api\SparxstarUECRESTController;
-use Starisian\SparxstarUEC\StarUserEnv;
 
 /**
  * Orchestrates plugin services and exposes shared dependencies.
@@ -84,7 +83,7 @@ final class SparxstarUserEnvironmentCheck
             StarLogger::info('SparxstarUserEnvironmentCheck', 'Kernel initialized services successfully.');
             $this->register_hooks();
         } catch (Throwable $throwable) {
-            StarLogger::log('SparxstarUserEnvironmentCheck', $throwable, 'error', ['method' => '__construct']);
+            StarLogger::log('SparxstarUserEnvironmentCheck', $throwable, 'error', [ 'method' => '__construct' ]);
             return;
         }
     }
@@ -99,9 +98,12 @@ final class SparxstarUserEnvironmentCheck
             add_action('send_headers', $this->add_client_hints_header(...));
 
             // Allow snapshot regeneration if none exists (after frontend is loaded)
-            add_action('wp', function (): void {
-                \Starisian\SparxstarUEC\StarUserEnv::allow_snapshot_if_none_exist();
-            });
+            add_action(
+                'wp',
+                function (): void {
+                    \Starisian\SparxstarUEC\StarUserEnv::allow_snapshot_if_none_exist();
+                }
+            );
 
             if ($this->api instanceof SparxstarUECRESTController) {
                 add_action('rest_api_init', $this->api->register_routes(...));

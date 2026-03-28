@@ -1,4 +1,5 @@
 <?php
+
 /**
  * UECCompatibilityShim - Registers backward-compatibility aliases for the old namespace.
  *

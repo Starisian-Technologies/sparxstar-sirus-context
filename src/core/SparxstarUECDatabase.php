@@ -38,8 +38,6 @@ final readonly class SparxstarUECDatabase
 
     /**
      * Database adapter scoped to the current blog context.
-     *
-     * @var \wpdb
      */
     private \wpdb $wpdb;
 
@@ -101,6 +99,7 @@ final readonly class SparxstarUECDatabase
                     require_once $upgrade_file;
                 }
             }
+
             \dbDelta($sql);
         } catch (\Throwable $throwable) {
             StarLogger::log('SparxstarUECDatabase', $throwable);
@@ -120,7 +119,7 @@ final readonly class SparxstarUECDatabase
                 return new \WP_Error(
                     'db_table_missing',
                     'Database table is missing for snapshots.',
-                    ['status' => 500]
+                    [ 'status' => 500 ]
                 );
             }
 
@@ -132,7 +131,7 @@ final readonly class SparxstarUECDatabase
                 return new \WP_Error(
                     'snapshot_identity_missing',
                     'Snapshot missing fingerprint or device_hash.',
-                    ['status' => 400]
+                    [ 'status' => 400 ]
                 );
             }
 
@@ -154,8 +153,11 @@ final readonly class SparxstarUECDatabase
             ];
 
             if ($existing_id > 0) {
-                $this->wpdb->update($table_name, $db_data, ['id' => $existing_id]);
-                return ['status' => 'updated', 'id' => $existing_id];
+                $this->wpdb->update($table_name, $db_data, [ 'id' => $existing_id ]);
+                return [
+                    'status' => 'updated',
+                    'id'     => $existing_id,
+                ];
             }
 
             $db_data['created_at'] = $data['updated_at'];
@@ -166,15 +168,18 @@ final readonly class SparxstarUECDatabase
                 StarLogger::error(
                     'SparxstarUECDatabase',
                     'Database insert error: ' . $this->wpdb->last_error,
-                    ['method' => 'store_snapshot']
+                    [ 'method' => 'store_snapshot' ]
                 );
-                return new \WP_Error('db_insert_error', 'Could not write snapshot to DB.', ['status' => 500]);
+                return new \WP_Error('db_insert_error', 'Could not write snapshot to DB.', [ 'status' => 500 ]);
             }
 
-            return ['status' => 'inserted', 'id' => (int) $this->wpdb->insert_id];
+            return [
+                'status' => 'inserted',
+                'id'     => (int) $this->wpdb->insert_id,
+            ];
         } catch (\Throwable $throwable) {
             StarLogger::log('SparxstarUECDatabase', $throwable);
-            return new \WP_Error('db_exception', $throwable->getMessage(), ['status' => 500]);
+            return new \WP_Error('db_exception', $throwable->getMessage(), [ 'status' => 500 ]);
         }
     }
 

@@ -58,25 +58,25 @@ final class SirusDeviceParser
             $dd->parse();
 
             if ($dd->isBot()) {
-                return array_merge($empty, ['is_bot' => true]);
+                return array_merge($empty, [ 'is_bot' => true ]);
             }
 
             $client = $dd->getClient() ?? [];
             $os     = $dd->getOs()     ?? [];
 
             return [
-                'browser'         => sanitize_text_field((string) ($client['name']    ?? '')),
+                'browser'         => sanitize_text_field((string) ($client['name'] ?? '')),
                 'browser_version' => sanitize_text_field((string) ($client['version'] ?? '')),
-                'os'              => sanitize_text_field((string) ($os['name']         ?? '')),
-                'os_version'      => sanitize_text_field((string) ($os['version']      ?? '')),
+                'os'              => sanitize_text_field((string) ($os['name'] ?? '')),
+                'os_version'      => sanitize_text_field((string) ($os['version'] ?? '')),
                 'device_type'     => sanitize_text_field((string) $dd->getDeviceName()),
                 'brand'           => sanitize_text_field((string) $dd->getBrandName()),
                 'model'           => sanitize_text_field((string) $dd->getModel()),
                 'is_bot'          => false,
             ];
-        } catch (\Throwable $e) {
+        } catch (\Throwable $throwable) {
             // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-            error_log('[Sirus SirusDeviceParser] DeviceDetector::parse() failed: ' . $e->getMessage());
+            error_log('[Sirus SirusDeviceParser] DeviceDetector::parse() failed: ' . $throwable->getMessage());
             return $empty;
         }
     }

@@ -43,10 +43,10 @@ use function get_current_user_id;
 use function sanitize_text_field;
 
 use Starisian\SparxstarUEC\helpers\StarLogger;
+use Starisian\Sparxstar\Sirus\core\ContextEngine;
 use Starisian\SparxstarUEC\includes\SparxstarUECCacheHelper;
 use Starisian\SparxstarUEC\core\SparxstarUECSnapshotRepository;
 use Starisian\SparxstarUEC\includes\SparxstarUECSessionManager;
-use Starisian\Sparxstar\Sirus\core\ContextEngine;
 
 if (! defined('ABSPATH')) {
     exit;
@@ -125,54 +125,54 @@ final class StarUserEnv
         return self::fetch_snapshot($user_id, $session_id);
     }
 
-   /**
-	 * Internal engine: fetch the full snapshot from session, runtime cache, 
-	 * object cache, or database.
-	 */
-	private static function fetch_snapshot(?int $user_id, ?string $session_id): ?array
-	{
-	    // --- 1. CHECK RUNTIME CACHE (Fastest) ---
-	    if (self::$snapshot_cache !== null) {
-	        return self::$snapshot_cache;
-	    }
-	
-	    // --- 2. CHECK SESSION (Primary fix for REST API) ---
-	    // If we're in an AJAX/REST context, the session will have the data if 
-	    // the user loaded the page immediately prior.
-	    $session_stored = self::getEnvironmentSnapshot(); 
-	    if (!empty($session_stored['snapshot'])) {
-	        self::$snapshot_cache = $session_stored['snapshot'];
-	        return self::$snapshot_cache;
-	    }
-	
-	    // --- 3. CHECK DB/CACHE (Original UEC Logic) ---
-	    $fingerprint = self::getFingerprint();
-	    $device_hash = self::getDeviceHash();
-	    $resolved_user_id = $user_id ?? (get_current_user_id() ?: null);
-	    
-	    // Build cache key using BOTH fingerprint AND device_hash
-	    $cache_key = SparxstarUECCacheHelper::make_key(
-	        $resolved_user_id,
-	        $session_id,
-	        $fingerprint . ':' . $device_hash
-	    );
-	
-	    $cached = SparxstarUECCacheHelper::get($cache_key);
-	    if ($cached !== null) {
-	        self::$snapshot_cache = $cached;
-	        return $cached;
-	    }
-	
-	    // Query database using v2.0 identity model
-	    $from_db = SparxstarUECSnapshotRepository::get($fingerprint, $device_hash);
-	    if ($from_db !== null) {
-	        SparxstarUECCacheHelper::set($cache_key, $from_db);
-	        self::$snapshot_cache = $from_db;
-	    }
-	
-	    return $from_db;
-	}
-	
+    /**
+     * Internal engine: fetch the full snapshot from session, runtime cache,
+     * object cache, or database.
+     */
+    private static function fetch_snapshot(?int $user_id, ?string $session_id): ?array
+    {
+        // --- 1. CHECK RUNTIME CACHE (Fastest) ---
+        if (self::$snapshot_cache !== null) {
+            return self::$snapshot_cache;
+        }
+
+        // --- 2. CHECK SESSION (Primary fix for REST API) ---
+        // If we're in an AJAX/REST context, the session will have the data if
+        // the user loaded the page immediately prior.
+        $session_stored = self::getEnvironmentSnapshot();
+        if (! empty($session_stored['snapshot'])) {
+            self::$snapshot_cache = $session_stored['snapshot'];
+            return self::$snapshot_cache;
+        }
+
+        // --- 3. CHECK DB/CACHE (Original UEC Logic) ---
+        $fingerprint      = self::getFingerprint();
+        $device_hash      = self::getDeviceHash();
+        $resolved_user_id = $user_id ?? (get_current_user_id() ?: null);
+
+        // Build cache key using BOTH fingerprint AND device_hash
+        $cache_key = SparxstarUECCacheHelper::make_key(
+            $resolved_user_id,
+            $session_id,
+            $fingerprint . ':' . $device_hash
+        );
+
+        $cached = SparxstarUECCacheHelper::get($cache_key);
+        if ($cached !== null) {
+            self::$snapshot_cache = $cached;
+            return $cached;
+        }
+
+        // Query database using v2.0 identity model
+        $from_db = SparxstarUECSnapshotRepository::get($fingerprint, $device_hash);
+        if ($from_db !== null) {
+            SparxstarUECCacheHelper::set($cache_key, $from_db);
+            self::$snapshot_cache = $from_db;
+        }
+
+        return $from_db;
+    }
+
     /**
      * Generic "dot path" accessor into the snapshot structure.
      */
@@ -189,11 +189,11 @@ final class StarUserEnv
 
         $current = $snapshot;
         foreach (explode('.', $path) as $key) {
-            if (! is_array($current) || ! isset($current[$key])) {
+            if (! is_array($current) || ! isset($current[ $key ])) {
                 return $default;
             }
 
-            $current = $current[$key];
+            $current = $current[ $key ];
         }
 
         return $current;
@@ -499,7 +499,7 @@ final class StarUserEnv
         try {
             session_start($options);
         } catch (Throwable $throwable) {
-            StarLogger::error('StarUserEnv', $throwable, ['method' => 'ensure_session']);
+            StarLogger::error('StarUserEnv', $throwable, [ 'method' => 'ensure_session' ]);
             return;
         }
 
@@ -511,8 +511,8 @@ final class StarUserEnv
      */
     private static function initialise_namespace(): void
     {
-        if (! isset($_SESSION[self::SESSION_NAMESPACE]) || ! is_array($_SESSION[self::SESSION_NAMESPACE])) {
-            $_SESSION[self::SESSION_NAMESPACE] = [];
+        if (! isset($_SESSION[ self::SESSION_NAMESPACE ]) || ! is_array($_SESSION[ self::SESSION_NAMESPACE ])) {
+            $_SESSION[ self::SESSION_NAMESPACE ] = [];
         }
     }
 
@@ -521,7 +521,7 @@ final class StarUserEnv
      */
     private static function get_server_value(string $key): string
     {
-        return isset($_SERVER[$key]) ? sanitize_text_field(wp_unslash($_SERVER[$key])) : '';
+        return isset($_SERVER[ $key ]) ? sanitize_text_field(wp_unslash($_SERVER[ $key ])) : '';
     }
 
     /**
@@ -596,7 +596,7 @@ final class StarUserEnv
     public static function setSessionValue(string $key, mixed $value): void
     {
         self::ensure_session();
-        $_SESSION[self::SESSION_NAMESPACE][$key] = $value;
+        $_SESSION[ self::SESSION_NAMESPACE ][ $key ] = $value;
     }
 
     /**
@@ -605,7 +605,7 @@ final class StarUserEnv
     public static function getSessionValue(string $key, mixed $default = null): mixed
     {
         self::ensure_session();
-        return $_SESSION[self::SESSION_NAMESPACE][$key] ?? $default;
+        return $_SESSION[ self::SESSION_NAMESPACE ][ $key ] ?? $default;
     }
 
     /**
@@ -615,7 +615,7 @@ final class StarUserEnv
     {
         self::ensure_session();
 
-        $_SESSION[self::SESSION_NAMESPACE][self::SESSION_KEY] = [
+        $_SESSION[ self::SESSION_NAMESPACE ][ self::SESSION_KEY ] = [
             'snapshot'  => $snapshot,
             'context'   => $context,
             'stored_at' => gmdate('c'),
@@ -629,7 +629,7 @@ final class StarUserEnv
     {
         self::ensure_session();
 
-        $stored = $_SESSION[self::SESSION_NAMESPACE][self::SESSION_KEY] ?? [];
+        $stored = $_SESSION[ self::SESSION_NAMESPACE ][ self::SESSION_KEY ] ?? [];
 
         return is_array($stored) ? $stored : [];
     }
@@ -713,9 +713,9 @@ final class StarUserEnv
             'timezone'     => 'timezone',
         ];
 
-        $key = $map[strtolower($field)] ?? null;
-        if ($key !== null && isset($location[$key])) {
-            return sanitize_text_field((string) $location[$key]);
+        $key = $map[ strtolower($field) ] ?? null;
+        if ($key !== null && isset($location[ $key ])) {
+            return sanitize_text_field((string) $location[ $key ]);
         }
 
         return __('Specific location data unavailable.', SPX_ENV_CHECK_TEXT_DOMAIN);
