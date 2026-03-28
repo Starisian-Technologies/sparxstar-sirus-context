@@ -1,5 +1,5 @@
 
-<img width="1280" height="640" alt="SPARXSTAR Sirus" src="https://github.com/user-attachments/assets/17659788-64d3-4053-888e-db0225aa857e" />
+![SPARXSTAR Banners-17](https://github.com/user-attachments/assets/c9dca401-8c52-412e-8d26-6367a7c3913e)
 
 # SPARXSTAR Sirus Context
 
