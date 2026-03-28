@@ -3,7 +3,7 @@
 /**
  * Plugin Name: SPARXSTAR User Environment Check
  * Description: Logs browser diagnostics with a database-first architecture.
- * Version: 0.9.1
+ * Version: 0.9.6
  * Author: Starisian
  * Text Domain: sparxstar-user-environment-check
  */
