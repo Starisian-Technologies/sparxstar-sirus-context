@@ -66,13 +66,16 @@ final readonly class SirusMitigationCoordinator
             return;
         }
 
-        $signals = $this->evaluator->detectSignals($event);
+        // getSignals() returns normalized signal objects; extract type keys for rule matching.
+        $signal_objects = $this->evaluator->getSignals($event);
 
-        if ($signals === []) {
+        if ($signal_objects === []) {
             return;
         }
 
-        $match = $this->ruleEngine->evaluate($signals);
+        $signal_keys = array_column($signal_objects, 'type');
+
+        $match = $this->ruleEngine->evaluate($signal_keys);
 
         if ($match === null) {
             return;
@@ -210,43 +213,41 @@ final readonly class SirusMitigationCoordinator
     }
 
     /**
-     * @deprecated Use getDirective() for the locked single-directive contract.
-     */
-    public function getResponseMode(string $deviceId, string $sessionId = ''): string
-    {
-        $directive = $this->getDirective($deviceId, $sessionId);
-        return $directive !== null ? $directive['mode'] : 'normal';
-    }
-
-    /**
-     * @deprecated Use getDirective() for the locked single-directive contract.
+     * Returns recommended actions for a device/session pair as advisory data only.
      *
-     * @return array{response_mode: string, actions: string[], flags: array<string, bool>}
+     * Per spec §E, Sirus never directly enforces blocking, locking, or redirecting.
+     * The returned array is for consumption by the caller; enforcement decisions
+     * belong to Helios Trust, not to Sirus.
+     *
+     * @return array{mode: string, ttl: int, reason: string, confidence: float, recommended_actions: string[]}
      */
-    public function getClientDirectives(string $deviceId, string $sessionId = ''): array
+    public function getRecommendedActions(string $deviceId, string $sessionId = ''): array
     {
         $directive = $this->getDirective($deviceId, $sessionId);
+
         if ($directive === null) {
             return [
-                'response_mode' => 'normal',
-                'actions'       => [],
-                'flags'         => [
-                    'disable_waveform'   => false,
-                    'disable_animations' => false,
-                    'reduce_polling'     => false,
-                ],
+                'mode'                => 'normal',
+                'ttl'                 => 0,
+                'reason'              => '',
+                'confidence'          => 0.0,
+                'recommended_actions' => [],
             ];
         }
 
-        $mode = $directive['mode'];
+        // Translate mode into human-readable recommended actions (advisory only).
+        $recommended_actions = match ($directive['mode']) {
+            'degraded' => [ 'reduce_media', 'disable_animations', 'disable_waveform', 'reduce_polling' ],
+            'lite'     => [ 'disable_animations', 'reduce_polling' ],
+            default    => [],
+        };
+
         return [
-            'response_mode' => $mode,
-            'actions'       => [ $directive['reason'] ],
-            'flags'         => [
-                'disable_waveform'   => $mode === 'degraded',
-                'disable_animations' => in_array($mode, [ 'degraded', 'lite' ], true),
-                'reduce_polling'     => in_array($mode, [ 'degraded', 'lite' ], true),
-            ],
+            'mode'                => $directive['mode'],
+            'ttl'                 => $directive['ttl'],
+            'reason'              => $directive['reason'],
+            'confidence'          => $directive['confidence'],
+            'recommended_actions' => $recommended_actions,
         ];
     }
 

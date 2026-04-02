@@ -19,7 +19,7 @@ if (! defined('ABSPATH')) {
  * Caches successful responses in the WordPress object cache to reduce
  * repeated remote calls within the same request lifecycle.
  */
-final readonly class HeliosClient
+final readonly class HeliosClient implements HeliosClientInterface
 {
     /** WordPress object cache group. */
     private const CACHE_GROUP = 'sparxstar_sirus';
@@ -123,5 +123,26 @@ final readonly class HeliosClient
         wp_cache_set($cache_key, $result, self::CACHE_GROUP, self::CACHE_TTL);
 
         return $result;
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * Returns the identity context resolved by Helios for the given device/session pair.
+     *
+     * This method exists as a semantically distinct entry point for identity-specific
+     * queries, separate from the general-purpose trust resolution of resolve(). Sirus
+     * callers MUST use getIdentityContext() when consuming identity data (per spec §B)
+     * rather than calling resolve() directly, so that the intent is explicit and the
+     * interface contract enforces separation. In this implementation both delegate to
+     * the same remote call; a future Helios version may expose a dedicated identity
+     * endpoint with a different payload shape.
+     */
+    public function getIdentityContext(
+        string $device_id,
+        string $session_id,
+        ?string $identity_claim = null
+    ): ?array {
+        return $this->resolve($device_id, $session_id, $identity_claim);
     }
 }

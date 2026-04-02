@@ -262,4 +262,97 @@ final class DeviceContinuityTest extends SirusTestCase
         // Trust level starts as anonymous.
         $this->assertSame('anonymous', $result->trust_level);
     }
+
+    // ── getDeviceContext ──────────────────────────────────────────────────────
+
+    /**
+     * getDeviceContext() returns fixed output shape for a valid record.
+     */
+    public function testGetDeviceContextReturnsFixedSchema(): void
+    {
+        $record = $this->seedRecord('dev-ctx', 'fp-ctx-hash');
+
+        $ctx = $this->continuity->getDeviceContext($record);
+
+        $this->assertArrayHasKey('device_hash', $ctx);
+        $this->assertArrayHasKey('continuity_score', $ctx);
+        $this->assertArrayHasKey('risk_flags', $ctx);
+        $this->assertSame('fp-ctx-hash', $ctx['device_hash']);
+        $this->assertIsFloat($ctx['continuity_score']);
+        $this->assertIsArray($ctx['risk_flags']);
+    }
+
+    /**
+     * getDeviceContext() throws when device_id is empty.
+     */
+    public function testGetDeviceContextThrowsOnEmptyDeviceId(): void
+    {
+        $this->expectException(\RuntimeException::class);
+
+        $record = new DeviceRecord(
+            device_id:        '',
+            device_secret:    'secret',
+            fingerprint_hash: 'fp-hash',
+            environment_json: '{}',
+            first_seen:       time(),
+            last_seen:        time(),
+            trust_level:      'anonymous',
+            drift_score:      0,
+        );
+
+        $this->continuity->getDeviceContext($record);
+    }
+
+    /**
+     * getDeviceContext() throws when fingerprint_hash is empty.
+     */
+    public function testGetDeviceContextThrowsOnEmptyFingerprintHash(): void
+    {
+        $this->expectException(\RuntimeException::class);
+
+        $record = new DeviceRecord(
+            device_id:        'valid-device-id',
+            device_secret:    'secret',
+            fingerprint_hash: '',
+            environment_json: '{}',
+            first_seen:       time(),
+            last_seen:        time(),
+            trust_level:      'anonymous',
+            drift_score:      0,
+        );
+
+        $this->continuity->getDeviceContext($record);
+    }
+
+    /**
+     * continuity_score decreases with each drift event and is floored at 0.0.
+     */
+    public function testContinuityScoreDecreasesWithDrift(): void
+    {
+        $record_no_drift = $this->seedRecord('dev-nd', 'fp-nd', drift_score: 0);
+        $record_with_drift = $this->seedRecord('dev-wd', 'fp-wd', drift_score: 5);
+        $record_max_drift = new DeviceRecord(
+            device_id:        'dev-max',
+            device_secret:    self::GOOD_SECRET,
+            fingerprint_hash: 'fp-max',
+            environment_json: '{}',
+            first_seen:       time(),
+            last_seen:        time(),
+            trust_level:      'anonymous',
+            drift_score:      100,
+        );
+
+        $ctx_no_drift   = $this->continuity->getDeviceContext($record_no_drift);
+        $ctx_with_drift = $this->continuity->getDeviceContext($record_with_drift);
+        $ctx_max_drift  = $this->continuity->getDeviceContext($record_max_drift);
+
+        // Score formula: max(0.0, 1.0 - (drift_score * DRIFT_PENALTY_PER_EVENT))
+        // where DRIFT_PENALTY_PER_EVENT = 0.05
+        // drift_score=0  → 1.0 - (0  * 0.05) = 1.0
+        // drift_score=5  → 1.0 - (5  * 0.05) = 0.75
+        // drift_score=100 → max(0.0, 1.0 - (100 * 0.05)) = max(0.0, -4.0) = 0.0
+        $this->assertSame(1.0, $ctx_no_drift['continuity_score']);
+        $this->assertSame(0.75, $ctx_with_drift['continuity_score']);
+        $this->assertSame(0.0, $ctx_max_drift['continuity_score']);
+    }
 }
