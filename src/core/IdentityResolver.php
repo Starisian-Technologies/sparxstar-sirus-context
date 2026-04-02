@@ -1,7 +1,12 @@
 <?php
 
 /**
- * IdentityResolver - Resolves a trust level for the current SirusContext.
+ * IdentityResolver - Resolves identity context for the current SirusContext.
+ *
+ * Per spec §B: Sirus does NOT derive identity independently. All identity
+ * resolution is delegated exclusively to Helios via HeliosClientInterface.
+ * WordPress user functions (get_current_user_id, user_can, etc.) MUST NOT be
+ * called here.
  *
  * @package Starisian\Sparxstar\Sirus
  */
@@ -14,90 +19,40 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-use Starisian\Sparxstar\Sirus\integrations\HeliosClient;
+use Starisian\Sparxstar\Sirus\integrations\HeliosClientInterface;
 
 /**
- * Determines the trust level for a resolved SirusContext by inspecting
- * device presence, WordPress authentication, capabilities, and optionally
- * an external Helios trust resolution service.
- *
- * Trust levels (ascending): anonymous → device → contributor → user → authority
+ * Delegates identity resolution to Helios Trust.
+ * Returns the Helios identity context or null when Helios is unavailable.
  */
 final readonly class IdentityResolver
 {
-    /** @var array<string, int> Numeric weight for each trust level (for comparison). */
-    private const TRUST_WEIGHTS = [
-        'anonymous'   => 0,
-        'device'      => 1,
-        'contributor' => 2,
-        'user'        => 3,
-        'authority'   => 4,
-    ];
-
     /**
-     * @param HeliosClient|null $helios_client Optional Helios integration for external trust resolution.
+     * @param HeliosClientInterface|null $helios_client Helios integration (required for resolution).
      */
-    public function __construct(private ?HeliosClient $helios_client = null)
+    public function __construct(private ?HeliosClientInterface $helios_client = null)
     {
     }
 
     /**
-     * Resolves and returns the highest applicable trust level string for the context.
+     * Resolves and returns the identity context from Helios for the given device/session.
+     *
+     * Returns null when no Helios client is configured or Helios is unreachable.
+     * Sirus itself never derives a trust level or identity from WordPress internals.
      *
      * @param SirusContext $context The context being evaluated.
-     * @return string One of: anonymous, device, contributor, user, authority.
+     * @return array<string, mixed>|null Helios identity payload, or null.
      */
-    public function resolve(SirusContext $context): string
+    public function resolve(SirusContext $context): ?array
     {
-        $trust_level = 'anonymous';
-
-        if ($context->device_id !== '') {
-            $trust_level = $this->escalate($trust_level, 'device');
+        if (! $this->helios_client instanceof HeliosClientInterface) {
+            return null;
         }
 
-        $user_id = get_current_user_id();
-        if ($user_id > 0) {
-            $trust_level = $this->escalate($trust_level, 'user');
-
-            if (user_can($user_id, 'manage_options')) {
-                $trust_level = $this->escalate($trust_level, 'authority');
-            }
-        }
-
-        if ($this->helios_client instanceof \Starisian\Sparxstar\Sirus\integrations\HeliosClient) {
-            $helios = $this->helios_client->resolve(
-                $context->device_id,
-                $context->session_id,
-                $context->identity_id
-            );
-            if (is_array($helios) && isset($helios['trust_level']) && is_string($helios['trust_level'])) {
-                $trust_level = $this->escalate($trust_level, $helios['trust_level']);
-            }
-        }
-
-        return $trust_level;
-    }
-
-    /**
-     * Returns the higher trust level of the two provided values.
-     * Ignores unknown levels (treats them as 'anonymous') and logs a warning.
-     *
-     * @param string $current The currently resolved trust level.
-     * @param string $candidate The candidate trust level to compare.
-     */
-    private function escalate(string $current, string $candidate): string
-    {
-        if (! array_key_exists($current, self::TRUST_WEIGHTS)) {
-            $current = 'anonymous';
-        }
-
-        if (! array_key_exists($candidate, self::TRUST_WEIGHTS)) {
-            // Unknown candidate is silently ignored rather than trusted.
-            return $current;
-        }
-
-        return self::TRUST_WEIGHTS[ $candidate ] > self::TRUST_WEIGHTS[ $current ]
-            ? $candidate
-            : $current;
+        return $this->helios_client->getIdentityContext(
+            $context->device_id,
+            $context->session_id,
+            $context->identity_id
+        );
     }
 }

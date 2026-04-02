@@ -19,7 +19,7 @@ if (! defined('ABSPATH')) {
  * Caches successful responses in the WordPress object cache to reduce
  * repeated remote calls within the same request lifecycle.
  */
-final readonly class HeliosClient
+final readonly class HeliosClient implements HeliosClientInterface
 {
     /** WordPress object cache group. */
     private const CACHE_GROUP = 'sparxstar_sirus';
@@ -123,5 +123,19 @@ final readonly class HeliosClient
         wp_cache_set($cache_key, $result, self::CACHE_GROUP, self::CACHE_TTL);
 
         return $result;
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * Returns the identity context resolved by Helios for the given device/session pair.
+     * Delegates to resolve() and returns null when Helios is unavailable.
+     */
+    public function getIdentityContext(
+        string $device_id,
+        string $session_id,
+        ?string $identity_claim = null
+    ): ?array {
+        return $this->resolve($device_id, $session_id, $identity_claim);
     }
 }

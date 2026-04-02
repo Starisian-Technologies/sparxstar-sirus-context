@@ -142,4 +142,49 @@ final class DeviceContinuity
 
         return $record;
     }
+
+    /**
+     * Returns the standardized device context for a resolved DeviceRecord.
+     *
+     * Per spec §A, this is the single canonical output method for device data.
+     * Output shape is fixed — no optional keys, no dynamic structure.
+     *
+     * @param DeviceRecord $device A fully resolved DeviceRecord.
+     * @return array{device_hash: string, continuity_score: float, risk_flags: array<int, string>}
+     *
+     * @throws \RuntimeException If the device context is missing (empty device_id).
+     */
+    public function getDeviceContext(DeviceRecord $device): array
+    {
+        if ($device->device_id === '') {
+            throw new \RuntimeException(
+                '[Sirus] Hard fail: device context is missing. A resolved device_id is required.'
+            );
+        }
+
+        // continuity_score: 1.0 for a stable device, reduced by 0.05 per drift event,
+        // floored at 0.0 so extremely drifted devices do not produce negative scores.
+        $continuity_score = max(0.0, 1.0 - ($device->drift_score * 0.05));
+
+        // risk_flags: advisory markers — never used for enforcement.
+        $risk_flags = [];
+
+        if ($device->drift_score >= 5) {
+            $risk_flags[] = 'high_drift';
+        }
+
+        if (! $device->isActive()) {
+            $risk_flags[] = 'inactive_device';
+        }
+
+        if ($device->trust_level === 'anonymous' && $device->drift_score > 0) {
+            $risk_flags[] = 'anonymous_with_drift';
+        }
+
+        return [
+            'device_hash'      => $device->fingerprint_hash,
+            'continuity_score' => $continuity_score,
+            'risk_flags'       => $risk_flags,
+        ];
+    }
 }
