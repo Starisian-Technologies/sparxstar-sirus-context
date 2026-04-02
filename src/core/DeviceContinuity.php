@@ -160,7 +160,7 @@ final class DeviceContinuity
      * @param DeviceRecord $device A fully resolved DeviceRecord.
      * @return array{device_hash: string, continuity_score: float, risk_flags: array<int, string>}
      *
-     * @throws \RuntimeException If the device context is missing (empty device_id).
+     * @throws \RuntimeException If the device context is missing (empty device_id or empty fingerprint_hash).
      */
     public function getDeviceContext(DeviceRecord $device): array
     {
@@ -170,7 +170,13 @@ final class DeviceContinuity
             );
         }
 
-        // continuity_score: 1.0 for a stable device, reduced by 0.05 per drift event,
+        if ($device->fingerprint_hash === '') {
+            throw new \RuntimeException(
+                '[Sirus] Hard fail: invalid device hash. A non-empty fingerprint_hash is required.'
+            );
+        }
+
+        // continuity_score: 1.0 for a stable device, reduced by DRIFT_PENALTY_PER_EVENT per drift event,
         // floored at 0.0 so extremely drifted devices do not produce negative scores.
         $continuity_score = max(0.0, 1.0 - ($device->drift_score * self::DRIFT_PENALTY_PER_EVENT));
 

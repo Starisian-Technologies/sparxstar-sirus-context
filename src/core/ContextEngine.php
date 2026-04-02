@@ -44,17 +44,16 @@ final class ContextEngine
     {
         $ctx = self::current();
         return [
-            'context_id'    => $ctx->context_id,
+            'context_id'     => $ctx->context_id,
             'environment_id' => $ctx->environment_id,
-            'network_id'    => $ctx->network_id,
-            'site_id'       => $ctx->site_id,
-            'device_id'     => $ctx->device_id,
-            'session_id'    => $ctx->session_id,
-            'identity_id'   => $ctx->identity_id,
-            'authority_id'  => $ctx->authority_id,
-            'trust_level'   => $ctx->trust_level,
-            'issued_at'     => $ctx->issued_at,
-            'expires'       => $ctx->expires,
+            'network_id'     => $ctx->network_id,
+            'site_id'        => $ctx->site_id,
+            'device_id'      => $ctx->device_id,
+            'session_id'     => $ctx->session_id,
+            'identity_id'    => $ctx->identity_id,
+            'authority_id'   => $ctx->authority_id,
+            'issued_at'      => $ctx->issued_at,
+            'expires'        => $ctx->expires,
         ];
     }
 

@@ -245,4 +245,31 @@ final class ContextEngineTest extends TestCase
         // The fresh context must not be expired.
         $this->assertFalse($fresh->isExpired());
     }
+
+    // ── getContext() ──────────────────────────────────────────────────────────
+
+    /**
+     * getContext() returns the fixed-schema output without trust_level.
+     */
+    public function testGetContextHasFixedSchemaAndNoTrustLevel(): void
+    {
+        ContextCache::clear();
+
+        $ctx = ContextEngine::getContext();
+
+        $this->assertIsArray($ctx);
+        $this->assertArrayHasKey('context_id', $ctx);
+        $this->assertArrayHasKey('environment_id', $ctx);
+        $this->assertArrayHasKey('network_id', $ctx);
+        $this->assertArrayHasKey('site_id', $ctx);
+        $this->assertArrayHasKey('device_id', $ctx);
+        $this->assertArrayHasKey('session_id', $ctx);
+        $this->assertArrayHasKey('identity_id', $ctx);
+        $this->assertArrayHasKey('authority_id', $ctx);
+        $this->assertArrayHasKey('issued_at', $ctx);
+        $this->assertArrayHasKey('expires', $ctx);
+
+        // trust_level must NOT be present in the public output (spec: identity is Helios' domain).
+        $this->assertArrayNotHasKey('trust_level', $ctx);
+    }
 }

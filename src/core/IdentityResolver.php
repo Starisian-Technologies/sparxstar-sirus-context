@@ -23,7 +23,8 @@ use Starisian\Sparxstar\Sirus\integrations\HeliosClientInterface;
 
 /**
  * Delegates identity resolution to Helios Trust.
- * Returns the Helios identity context or null when Helios is unavailable.
+ * Always returns a fixed-schema identity array; falls back to a null-safe
+ * structure when Helios is unavailable so callers never receive null.
  */
 final readonly class IdentityResolver
 {
@@ -37,22 +38,33 @@ final readonly class IdentityResolver
     /**
      * Resolves and returns the identity context from Helios for the given device/session.
      *
-     * Returns null when no Helios client is configured or Helios is unreachable.
+     * When Helios is unavailable or returns no data, a fixed null-safe fallback shape
+     * is returned so callers always receive a consistent structure.
      * Sirus itself never derives a trust level or identity from WordPress internals.
      *
      * @param SirusContext $context The context being evaluated.
-     * @return array<string, mixed>|null Helios identity payload, or null.
+     * @return array{identity_id: string|null, verification_status: string, authority_memberships: array<int, string>, capabilities: array<int, string>}
      */
-    public function resolve(SirusContext $context): ?array
+    public function resolve(SirusContext $context): array
     {
+        /** @var array{identity_id: string|null, verification_status: string, authority_memberships: array<int, string>, capabilities: array<int, string>} $fallback */
+        $fallback = [
+            'identity_id'           => null,
+            'verification_status'   => 'none',
+            'authority_memberships' => [],
+            'capabilities'          => [],
+        ];
+
         if (! $this->helios_client instanceof HeliosClientInterface) {
-            return null;
+            return $fallback;
         }
 
-        return $this->helios_client->getIdentityContext(
+        $result = $this->helios_client->getIdentityContext(
             $context->device_id,
             $context->session_id,
             $context->identity_id
         );
+
+        return is_array($result) ? $result : $fallback;
     }
 }

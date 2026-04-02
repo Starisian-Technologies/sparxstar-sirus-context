@@ -67,13 +67,13 @@ final class SirusSignalEvaluator
 
         foreach ($types as $type) {
             if (! isset(self::SIGNAL_SEVERITY[ $type ])) {
-                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-                error_log(sprintf('[Sirus SirusSignalEvaluator] Unknown signal type "%s" — falling back to severity "low".', $type));
+                // Unknown signal type — not in SIGNAL_SEVERITY map, skip silently.
+                continue;
             }
 
             $signals[] = [
                 'type'      => $type,
-                'severity'  => self::SIGNAL_SEVERITY[ $type ] ?? 'low',
+                'severity'  => self::SIGNAL_SEVERITY[ $type ],
                 'source'    => 'sirus_signal_evaluator',
                 'timestamp' => $timestamp,
             ];
