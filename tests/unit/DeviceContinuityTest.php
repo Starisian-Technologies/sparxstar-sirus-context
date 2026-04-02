@@ -346,6 +346,11 @@ final class DeviceContinuityTest extends SirusTestCase
         $ctx_with_drift = $this->continuity->getDeviceContext($record_with_drift);
         $ctx_max_drift  = $this->continuity->getDeviceContext($record_max_drift);
 
+        // Score formula: max(0.0, 1.0 - (drift_score * DRIFT_PENALTY_PER_EVENT))
+        // where DRIFT_PENALTY_PER_EVENT = 0.05
+        // drift_score=0  → 1.0 - (0  * 0.05) = 1.0
+        // drift_score=5  → 1.0 - (5  * 0.05) = 0.75
+        // drift_score=100 → max(0.0, 1.0 - (100 * 0.05)) = max(0.0, -4.0) = 0.0
         $this->assertSame(1.0, $ctx_no_drift['continuity_score']);
         $this->assertSame(0.75, $ctx_with_drift['continuity_score']);
         $this->assertSame(0.0, $ctx_max_drift['continuity_score']);

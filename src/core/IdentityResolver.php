@@ -29,6 +29,18 @@ use Starisian\Sparxstar\Sirus\integrations\HeliosClientInterface;
 final readonly class IdentityResolver
 {
     /**
+     * Fixed-schema fallback returned when Helios is unavailable or returns no data.
+     * Callers can rely on this structure being present regardless of Helios state.
+     *
+     * @var array{identity_id: null, verification_status: string, authority_memberships: array<never>, capabilities: array<never>}
+     */
+    private const FALLBACK_IDENTITY = [
+        'identity_id'           => null,
+        'verification_status'   => 'none',
+        'authority_memberships' => [],
+        'capabilities'          => [],
+    ];
+    /**
      * @param HeliosClientInterface|null $helios_client Helios integration (required for resolution).
      */
     public function __construct(private ?HeliosClientInterface $helios_client = null)
@@ -48,12 +60,7 @@ final readonly class IdentityResolver
     public function resolve(SirusContext $context): array
     {
         /** @var array{identity_id: string|null, verification_status: string, authority_memberships: array<int, string>, capabilities: array<int, string>} $fallback */
-        $fallback = [
-            'identity_id'           => null,
-            'verification_status'   => 'none',
-            'authority_memberships' => [],
-            'capabilities'          => [],
-        ];
+        $fallback = self::FALLBACK_IDENTITY;
 
         if (! $this->helios_client instanceof HeliosClientInterface) {
             return $fallback;
