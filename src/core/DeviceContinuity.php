@@ -144,6 +144,14 @@ final class DeviceContinuity
     }
 
     /**
+     * Fractional reduction in continuity_score applied per recorded drift event.
+     * At 0.05 per event the score reaches 0.0 after 20 distinct drift events,
+     * making high-drift devices easily identifiable while preserving a usable
+     * score for moderate environment changes (e.g., Wi-Fi → cellular).
+     */
+    private const DRIFT_PENALTY_PER_EVENT = 0.05;
+
+    /**
      * Returns the standardized device context for a resolved DeviceRecord.
      *
      * Per spec §A, this is the single canonical output method for device data.
@@ -164,7 +172,7 @@ final class DeviceContinuity
 
         // continuity_score: 1.0 for a stable device, reduced by 0.05 per drift event,
         // floored at 0.0 so extremely drifted devices do not produce negative scores.
-        $continuity_score = max(0.0, 1.0 - ($device->drift_score * 0.05));
+        $continuity_score = max(0.0, 1.0 - ($device->drift_score * self::DRIFT_PENALTY_PER_EVENT));
 
         // risk_flags: advisory markers — never used for enforcement.
         $risk_flags = [];

@@ -129,7 +129,14 @@ final readonly class HeliosClient implements HeliosClientInterface
      * {@inheritdoc}
      *
      * Returns the identity context resolved by Helios for the given device/session pair.
-     * Delegates to resolve() and returns null when Helios is unavailable.
+     *
+     * This method exists as a semantically distinct entry point for identity-specific
+     * queries, separate from the general-purpose trust resolution of resolve(). Sirus
+     * callers MUST use getIdentityContext() when consuming identity data (per spec §B)
+     * rather than calling resolve() directly, so that the intent is explicit and the
+     * interface contract enforces separation. In this implementation both delegate to
+     * the same remote call; a future Helios version may expose a dedicated identity
+     * endpoint with a different payload shape.
      */
     public function getIdentityContext(
         string $device_id,
