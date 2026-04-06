@@ -6,11 +6,12 @@ on:
     push:
     pull_request:
 
-permissions:
-    contents: write
-
 jobs:
     build:
+        # Use least-privilege static permissions; this job only needs repository read access.
+        permissions:
+            contents: read
+
         runs-on: ubuntu-latest
 
         steps:
@@ -81,21 +82,11 @@ jobs:
                     git diff --stat
                   fi
 
-            - name: Commit fixes (PR only)
-              uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
-              # uses: stefanzweifel/git-auto-commit-action@v5
-              with:
-                  commit_message: 'style: auto-fix linting issues'
-                  branch: ${{ github.head_ref }}
-                  file_pattern: 'src/**/*.php src/**/*.js src/**/*.css'
-              if: github.event_name == 'pull_request' && steps.check-changes.outputs.changed == 'true'
-
-            - name: Branch protection notice
-              if: github.event_name != 'pull_request' && steps.check-changes.outputs.changed == 'true'
+            - name: Auto-fix notice
+              if: steps.check-changes.outputs.changed == 'true'
               run: |
-                  echo "⚠️  Auto-fixable changes detected but cannot auto-commit to protected branch"
-                  echo "📝 Run 'npm run fix' locally and commit manually"
-                  echo "🔒 Branch protection rules prevent direct commits to main"
+                  echo "⚠️  Auto-fixable changes detected but cannot auto-commit (insufficient permissions)"
+                  echo "📝 Run 'pnpm run format && pnpm run lint:fix && composer run phpfix' locally and commit manually"
 
             - name: Build assets
               run: pnpm run build
