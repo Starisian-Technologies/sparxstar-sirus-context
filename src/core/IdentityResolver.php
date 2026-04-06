@@ -32,7 +32,10 @@ final readonly class IdentityResolver
      * Fixed-schema fallback returned when Helios is unavailable or returns no data.
      * Callers can rely on this structure being present regardless of Helios state.
      *
-     * @var array{identity_id: null, verification_status: string, authority_memberships: array<never>, capabilities: array<never>}
+     * `trust_level` is intentionally excluded from this schema — trust is Helios's
+     * internal domain and must not be surfaced through the Sirus identity layer.
+     *
+     * @var array{identity_id: null, verification_status: string, authority_memberships: array<int, string>, capabilities: array<int, string>}
      */
     private const FALLBACK_IDENTITY = [
         'identity_id'           => null,
@@ -40,6 +43,7 @@ final readonly class IdentityResolver
         'authority_memberships' => [],
         'capabilities'          => [],
     ];
+
     /**
      * @param HeliosClientInterface|null $helios_client Helios integration (required for resolution).
      */
