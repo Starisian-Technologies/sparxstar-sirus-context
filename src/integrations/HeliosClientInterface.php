@@ -48,6 +48,9 @@ interface HeliosClientInterface
      * Sirus MUST consume identity exclusively via this method; it must not derive
      * identity independently using WordPress user functions.
      *
+     * trust_level is intentionally excluded from this contract — trust is Helios's
+     * internal domain and must not be surfaced through the Sirus identity layer.
+     *
      * Returns null if Helios is unavailable or the identity cannot be resolved.
      *
      * @param string $device_id   Device UUID.
@@ -55,7 +58,6 @@ interface HeliosClientInterface
      * @param string|null $identity_claim Optional identity hint passed from the client.
      * @return array{
      *     identity_id: string|null,
-     *     trust_level: string,
      *     verification_status: string,
      *     authority_memberships: array<int, string>,
      *     capabilities: array<int, string>

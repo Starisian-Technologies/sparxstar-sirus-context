@@ -163,7 +163,6 @@ final readonly class HeliosClient implements HeliosClientInterface
 
         return [
             'identity_id'           => $data['identity_id'] ?? null,
-            'trust_level'           => isset($data['trust_level']) ? (string) $data['trust_level'] : 'anonymous',
             'verification_status'   => isset($data['verification_status']) ? (string) $data['verification_status'] : 'unverified',
             'authority_memberships' => array_values(
                 array_filter(
