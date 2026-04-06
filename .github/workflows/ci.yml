@@ -6,11 +6,12 @@ on:
     push:
     pull_request:
 
-permissions:
-    contents: write
-
 jobs:
     build:
+        # Use least-privilege by default; only allow write access on trusted pushes.
+        permissions:
+            contents: ${{ github.event_name == 'push' && 'write' || 'read' }}
+
         runs-on: ubuntu-latest
 
         steps:
