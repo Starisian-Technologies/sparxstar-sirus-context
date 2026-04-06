@@ -11,6 +11,12 @@ on what device, in what environment, under what authority.
 Sirus produces context. It does not make authorization decisions (Helios).
 It does not enforce governance (Mehns).
 
+The following files provide the full tech specs for the project:
+
+- the [full technical specs](https://github.com/Starisian-Technologies/sparxstar-sirus-context/edit/main/README.md#:~:text=Sirus_Context_Engine_Spec_v3.0)
+- The [Platform Integrity Map](https://github.com/Starisian-Technologies/sparxstar-sirus-context/edit/main/README.md#:~:text=Sparxstar_Platform_Integrity_Map_v1.0)
+- The [SPARXSTAR Platform Overview](https://github.com/Starisian-Technologies/sparxstar-sirus-context/edit/main/README.md#:~:text=Sparxstar_Platform_Overview_v1.0.-,docx,-.pdf)
+
 ## What This Repository Owns
 
 - ContextEngine — context creation and current() accessor
