@@ -40,6 +40,7 @@ final class SirusContextTest extends TestCase
             role_set:       $role_set,
             capabilities:   $capabilities,
             trust_level:    $trust_level,
+            trust_score:    1.0,
             issued_at:      1000,
             expires:        1300,
         );
@@ -66,6 +67,7 @@ final class SirusContextTest extends TestCase
             identity_id:    null, authority_id: null,
             role_set:       [], capabilities: [],
             trust_level:    'anonymous',
+            trust_score:    1.0,
             issued_at:      time(),
             expires:        time() + 300,
         );
@@ -84,6 +86,7 @@ final class SirusContextTest extends TestCase
             identity_id:    null, authority_id: null,
             role_set:       [], capabilities: [],
             trust_level:    'anonymous',
+            trust_score:    1.0,
             issued_at:      1000,
             expires:        1001, // well in the past
         );
@@ -102,6 +105,7 @@ final class SirusContextTest extends TestCase
             identity_id:    null, authority_id: null,
             role_set:       [], capabilities: [],
             trust_level:    'anonymous',
+            trust_score:    1.0,
             issued_at:      1000,
             expires:        0,
         );
@@ -133,6 +137,7 @@ final class SirusContextTest extends TestCase
         $this->assertSame(['editor'], $ctx->role_set);
         $this->assertSame(['read', 'write'], $ctx->capabilities);
         $this->assertSame('user', $ctx->trust_level);
+        $this->assertSame(1.0, $ctx->trust_score);
         $this->assertSame(1000, $ctx->issued_at);
         $this->assertSame(1300, $ctx->expires);
     }

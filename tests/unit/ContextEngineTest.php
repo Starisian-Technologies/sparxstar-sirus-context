@@ -232,6 +232,7 @@ final class ContextEngineTest extends TestCase
             role_set:       [],
             capabilities:   [],
             trust_level:    'anonymous',
+            trust_score:    1.0,
             issued_at:      1000,
             expires:        1001, // already expired
         );
