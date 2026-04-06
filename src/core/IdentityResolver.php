@@ -72,6 +72,46 @@ final readonly class IdentityResolver
             $context->identity_id
         );
 
-        return is_array($result) ? $result : $fallback;
+        return is_array($result) ? $this->normalizeIdentityContext($result) : $fallback;
+    }
+
+    /**
+     * Normalizes Helios identity data to the documented fixed schema.
+     *
+     * @param array<mixed> $result Raw identity data returned by Helios.
+     * @return array{identity_id: string|null, verification_status: string, authority_memberships: array<int, string>, capabilities: array<int, string>}
+     */
+    private function normalizeIdentityContext(array $result): array
+    {
+        /** @var array{identity_id: string|null, verification_status: string, authority_memberships: array<int, string>, capabilities: array<int, string>} $normalized */
+        $normalized = self::FALLBACK_IDENTITY;
+
+        if (array_key_exists('identity_id', $result) && (is_string($result['identity_id']) || null === $result['identity_id'])) {
+            $normalized['identity_id'] = $result['identity_id'];
+        }
+
+        if (isset($result['verification_status']) && is_string($result['verification_status'])) {
+            $normalized['verification_status'] = $result['verification_status'];
+        }
+
+        if (isset($result['authority_memberships']) && is_array($result['authority_memberships'])) {
+            $normalized['authority_memberships'] = array_values(
+                array_filter(
+                    $result['authority_memberships'],
+                    static fn (mixed $membership): bool => is_string($membership)
+                )
+            );
+        }
+
+        if (isset($result['capabilities']) && is_array($result['capabilities'])) {
+            $normalized['capabilities'] = array_values(
+                array_filter(
+                    $result['capabilities'],
+                    static fn (mixed $capability): bool => is_string($capability)
+                )
+            );
+        }
+
+        return $normalized;
     }
 }
