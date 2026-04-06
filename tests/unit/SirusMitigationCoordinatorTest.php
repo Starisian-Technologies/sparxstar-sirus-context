@@ -271,55 +271,47 @@ final class SirusMitigationCoordinatorTest extends SirusTestCase
         $this->assertSame('degraded', $result['mode']);
     }
 
-    public function testNormalizeModeMapLightweightToLiteViaGetResponseMode(): void
+    public function testNormalizeModeMapLightweightToLiteViaDirective(): void
     {
         // lightweight is normalized to lite before the priority lookup.
         $GLOBALS['wpdb_get_results'] = [
             ['id' => 1, 'action_key' => 'high_js_error_rate', 'response_mode' => 'lightweight', 'status' => 'active'],
         ];
 
-        $mode = $this->coordinator->getResponseMode('dev-light');
+        $result = $this->coordinator->getDirective('dev-light');
 
-        $this->assertSame('lite', $mode);
+        $this->assertNotNull($result);
+        $this->assertSame('lite', $result['mode']);
     }
 
-    // ─── deprecated wrappers ─────────────────────────────────────────────────
+    // ─── getRecommendedActions ────────────────────────────────────────────────
 
-    public function testGetResponseModeReturnsLiteWhenDirectiveIsLite(): void
-    {
-        $GLOBALS['wpdb_get_results'] = [
-            ['id' => 1, 'action_key' => 'high_js_error_rate', 'response_mode' => 'lite', 'status' => 'active'],
-        ];
-
-        $mode = $this->coordinator->getResponseMode('dev-001');
-
-        $this->assertSame('lite', $mode);
-    }
-
-    public function testGetResponseModeDefaultsToNormalWhenNoActions(): void
+    public function testGetRecommendedActionsReturnsNormalWhenNoDirective(): void
     {
         $GLOBALS['wpdb_get_results'] = [];
 
-        $mode = $this->coordinator->getResponseMode('dev-unknown');
+        $result = $this->coordinator->getRecommendedActions('dev-unknown');
 
-        $this->assertSame('normal', $mode);
+        $this->assertSame('normal', $result['mode']);
+        $this->assertSame([], $result['recommended_actions']);
+        $this->assertSame(0.0, $result['confidence']);
     }
 
-    public function testGetClientDirectivesReturnsLiteFlags(): void
+    public function testGetRecommendedActionsReturnsLiteActions(): void
     {
         $GLOBALS['wpdb_get_results'] = [
             ['id' => 1, 'action_key' => 'high_js_error_rate', 'response_mode' => 'lite', 'status' => 'active'],
         ];
 
-        $directives = $this->coordinator->getClientDirectives('dev-001');
+        $result = $this->coordinator->getRecommendedActions('dev-001');
 
-        $this->assertSame('lite', $directives['response_mode']);
-        $this->assertFalse($directives['flags']['disable_waveform']);
-        $this->assertTrue($directives['flags']['disable_animations']);
-        $this->assertTrue($directives['flags']['reduce_polling']);
+        $this->assertSame('lite', $result['mode']);
+        $this->assertContains('disable_animations', $result['recommended_actions']);
+        $this->assertContains('reduce_polling', $result['recommended_actions']);
+        $this->assertNotContains('disable_waveform', $result['recommended_actions']);
     }
 
-    public function testGetClientDirectivesReturnsDegradedFlagsWithSufficientSamples(): void
+    public function testGetRecommendedActionsReturnsDegradedActionsWithSufficientSamples(): void
     {
         $GLOBALS['wpdb_get_results'] = [
             ['id' => 1, 'action_key' => 'network_failure_spike', 'response_mode' => 'degraded', 'status' => 'active'],
@@ -327,24 +319,26 @@ final class SirusMitigationCoordinatorTest extends SirusTestCase
             ['id' => 3, 'action_key' => 'network_failure_spike', 'response_mode' => 'degraded', 'status' => 'active'],
         ];
 
-        $directives = $this->coordinator->getClientDirectives('dev-001');
+        $result = $this->coordinator->getRecommendedActions('dev-001');
 
-        $this->assertSame('degraded', $directives['response_mode']);
-        $this->assertTrue($directives['flags']['disable_waveform']);
-        $this->assertTrue($directives['flags']['disable_animations']);
-        $this->assertTrue($directives['flags']['reduce_polling']);
+        $this->assertSame('degraded', $result['mode']);
+        $this->assertContains('reduce_media', $result['recommended_actions']);
+        $this->assertContains('disable_waveform', $result['recommended_actions']);
+        $this->assertContains('disable_animations', $result['recommended_actions']);
+        $this->assertContains('reduce_polling', $result['recommended_actions']);
     }
 
-    public function testGetClientDirectivesNormalModeAllFlagsFalse(): void
+    public function testGetRecommendedActionsHasFixedSchema(): void
     {
         $GLOBALS['wpdb_get_results'] = [];
 
-        $directives = $this->coordinator->getClientDirectives('dev-004');
+        $result = $this->coordinator->getRecommendedActions('dev-schema');
 
-        $this->assertSame('normal', $directives['response_mode']);
-        $this->assertFalse($directives['flags']['disable_waveform']);
-        $this->assertFalse($directives['flags']['disable_animations']);
-        $this->assertFalse($directives['flags']['reduce_polling']);
-        $this->assertSame([], $directives['actions']);
+        $this->assertArrayHasKey('mode', $result);
+        $this->assertArrayHasKey('ttl', $result);
+        $this->assertArrayHasKey('reason', $result);
+        $this->assertArrayHasKey('confidence', $result);
+        $this->assertArrayHasKey('recommended_actions', $result);
+        $this->assertIsArray($result['recommended_actions']);
     }
 }
