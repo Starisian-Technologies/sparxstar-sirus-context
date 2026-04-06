@@ -16,6 +16,7 @@ use Starisian\Sparxstar\Sirus\integrations\HeliosClientInterface;
 
 /**
  * Validates IdentityResolver's schema normalization and fallback behaviour.
+ * All tests exercise IdentityResolver::resolve() with controlled fake Helios client implementations.
  */
 final class IdentityResolverTest extends SirusTestCase
 {

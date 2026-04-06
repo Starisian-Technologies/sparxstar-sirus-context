@@ -153,29 +153,35 @@ final readonly class HeliosClient implements HeliosClientInterface
             return null;
         }
 
-        $memberships = isset($data['authority_memberships']) && is_array($data['authority_memberships'])
-            ? $data['authority_memberships']
-            : [];
-
-        $capabilities = isset($data['capabilities']) && is_array($data['capabilities'])
-            ? $data['capabilities']
-            : [];
+        $memberships  = $this->extractStringArray($data, 'authority_memberships');
+        $capabilities = $this->extractStringArray($data, 'capabilities');
 
         return [
             'identity_id'           => $data['identity_id'] ?? null,
             'verification_status'   => isset($data['verification_status']) ? (string) $data['verification_status'] : 'none',
-            'authority_memberships' => array_values(
-                array_filter(
-                    $memberships,
-                    static fn (mixed $v): bool => is_string($v)
-                )
-            ),
-            'capabilities'          => array_values(
-                array_filter(
-                    $capabilities,
-                    static fn (mixed $v): bool => is_string($v)
-                )
-            ),
+            'authority_memberships' => $memberships,
+            'capabilities'          => $capabilities,
         ];
+    }
+
+    /**
+     * Extracts the named key from $data as an array<int, string>, dropping non-string elements.
+     *
+     * @param array<string, mixed> $data Source data array.
+     * @param string               $key  Key to extract.
+     * @return array<int, string>
+     */
+    private function extractStringArray(array $data, string $key): array
+    {
+        if (! isset($data[$key]) || ! is_array($data[$key])) {
+            return [];
+        }
+
+        return array_values(
+            array_filter(
+                $data[$key],
+                static fn (mixed $v): bool => is_string($v)
+            )
+        );
     }
 }
