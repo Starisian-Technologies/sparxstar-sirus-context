@@ -1,60 +1,89 @@
-# Copilot Instructions for SPARXSTAR User Environment Check
+# SPARXSTAR — sparxstar-sirus-context
+# Copilot Instructions
 
-## Project Overview
+## What This Repository Is
 
-WordPress plugin for high-fidelity, client-side user environment diagnostics. Data is collected via JS libraries (e.g., device-detector.js, Network Information API), sent to a REST endpoint, sanitized, optionally enriched with GeoIP, and stored in a custom database table. The client is always the source of truth.
+Sirus is the context engine of the SPARXSTAR platform. It runs before
+identity is established, before authentication runs, before any application
+logic executes. It determines what is happening right now: who is present,
+on what device, in what environment, under what authority.
 
-## Architecture & Key Components
+Sirus produces context. It does not make authorization decisions (Helios).
+It does not enforce governance (Mehns).
 
--   **Main Loader:** `sparxstar-user-environment-check.php` (defines constants, registers hooks, initializes orchestrator)
--   **Orchestrator:** `src/SparxstarUserEnvironmentCheck.php` (singleton, wires services)
--   **REST API:** `src/api/SparxstarUECAPI.php` & `src/core/SparxstarUECRESTController.php` (handles `/star-sparxstar-user-environment-check/v1/log`, rate-limits, sanitizes, stores)
--   **Database:** `src/core/SparxstarUECDatabase.php` (all SQL isolated here, uses prepared statements)
--   **Public Facade:** `src/StarUserEnv.php` (static API for all external access; cache-backed)
--   **Asset Manager:** `src/AssetManager.php` (enqueues JS/CSS)
--   **Caching:** Defaults to PHP session, can switch to object cache via `sparxstar_env_cache_handler` filter
+## What This Repository Owns
 
-## Coding & Review Principles
+- ContextEngine — context creation and current() accessor
+- SirusContext DTO — the primary output of the context engine
+- ContextPulse generation and signing (PulseGenerator)
+- PulseVerifier — six-check canonical verification contract
+- TrustEngine — trust state and trust score computation
+- DeviceContinuity — server-issued device_id, fingerprint, session recovery
+- DeviceMatcher — fingerprint scoring thresholds
+- EnvironmentResolver — browser, OS, network, location via Matomo
+- IdentityResolver — five-tier identity resolution
+- AuthorityResolver — governance scope, multi-authority aggregation
+- ConsentManager — technical consent, purpose consent, consent history
+- PulseGenerator — signed ContextPulse for Helios consumption
+- StepUpPolicy — step-up logic (Level 2 trust < 0.7, Level 3 always)
+- NetworkContextBroker — cross-domain handoff
+- UEC Compatibility Shim — StarUserEnv frozen public interface
 
--   **Single Responsibility:** Each class does one job (DB, REST, cache, admin, etc.)
--   **No Global Functions:** All logic is class-based; no direct superglobal access outside dedicated classes
--   **Stable Facade:** Only expose public API via `StarUserEnv`; never call internal classes from themes/plugins
--   **Strict Typing:** All PHP files start with `declare(strict_types=1);`
--   **Security:** Sanitize all input, prepare all DB queries, use nonces for admin actions
--   **Branching:** No direct commits to `main`; use feature branches and PRs
+## What This Repository Does NOT Own
 
-## Developer Workflows
+- Agreement evaluation (proceed/deny) — that is Helios
+- KV revocation reads/writes — that is Helios
+- Governance policy evaluation — that is Mehns
+- Structured field persistence — that is Dheghom
+- Draft accumulation — that is Sky
+- Pulse VERIFICATION — Sirus generates and signs.
+  Helios verifies. Do not put verification logic here.
 
--   **Build/Test:** Use Composer scripts:
-    -   `composer run lint` (PHPCS)
-    -   `composer run analyze` (PHPStan)
-    -   `composer run test:unit` (PHPUnit)
-    -   `composer test` (full lint/analyze/test)
--   **JS:** `device-detector-js` is the only dependency; no build pipeline by default
--   **Release:** Follow semantic versioning; update version, changelog, tag releases
+## Hard Rules
 
-## Integration & Filters
+- declare(strict_types=1) in every file
+- Namespace: Starisian\Sparxstar\Sirus\
+- Sirus must be deployed as a WordPress mu-plugin
+- Sirus MUST NEVER call wp_set_auth_cookie() or issue JWTs
+- Sirus MUST NEVER query Dheghom or any external plugin directly
+- ContextEngine::current() must return a valid SirusContext or throw
+  ContextBootException — never return null, never return partial context
+- device_id is ALWAYS server-issued — never derived from JS fingerprint alone
+- IP addresses stored with last octet zeroed: 192.168.1.0
+- The ContextPulse NEVER contains identity claims — device state and
+  trust signal only
+- PHPStan Level 5 must pass — use ?-> everywhere nullable is consumed
+- UEC shim signatures are frozen and must never change
 
--   **Filters:**
-    -   `sparxstar_env_cache_handler` (switch cache backend)
-    -   `sparxstar_env_cache_ttl` (set cache duration)
-    -   `sparxstar_env_geolocation_ttl` (set geolocation cache duration)
-    -   `sparxstar_env_geolocation_lookup` (custom geolocation provider)
-    -   `sparxstar_env_retention_days` (snapshot retention)
--   **REST Endpoint:** `/wp-json/star-sparxstar-user-environment-check/v1/log` (POST, nonce required, rate-limited)
+## Trust Score Algorithm (frozen)
 
-## Client-Side API
+  base = 1.0
+  device drifting:     -0.3
+  geo mismatch:        -0.2
+  new session:         -0.1
+  recent failures:     -0.3
+  clamped to [0.0, 1.0]
 
--   Global `SPARXSTAR` JS object after DOMContentLoaded
--   Utility: `SPARXSTAR.State.device.type`, `SPARXSTAR.Utils.getNetworkBandwidth()`
+## CLI Context (when PHP_SAPI === "cli")
 
-## Prohibited Patterns
+  identity_id  = "SYSTEM"
+  trust_score  = 1.0
+  trust_level  = "NORMAL"
+  authority_id = "GLOBAL"
+  device_id    = "CLI"
 
--   No global functions or variables
--   No direct $_POST/$\_GET/$\_SERVER access outside dedicated classes
--   No mixed responsibilities in classes
--   No misplaced hooks (must be inside classes)
+## Dependencies
 
-## References
+This repository depends on sparxstar-ouroboros-integrity for:
+- ContextBootException
+- ContextPulse DTO
+- AgreementResult enum
+- ValidationHelper
+Never redefine these. Use the Ouroboros package.
 
-See `AGENTS.md`, `INSTRUCTIONS.md`, and `README.md` for full conventions. Always work within the existing architecture; do not introduce new patterns.
+## When Uncertain
+
+If you are unsure whether something belongs in Sirus or Helios:
+Sirus PRODUCES context. Helios EVALUATES whether a request may proceed.
+Sirus never makes a yes/no decision about a request. Helios does.
+
