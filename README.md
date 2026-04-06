@@ -3,9 +3,11 @@
 
 # SPARXSTAR Sirus Context
 
-The **SPARXSTAR User Environment Check (UEC)** plugin collects and analyzes client-side environment data to enhance onboarding, diagnostics, and tier-based experience management experience. It provides a reliable snapshot of the user’s runtime environment and stores structured metadata server-side, enabling workflow decisions without relying on manual reporting or user comprehension.
+The following files provide the full tech specs for the project:
 
-UEC operates silently during sessions and supports both authenticated and anonymous contexts.
+- the [full technical specs](https://github.com/Starisian-Technologies/sparxstar-sirus-context/edit/main/README.md#:~:text=Sirus_Context_Engine_Spec_v3.0)
+- The [Platform Integrity Map](https://github.com/Starisian-Technologies/sparxstar-sirus-context/edit/main/README.md#:~:text=Sparxstar_Platform_Integrity_Map_v1.0)
+- The [SPARXSTAR Platform Overview](https://github.com/Starisian-Technologies/sparxstar-sirus-context/edit/main/README.md#:~:text=Sparxstar_Platform_Overview_v1.0.-,docx,-.pdf)
 
 ---
 
