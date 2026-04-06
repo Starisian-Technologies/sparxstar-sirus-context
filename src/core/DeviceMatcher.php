@@ -35,16 +35,15 @@ final class DeviceMatcher
     public const EXACT_THRESHOLD = 1.0;
 
     /**
-     * Minimum similarity score below which fingerprint change is treated as DRIFT.
-     * Scores >= DRIFT_THRESHOLD and < EXACT_THRESHOLD → same device, drift recorded.
+     * Boundary score between a drifting device and a new device.
+     *
+     * - Scores >= DRIFT_THRESHOLD and < EXACT_THRESHOLD → same device, drift recorded.
+     * - Scores <  DRIFT_THRESHOLD                       → new device registration.
+     *
+     * There is intentionally a single boundary constant because the upper bound of
+     * "new device" and the lower bound of "drift" are the same point on the scale.
      */
     public const DRIFT_THRESHOLD = 0.6;
-
-    /**
-     * Similarity score below which a fingerprint change is treated as a NEW device.
-     * Scores < NEW_DEVICE_THRESHOLD → new device registration.
-     */
-    public const NEW_DEVICE_THRESHOLD = 0.6;
 
     /**
      * Component weights used when scoring a structured fingerprint map.
@@ -145,6 +144,6 @@ final class DeviceMatcher
      */
     public function isNewDevice(float $score): bool
     {
-        return $score < self::NEW_DEVICE_THRESHOLD;
+        return $score < self::DRIFT_THRESHOLD;
     }
 }
