@@ -137,12 +137,46 @@ final readonly class HeliosClient implements HeliosClientInterface
      * interface contract enforces separation. In this implementation both delegate to
      * the same remote call; a future Helios version may expose a dedicated identity
      * endpoint with a different payload shape.
+     *
+     * Coerces authority_memberships and capabilities to array<int, string> so the
+     * returned payload matches the interface's documented type contract regardless
+     * of what Helios sends over the wire.
      */
     public function getIdentityContext(
         string $device_id,
         string $session_id,
         ?string $identity_claim = null
     ): ?array {
-        return $this->resolve($device_id, $session_id, $identity_claim);
+        $data = $this->resolve($device_id, $session_id, $identity_claim);
+
+        if (! is_array($data)) {
+            return null;
+        }
+
+        $memberships = isset($data['authority_memberships']) && is_array($data['authority_memberships'])
+            ? $data['authority_memberships']
+            : [];
+
+        $capabilities = isset($data['capabilities']) && is_array($data['capabilities'])
+            ? $data['capabilities']
+            : [];
+
+        return [
+            'identity_id'           => $data['identity_id'] ?? null,
+            'trust_level'           => isset($data['trust_level']) ? (string) $data['trust_level'] : 'anonymous',
+            'verification_status'   => isset($data['verification_status']) ? (string) $data['verification_status'] : 'unverified',
+            'authority_memberships' => array_values(
+                array_filter(
+                    $memberships,
+                    static fn (mixed $v): bool => is_string($v)
+                )
+            ),
+            'capabilities'          => array_values(
+                array_filter(
+                    $capabilities,
+                    static fn (mixed $v): bool => is_string($v)
+                )
+            ),
+        ];
     }
 }
