@@ -21,6 +21,42 @@ if (! defined('ABSPATH')) {
 final class ContextEngine
 {
     /**
+     * Returns a standardized context payload array for the current request.
+     *
+     * This is the single canonical public output method for external consumers.
+     * Output shape is fixed — no optional keys, no dynamic structure drift.
+     *
+     * @return array{
+     *     context_id: string,
+     *     environment_id: string,
+     *     network_id: string,
+     *     site_id: string,
+     *     device_id: string,
+     *     session_id: string,
+     *     identity_id: string|null,
+     *     authority_id: string|null,
+     *     issued_at: int,
+     *     expires: int
+     * }
+     */
+    public static function getContext(): array
+    {
+        $ctx = self::current();
+        return [
+            'context_id'     => $ctx->context_id,
+            'environment_id' => $ctx->environment_id,
+            'network_id'     => $ctx->network_id,
+            'site_id'        => $ctx->site_id,
+            'device_id'      => $ctx->device_id,
+            'session_id'     => $ctx->session_id,
+            'identity_id'    => $ctx->identity_id,
+            'authority_id'   => $ctx->authority_id,
+            'issued_at'      => $ctx->issued_at,
+            'expires'        => $ctx->expires,
+        ];
+    }
+
+    /**
      * Returns the SirusContext for the current request, building it once and caching.
      *
      * Expired contexts are evicted from the cache and rebuilt transparently so that
@@ -56,9 +92,17 @@ final class ContextEngine
      *
      * @param DeviceRecord $device The resolved and persisted device record.
      * @return SirusContext A fully initialized context seeded with the device.
+     *
+     * @throws \RuntimeException If the supplied device has an empty device_id.
      */
     public static function buildFromDevice(DeviceRecord $device): SirusContext
     {
+        if ($device->device_id === '') {
+            throw new \RuntimeException(
+                '[Sirus] Hard fail: device context is missing. buildFromDevice() requires a resolved device_id.'
+            );
+        }
+
         $context_id     = wp_generate_uuid4();
         $environment_id = hash('sha256', (string) get_bloginfo('url'));
         $network_id     = function_exists('get_current_network_id')

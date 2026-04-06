@@ -1,7 +1,12 @@
 <?php
 
 /**
- * IdentityResolver - Resolves a trust level for the current SirusContext.
+ * IdentityResolver - Resolves identity context for the current SirusContext.
+ *
+ * Per spec §B: Sirus does NOT derive identity independently. All identity
+ * resolution is delegated exclusively to Helios via HeliosClientInterface.
+ * WordPress user functions (get_current_user_id, user_can, etc.) MUST NOT be
+ * called here.
  *
  * @package Starisian\Sparxstar\Sirus
  */
@@ -14,90 +19,103 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-use Starisian\Sparxstar\Sirus\integrations\HeliosClient;
+use Starisian\Sparxstar\Sirus\integrations\HeliosClientInterface;
 
 /**
- * Determines the trust level for a resolved SirusContext by inspecting
- * device presence, WordPress authentication, capabilities, and optionally
- * an external Helios trust resolution service.
- *
- * Trust levels (ascending): anonymous → device → contributor → user → authority
+ * Delegates identity resolution to Helios Trust.
+ * Always returns a fixed-schema identity array; falls back to a null-safe
+ * structure when Helios is unavailable so callers never receive null.
  */
 final readonly class IdentityResolver
 {
-    /** @var array<string, int> Numeric weight for each trust level (for comparison). */
-    private const TRUST_WEIGHTS = [
-        'anonymous'   => 0,
-        'device'      => 1,
-        'contributor' => 2,
-        'user'        => 3,
-        'authority'   => 4,
+    /**
+     * Fixed-schema fallback returned when Helios is unavailable or returns no data.
+     * Callers can rely on this structure being present regardless of Helios state.
+     *
+     * `trust_level` is intentionally excluded from this schema — trust is Helios's
+     * internal domain and must not be surfaced through the Sirus identity layer.
+     *
+     * @var array{identity_id: null, verification_status: string, authority_memberships: array<int, string>, capabilities: array<int, string>}
+     */
+    private const FALLBACK_IDENTITY = [
+        'identity_id'           => null,
+        'verification_status'   => 'none',
+        'authority_memberships' => [],
+        'capabilities'          => [],
     ];
 
     /**
-     * @param HeliosClient|null $helios_client Optional Helios integration for external trust resolution.
+     * @param HeliosClientInterface|null $helios_client Helios integration (required for resolution).
      */
-    public function __construct(private ?HeliosClient $helios_client = null)
+    public function __construct(private ?HeliosClientInterface $helios_client = null)
     {
     }
 
     /**
-     * Resolves and returns the highest applicable trust level string for the context.
+     * Resolves and returns the identity context from Helios for the given device/session.
+     *
+     * When Helios is unavailable or returns no data, a fixed null-safe fallback shape
+     * is returned so callers always receive a consistent structure.
+     * Sirus itself never derives a trust level or identity from WordPress internals.
      *
      * @param SirusContext $context The context being evaluated.
-     * @return string One of: anonymous, device, contributor, user, authority.
+     * @return array{identity_id: string|null, verification_status: string, authority_memberships: array<int, string>, capabilities: array<int, string>}
      */
-    public function resolve(SirusContext $context): string
+    public function resolve(SirusContext $context): array
     {
-        $trust_level = 'anonymous';
+        /** @var array{identity_id: string|null, verification_status: string, authority_memberships: array<int, string>, capabilities: array<int, string>} $fallback */
+        $fallback = self::FALLBACK_IDENTITY;
 
-        if ($context->device_id !== '') {
-            $trust_level = $this->escalate($trust_level, 'device');
+        if (! $this->helios_client instanceof HeliosClientInterface) {
+            return $fallback;
         }
 
-        $user_id = get_current_user_id();
-        if ($user_id > 0) {
-            $trust_level = $this->escalate($trust_level, 'user');
+        $result = $this->helios_client->getIdentityContext(
+            $context->device_id,
+            $context->session_id,
+            $context->identity_id
+        );
 
-            if (user_can($user_id, 'manage_options')) {
-                $trust_level = $this->escalate($trust_level, 'authority');
-            }
-        }
-
-        if ($this->helios_client instanceof \Starisian\Sparxstar\Sirus\integrations\HeliosClient) {
-            $helios = $this->helios_client->resolve(
-                $context->device_id,
-                $context->session_id,
-                $context->identity_id
-            );
-            if (is_array($helios) && isset($helios['trust_level']) && is_string($helios['trust_level'])) {
-                $trust_level = $this->escalate($trust_level, $helios['trust_level']);
-            }
-        }
-
-        return $trust_level;
+        return is_array($result) ? $this->normalizeIdentityContext($result) : $fallback;
     }
 
     /**
-     * Returns the higher trust level of the two provided values.
-     * Ignores unknown levels (treats them as 'anonymous') and logs a warning.
+     * Normalizes Helios identity data to the documented fixed schema.
      *
-     * @param string $current The currently resolved trust level.
-     * @param string $candidate The candidate trust level to compare.
+     * @param array<mixed> $result Raw identity data returned by Helios.
+     * @return array{identity_id: string|null, verification_status: string, authority_memberships: array<int, string>, capabilities: array<int, string>}
      */
-    private function escalate(string $current, string $candidate): string
+    private function normalizeIdentityContext(array $result): array
     {
-        if (! array_key_exists($current, self::TRUST_WEIGHTS)) {
-            $current = 'anonymous';
+        /** @var array{identity_id: string|null, verification_status: string, authority_memberships: array<int, string>, capabilities: array<int, string>} $normalized */
+        $normalized = self::FALLBACK_IDENTITY;
+
+        if (array_key_exists('identity_id', $result) && (is_string($result['identity_id']) || null === $result['identity_id'])) {
+            $normalized['identity_id'] = $result['identity_id'];
         }
 
-        if (! array_key_exists($candidate, self::TRUST_WEIGHTS)) {
-            // Unknown candidate is silently ignored rather than trusted.
-            return $current;
+        if (isset($result['verification_status']) && is_string($result['verification_status'])) {
+            $normalized['verification_status'] = $result['verification_status'];
         }
 
-        return self::TRUST_WEIGHTS[ $candidate ] > self::TRUST_WEIGHTS[ $current ]
-            ? $candidate
-            : $current;
+        if (isset($result['authority_memberships']) && is_array($result['authority_memberships'])) {
+            $normalized['authority_memberships'] = array_values(
+                array_filter(
+                    $result['authority_memberships'],
+                    static fn (mixed $membership): bool => is_string($membership)
+                )
+            );
+        }
+
+        if (isset($result['capabilities']) && is_array($result['capabilities'])) {
+            $normalized['capabilities'] = array_values(
+                array_filter(
+                    $result['capabilities'],
+                    static fn (mixed $capability): bool => is_string($capability)
+                )
+            );
+        }
+
+        return $normalized;
     }
 }
