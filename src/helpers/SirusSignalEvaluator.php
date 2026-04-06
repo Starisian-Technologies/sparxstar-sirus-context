@@ -52,7 +52,7 @@ final class SirusSignalEvaluator
      *
      * Every element in the returned array has the fixed schema:
      *   type      (string)  — one of the SIGNAL_* constants
-     *   severity  (string)  — low | medium | high | critical
+     *   severity  (string)  — low | medium | high
      *   source    (string)  — always 'sirus_signal_evaluator'
      *   timestamp (int)     — unix timestamp at evaluation time
      *
