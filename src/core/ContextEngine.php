@@ -35,7 +35,6 @@ final class ContextEngine
      *     session_id: string,
      *     identity_id: string|null,
      *     authority_id: string|null,
-     *     trust_level: string,
      *     issued_at: int,
      *     expires: int
      * }
