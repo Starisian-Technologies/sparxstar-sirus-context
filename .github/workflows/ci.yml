@@ -8,9 +8,9 @@ on:
 
 jobs:
     build:
-        # Use least-privilege by default; only allow write access on trusted pushes.
+        # Use least-privilege static permissions; this job only needs repository read access.
         permissions:
-            contents: ${{ github.event_name == 'push' && 'write' || 'read' }}
+            contents: read
 
         runs-on: ubuntu-latest
 
