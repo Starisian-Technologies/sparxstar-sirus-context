@@ -108,8 +108,7 @@ final class ContextEngine
             throw $e;
         } catch (\Throwable $e) {
             throw new ContextBootException(
-                '[Sirus] ContextBootException: context could not be established. '
-                . 'Cause: ' . $e->getMessage(),
+                '[Sirus] ContextBootException: context could not be established.',
                 0,
                 $e
             );
