@@ -21,6 +21,7 @@ if (! defined('ABSPATH')) {
 }
 
 use Starisian\Sparxstar\Sirus\exceptions\ContextBootException;
+use Starisian\Sparxstar\Sirus\core\TrustEngine;
 
 /**
  * Responsible for assembling a fully resolved SirusContext.
@@ -108,8 +109,7 @@ final class ContextEngine
             throw $e;
         } catch (\Throwable $e) {
             throw new ContextBootException(
-                '[Sirus] ContextBootException: context could not be established. '
-                . 'Cause: ' . $e->getMessage(),
+                '[Sirus] ContextBootException: context could not be established.',
                 0,
                 $e
             );
@@ -181,6 +181,11 @@ final class ContextEngine
         $issued_at = time();
         $expires   = $issued_at + 300;
 
+        $trust_result = (new TrustEngine())->compute([
+            'device_drifting' => $device->drift_score > 0,
+            'new_session'     => $device->first_seen === $device->last_seen,
+        ]);
+
         $context = new SirusContext(
             context_id:     $context_id,
             environment_id: $environment_id,
@@ -192,8 +197,8 @@ final class ContextEngine
             authority_id:   null,
             role_set:       [],
             capabilities:   [],
-            trust_level:    $device->trust_level,
-            trust_score:    1.0,
+            trust_level:    $trust_result['trust_level'],
+            trust_score:    $trust_result['trust_score'],
             issued_at:      $issued_at,
             expires:        $expires,
         );
@@ -231,8 +236,9 @@ final class ContextEngine
             ? session_id()
             : wp_generate_uuid4();
 
-        $trust_level  = 'anonymous';
-        $trust_score  = 1.0;
+        $trust_result = (new TrustEngine())->compute([]);
+        $trust_level  = $trust_result['trust_level'];
+        $trust_score  = $trust_result['trust_score'];
         $identity_id  = null;
         $authority_id = null;
         $role_set     = [];

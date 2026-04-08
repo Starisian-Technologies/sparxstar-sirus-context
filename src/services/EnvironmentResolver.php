@@ -123,35 +123,39 @@ final class EnvironmentResolver
      */
     private function resolveWithDetector(string $ua): array
     {
-        /** @var \DeviceDetector\DeviceDetector $dd */
-        $dd = new \DeviceDetector\DeviceDetector($ua);
-        $dd->parse();
+        try {
+            /** @var \DeviceDetector\DeviceDetector $dd */
+            $dd = new \DeviceDetector\DeviceDetector($ua);
+            $dd->parse();
 
-        $browser_info = $dd->getClient();
-        $os_info      = $dd->getOs();
+            $browser_info = $dd->getClient();
+            $os_info      = $dd->getOs();
 
-        $browser_name = '';
-        if (is_array($browser_info) && isset($browser_info['name']) && is_string($browser_info['name'])) {
-            $browser_name = $browser_info['name'];
+            $browser_name = '';
+            if (is_array($browser_info) && isset($browser_info['name']) && is_string($browser_info['name'])) {
+                $browser_name = $browser_info['name'];
+            }
+
+            $os = '';
+            if (is_array($os_info) && isset($os_info['name']) && is_string($os_info['name'])) {
+                $os = $os_info['name'];
+            }
+
+            $device_type = $dd->isSmartphone() ? 'smartphone'
+                : ($dd->isTablet()    ? 'tablet'
+                : ($dd->isDesktop()   ? 'desktop'
+                : ($dd->isBot()       ? 'bot'
+                : 'unknown')));
+
+            return [
+                'browser_name'           => $browser_name !== '' ? $browser_name : 'unknown',
+                'os'                     => $os !== '' ? $os : 'unknown',
+                'device_type'            => $device_type,
+                'network_effective_type' => 'unknown',
+            ];
+        } catch (\Throwable $throwable) {
+            return $this->resolveWithFallback($ua);
         }
-
-        $os = '';
-        if (is_array($os_info) && isset($os_info['name']) && is_string($os_info['name'])) {
-            $os = $os_info['name'];
-        }
-
-        $device_type = $dd->isSmartphone() ? 'smartphone'
-            : ($dd->isTablet()    ? 'tablet'
-            : ($dd->isDesktop()   ? 'desktop'
-            : ($dd->isBot()       ? 'bot'
-            : 'unknown')));
-
-        return [
-            'browser_name'          => $browser_name !== '' ? $browser_name : 'unknown',
-            'os'                    => $os !== '' ? $os : 'unknown',
-            'device_type'           => $device_type,
-            'network_effective_type' => 'unknown',
-        ];
     }
 
     /**

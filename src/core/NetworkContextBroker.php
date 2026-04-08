@@ -101,8 +101,8 @@ final class NetworkContextBroker
             capabilities:   isset($data['caps']) && is_array($data['caps'])
                                 ? array_map(strval(...), $data['caps'])
                                 : [],
-            trust_level:    isset($data['tl']) ? (string) $data['tl'] : 'anonymous',
-            trust_score:    isset($data['ts']) ? (float) $data['ts'] : 0.0,
+            trust_level:    isset($data['tl']) ? (string) $data['tl'] : 'NORMAL',
+            trust_score:    max(0.0, min(1.0, isset($data['ts']) ? (float) $data['ts'] : 1.0)),
             issued_at:      (int) ($data['iat'] ?? 0),
             expires:        (int) ($data['exp'] ?? 0),
         );
