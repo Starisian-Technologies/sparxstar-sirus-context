@@ -139,7 +139,13 @@ final class ConsentManager
      */
     public function setPurposeConsent(int $user_id, string $purpose_key, string $state): bool
     {
-        if ($user_id <= 0 || $purpose_key === '') {
+        if ($user_id <= 0) {
+            return false;
+        }
+
+        $sanitized_purpose_key = sanitize_key($purpose_key);
+
+        if ($sanitized_purpose_key === '') {
             return false;
         }
 
@@ -148,9 +154,9 @@ final class ConsentManager
         }
 
         $map = $this->getPurposeConsent($user_id);
-        $map[ sanitize_key($purpose_key) ] = $state;
+        $map[ $sanitized_purpose_key ] = $state;
 
-        $this->appendHistory($user_id, 'purpose:' . sanitize_key($purpose_key), $state);
+        $this->appendHistory($user_id, 'purpose:' . $sanitized_purpose_key, $state);
         update_user_meta($user_id, self::META_PURPOSE_CONSENT, $map);
 
         return true;
