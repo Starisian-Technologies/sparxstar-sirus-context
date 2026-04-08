@@ -230,8 +230,23 @@ final class ContextEngine
             ? session_id()
             : wp_generate_uuid4();
 
-        $trust_level  = 'anonymous';
-        $trust_score  = 1.0;
+        $trust_context = TrustEngine::compute();
+
+        $trust_level = 'anonymous';
+        if (is_array($trust_context) && isset($trust_context['trust_level']) && is_string($trust_context['trust_level'])) {
+            $trust_level = $trust_context['trust_level'];
+        } elseif (is_object($trust_context) && is_string($trust_context->trust_level ?? null)) {
+            $trust_level = $trust_context->trust_level;
+        }
+
+        $trust_score = 1.0;
+        if (is_array($trust_context) && isset($trust_context['trust_score']) && is_numeric($trust_context['trust_score'])) {
+            $trust_score = (float) $trust_context['trust_score'];
+        } elseif (is_object($trust_context) && is_numeric($trust_context->trust_score ?? null)) {
+            $trust_score = (float) $trust_context->trust_score;
+        }
+
+        $trust_score = max(0.0, min(1.0, $trust_score));
         $identity_id  = null;
         $authority_id = null;
         $role_set     = [];
