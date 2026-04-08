@@ -197,8 +197,8 @@ final class ContextEngineTest extends TestCase
     }
 
     /**
-     * buildFromDevice() computes trust_level from TrustEngine (non-drifting device
-     * seen more than once yields NORMAL).
+     * buildFromDevice() computes trust_score via TrustResolver using credential-level base.
+     * 'contributor' trust_level = 0.90 base; no drift, not new session → score 0.90 → NORMAL.
      */
     public function testBuildFromDeviceUsesTrustEngineLevel(): void
     {
@@ -209,15 +209,15 @@ final class ContextEngineTest extends TestCase
             environment_json: '{}',
             first_seen:       time() - 10,
             last_seen:        time(),
-            trust_level:      'contributor', // device record label — NOT used for trust_level
+            trust_level:      'contributor', // base 0.90 in TrustResolver
             drift_score:      0,
         );
 
         $ctx = ContextEngine::buildFromDevice($record);
 
-        // No drift, not new (first_seen != last_seen) → score 1.0 → NORMAL.
+        // contributor base = 0.90, no drift, not new session → score 0.90 → NORMAL.
         $this->assertSame('NORMAL', $ctx->trust_level);
-        $this->assertSame(1.0, $ctx->trust_score);
+        $this->assertEqualsWithDelta(0.90, $ctx->trust_score, 0.0001);
     }
 
     // ── current() expiry eviction ─────────────────────────────────────────────

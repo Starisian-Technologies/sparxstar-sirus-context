@@ -102,7 +102,10 @@ final class NetworkContextBroker
                                 ? array_map(strval(...), $data['caps'])
                                 : [],
             trust_level:    isset($data['tl']) ? (string) $data['tl'] : 'NORMAL',
-            trust_score:    max(0.0, min(1.0, isset($data['ts']) ? (float) $data['ts'] : 1.0)),
+            trust_score:    max(0.0, min(1.0, isset($data['ts'])
+                ? (float) $data['ts']
+                : self::trustScoreFromLevel(isset($data['tl']) ? (string) $data['tl'] : 'NORMAL')
+            )),
             issued_at:      (int) ($data['iat'] ?? 0),
             expires:        (int) ($data['exp'] ?? 0),
         );
@@ -127,5 +130,28 @@ final class NetworkContextBroker
     {
         $decoded = base64_decode(strtr($data, '-_', '+/'), true);
         return ($decoded === false) ? '' : $decoded;
+    }
+
+    /**
+     * Derives a logical trust score from a trust_level string.
+     *
+     * Used as a backward-compatible fallback for tokens that predate the `ts`
+     * field. Maps the credential level to a float that aligns with TrustResolver
+     * credential base scores.
+     *
+     * @param string $trust_level Trust level string from the portable payload.
+     * @return float Derived trust score in [0.0, 1.0].
+     */
+    private static function trustScoreFromLevel(string $trust_level): float
+    {
+        return match (strtolower($trust_level)) {
+            'elder'       => 0.95,
+            'contributor' => 0.90,
+            'user', 'normal' => 0.85,
+            'device'      => 0.70,
+            'elevated'    => 0.60,
+            'critical'    => 0.10,
+            default       => 0.50,
+        };
     }
 }

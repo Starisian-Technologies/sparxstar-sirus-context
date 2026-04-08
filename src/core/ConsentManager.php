@@ -9,6 +9,11 @@
  *   - Purpose consent:   per-named-purpose opt-in/opt-out.
  *   - Consent history:   immutable append-only log of consent changes.
  *
+ * Technical consent is resolved in a three-level cascade:
+ *   1. Individual user meta (highest priority — per-user override)
+ *   2. Site-level WordPress option (authority default — set by site admin)
+ *   3. System hard default: STATE_DENIED (lowest priority — privacy-first)
+ *
  * ConsentManager MUST NOT make authorization decisions. It records and surfaces
  * consent state only. Downstream layers (Helios, Mehns) act on that state.
  *
@@ -26,11 +31,24 @@ if (! defined('ABSPATH')) {
 /**
  * Records and retrieves consent state for device and purpose-level tracking.
  *
+ * Consent is resolved in a strict three-level cascade:
+ *   1. Individual preference  — per-user WordPress user meta (highest priority)
+ *   2. Authority default      — per-site WordPress option set by the site admin
+ *   3. System hard default    — STATE_DENIED (lowest priority, privacy-first)
+ *
  * All writes are append-only to the consent history. Existing history records
  * MUST NOT be updated or deleted.
  */
 final class ConsentManager
 {
+    /**
+     * WordPress option key for the site-level technical consent default.
+     *
+     * Set by a site administrator to define the site's default privacy posture.
+     * Individual users can override this via user meta (META_TECHNICAL_CONSENT).
+     * Stored as a site option so multisite sub-sites have independent defaults.
+     */
+    private const OPTION_TECHNICAL_CONSENT = 'sirus_technical_consent_default';
     /** User meta key for per-user technical consent state. */
     private const META_TECHNICAL_CONSENT = 'sirus_technical_consent';
 
@@ -52,25 +70,37 @@ final class ConsentManager
     /**
      * Returns the current technical consent state for the given user.
      *
-     * When no explicit state is recorded, returns STATE_PENDING.
-     * Anonymous users (user_id = 0) always receive STATE_PENDING.
+     * Resolution cascade (highest priority first):
+     *   1. Individual user meta — if explicitly set, returns it directly.
+     *   2. Site-level option   — authority default set by the site admin.
+     *   3. System hard default — STATE_DENIED (privacy-first).
+     *
+     * Anonymous users (user_id = 0) skip user-meta resolution and fall through
+     * to the site default or STATE_DENIED.
      *
      * @param int $user_id WordPress user ID.
      * @return string One of STATE_GRANTED, STATE_DENIED, STATE_PENDING.
      */
     public function getTechnicalConsent(int $user_id): string
     {
-        if ($user_id <= 0) {
-            return self::STATE_PENDING;
+        // Step 1: per-user preference (highest priority).
+        if ($user_id > 0) {
+            $raw = get_user_meta($user_id, self::META_TECHNICAL_CONSENT, true);
+
+            if ($raw === self::STATE_GRANTED || $raw === self::STATE_DENIED) {
+                return $raw;
+            }
         }
 
-        $raw = get_user_meta($user_id, self::META_TECHNICAL_CONSENT, true);
+        // Step 2: site authority default.
+        $site_default = $this->getSiteConsentDefault();
 
-        if ($raw === self::STATE_GRANTED || $raw === self::STATE_DENIED) {
-            return $raw;
+        if ($site_default === self::STATE_GRANTED || $site_default === self::STATE_DENIED) {
+            return $site_default;
         }
 
-        return self::STATE_PENDING;
+        // Step 3: system hard default — deny (privacy-first).
+        return self::STATE_DENIED;
     }
 
     /**
@@ -95,6 +125,57 @@ final class ConsentManager
 
         $this->appendHistory($user_id, 'technical', $state);
         update_user_meta($user_id, self::META_TECHNICAL_CONSENT, $state);
+
+        return true;
+    }
+
+    /**
+     * Returns the site-level technical consent default.
+     *
+     * This is the authority default used by getTechnicalConsent() when no
+     * per-user preference is set. Set by site administrators via setSiteConsentDefault().
+     *
+     * Returns STATE_PENDING when no site default has been configured, which
+     * causes getTechnicalConsent() to fall through to the system hard default (STATE_DENIED).
+     *
+     * @param int $blog_id Blog/site ID. 0 = current site.
+     * @return string One of STATE_GRANTED, STATE_DENIED, or STATE_PENDING.
+     */
+    public function getSiteConsentDefault(int $blog_id = 0): string
+    {
+        $raw = $blog_id > 0
+            ? get_blog_option($blog_id, self::OPTION_TECHNICAL_CONSENT, self::STATE_PENDING)
+            : get_option(self::OPTION_TECHNICAL_CONSENT, self::STATE_PENDING);
+
+        if ($raw === self::STATE_GRANTED || $raw === self::STATE_DENIED) {
+            return (string) $raw;
+        }
+
+        return self::STATE_PENDING;
+    }
+
+    /**
+     * Sets the site-level technical consent default.
+     *
+     * Only site administrators should call this. ConsentManager does not enforce
+     * capability checks — callers must ensure appropriate authorization before
+     * invoking this method.
+     *
+     * @param string $state   One of STATE_GRANTED or STATE_DENIED.
+     * @param int    $blog_id Blog/site ID. 0 = current site.
+     * @return bool True on success, false if state is unrecognised.
+     */
+    public function setSiteConsentDefault(string $state, int $blog_id = 0): bool
+    {
+        if ($state !== self::STATE_GRANTED && $state !== self::STATE_DENIED) {
+            return false;
+        }
+
+        if ($blog_id > 0) {
+            update_blog_option($blog_id, self::OPTION_TECHNICAL_CONSENT, $state);
+        } else {
+            update_option(self::OPTION_TECHNICAL_CONSENT, $state);
+        }
 
         return true;
     }

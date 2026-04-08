@@ -910,6 +910,37 @@ if (!function_exists('delete_option')) {
     }
 }
 
+if (!function_exists('get_blog_option')) {
+    /**
+     * Get an option for a specific blog from the in-memory store.
+     *
+     * @param int    $blog_id Blog/site ID.
+     * @param string $name    Option name.
+     * @param mixed  $default Default value.
+     * @return mixed
+     */
+    function get_blog_option(int $blog_id, string $name, mixed $default = false): mixed
+    {
+        return $GLOBALS['wp_options'][$blog_id][$name] ?? $default;
+    }
+}
+
+if (!function_exists('update_blog_option')) {
+    /**
+     * Update an option for a specific blog in the in-memory store.
+     *
+     * @param int    $blog_id Blog/site ID.
+     * @param string $name    Option name.
+     * @param mixed  $value   Option value.
+     * @return bool True after storing.
+     */
+    function update_blog_option(int $blog_id, string $name, mixed $value): bool
+    {
+        $GLOBALS['wp_options'][$blog_id][$name] = $value;
+        return true;
+    }
+}
+
 if (!function_exists('wp_rand')) {
     /**
      * Shim for WordPress' wp_rand helper using PHP's random_int.

@@ -181,10 +181,9 @@ final class ContextEngine
         $issued_at = time();
         $expires   = $issued_at + 300;
 
-        $trust_result = (new TrustEngine())->compute([
-            'device_drifting' => $device->drift_score > 0,
-            'new_session'     => $device->first_seen === $device->last_seen,
-        ]);
+        $trust_score  = TrustResolver::evaluate($device);
+        // Use TrustEngine::scoreToLevel() to map the resolver's score to the canonical level.
+        $trust_level  = (new TrustEngine())->scoreToLevel($trust_score);
 
         $context = new SirusContext(
             context_id:     $context_id,
@@ -197,8 +196,8 @@ final class ContextEngine
             authority_id:   null,
             role_set:       [],
             capabilities:   [],
-            trust_level:    $trust_result['trust_level'],
-            trust_score:    $trust_result['trust_score'],
+            trust_level:    $trust_level,
+            trust_score:    $trust_score,
             issued_at:      $issued_at,
             expires:        $expires,
         );
