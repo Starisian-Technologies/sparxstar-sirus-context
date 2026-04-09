@@ -11,6 +11,8 @@ Technical specifications:
 - [Sirus Context Engine Spec v3.0](Sirus_Context_Engine_Spec_v3.0.docx.pdf)
 - [Platform Integrity Map](Sparxstar_Platform_Integrity_Map_v1.0.docx%20(3).pdf)
 - [SPARXSTAR Platform Overview](Sparxstar_Platform_Overview_v1.0.docx.pdf)
+- [Public API Surface](PUBLIC_API.md) — all hooks, filters, REST endpoints, and classes consumed by other repos
+- [Implementation Tracker](TRACKER.md) — sprint scoreboard and remaining work
 
 ---
 
@@ -41,16 +43,17 @@ The table below answers whether each component in the Sirus Context Engine Spec 
 | `ContextEngine` — `current()` accessor, CLI system context | `src/core/ContextEngine.php` | ✅ Implemented |
 | `SirusContext` DTO — primary output consumed by all downstream layers | `src/core/SirusContext.php` | ✅ Implemented |
 | `ContextPulse` DTO — signed pulse (never contains identity claims) | `src/dto/ContextPulse.php` | ✅ **Provisional** (see below) |
-| `PulseGenerator` — HMAC-SHA256 pulse signing | `src/core/PulseGenerator.php` | ✅ Implemented |
-| `TrustEngine` — trust state and score computation | `src/core/TrustEngine.php` | ✅ Implemented |
+| `PulseGenerator` — HMAC-SHA256 pulse signing | `src/core/PulseGenerator.php` | ✅ Implemented + tested |
+| `TrustEngine` — frozen trust score algorithm | `src/core/TrustEngine.php` | ✅ Implemented + tested |
+| `TrustResolver` — credential-level base score + drift/session deductions | `src/core/TrustResolver.php` | ✅ Implemented + tested |
 | `DeviceContinuity` — server-issued `device_id`, fingerprint, session recovery | `src/core/DeviceContinuity.php` | ✅ Implemented |
 | `DeviceMatcher` — fingerprint scoring thresholds | `src/core/DeviceMatcher.php` | ✅ Implemented |
 | `EnvironmentResolver` — browser, OS, network via Matomo DeviceDetector | `src/services/EnvironmentResolver.php` | ✅ Implemented |
 | `IdentityResolver` — five-tier resolution via Helios | `src/core/IdentityResolver.php` | ✅ Implemented |
 | `AuthorityResolver` — governance scope, multi-authority aggregation | `src/core/AuthorityResolver.php` | ✅ Implemented |
-| `ConsentManager` — technical consent, purpose consent, history | `src/core/ConsentManager.php` | ✅ Implemented |
+| `ConsentManager` — cascade: user meta → site authority default → deny | `src/core/ConsentManager.php` | ✅ Implemented |
 | `StepUpPolicy` — Level 3 always; Level 2 when `trust_score < 0.7` | `src/core/StepUpPolicy.php` | ✅ Implemented |
-| `NetworkContextBroker` — cross-domain handoff | `src/core/NetworkContextBroker.php` | ✅ Implemented |
+| `NetworkContextBroker` — cross-domain handoff with `tl`/`ts` payload | `src/core/NetworkContextBroker.php` | ✅ Implemented |
 | `ContextBootException` — boot failure signal | `src/exceptions/ContextBootException.php` | ✅ **Provisional** (see below) |
 | `StarUserEnv` — frozen public facade (UEC compatibility) | `src/StarUserEnv.php` | ✅ Implemented — signatures frozen |
 
@@ -203,12 +206,22 @@ $pulse     = $generator->generate(ContextEngine::current());
 
 ## ConsentManager Usage
 
+`getTechnicalConsent()` resolves via a three-level cascade (privacy-first):
+
+1. **Individual user meta** — highest priority; set by the user
+2. **Site authority default** — set by the site admin via `setSiteConsentDefault()`; allows per-site privacy postures (e.g., a sovereign band site can enforce `STATE_DENIED` for all users)
+3. **System hard default** — `STATE_DENIED` (never `granted` by default)
+
 ```php
 $consent = new \Starisian\Sparxstar\Sirus\core\ConsentManager();
 
-// Technical consent (device + session tracking).
+// Technical consent — resolved via cascade.
 $state = $consent->getTechnicalConsent($user_id); // 'granted' | 'denied' | 'pending'
 $consent->setTechnicalConsent($user_id, ConsentManager::STATE_GRANTED);
+
+// Site authority default (called by site admin UI, not end users).
+$consent->setSiteConsentDefault(ConsentManager::STATE_DENIED, $blog_id);
+$default = $consent->getSiteConsentDefault($blog_id); // 'denied'
 
 // Purpose-level consent.
 $consent->setPurposeConsent($user_id, 'analytics', ConsentManager::STATE_DENIED);
@@ -233,6 +246,15 @@ $result = $engine->compute([
 ]);
 // $result = ['trust_score' => 0.6, 'trust_level' => 'ELEVATED']
 ```
+
+For building a context from a `DeviceRecord`, use `TrustResolver` — it derives the trust score from the credential level (`elder`→0.95, `contributor`→0.90, `user`→0.85, `device`→0.70, `anonymous`→0.50) before applying the same frozen deductions:
+
+```php
+$score = \Starisian\Sparxstar\Sirus\core\TrustResolver::evaluate($device_record);
+// $score = float in [0.0, 1.0]
+```
+
+`ContextEngine::buildFromDevice()` calls this automatically. Do not call it directly unless building a context outside `ContextEngine`.
 
 ---
 

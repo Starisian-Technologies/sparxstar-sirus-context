@@ -35,9 +35,10 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 
 | Component | File | Status | Sprint | Notes |
 |---|---|---|---|---|
-| `TrustEngine` | `src/core/TrustEngine.php` | 🟡 | S-01 | Frozen algorithm; missing unit tests |
-| `StepUpPolicy` | `src/core/StepUpPolicy.php` | 🟡 | S-01 | Frozen policy; missing unit tests |
-| `PulseGenerator` | `src/core/PulseGenerator.php` | 🟡 | S-01 | HMAC-SHA256 only; missing unit tests |
+| `TrustEngine` | `src/core/TrustEngine.php` | ✅ | S-01/S-02 | Frozen algorithm; 18 unit tests in `TrustEngineTest` |
+| `TrustResolver` | `src/core/TrustResolver.php` | ✅ | S-01/S-02 | Credential-level base + drift/session deductions; 15 unit tests in `TrustResolverTest` |
+| `StepUpPolicy` | `src/core/StepUpPolicy.php` | 🟡 | S-01 | Frozen policy; unit tests pending S-02 |
+| `PulseGenerator` | `src/core/PulseGenerator.php` | ✅ | S-01/S-02 | HMAC-SHA256 only; 17 unit tests in `PulseGeneratorTest` |
 
 ### Device and Identity
 
@@ -61,7 +62,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 
 | Component | File | Status | Sprint | Notes |
 |---|---|---|---|---|
-| `ConsentManager` | `src/core/ConsentManager.php` | 🟡 | S-01 | Technical + purpose consent, append-only history; missing unit tests |
+| `ConsentManager` | `src/core/ConsentManager.php` | 🟡 | S-01 | Three-level cascade (user→site→deny); purpose consent; append-only history; unit tests pending S-02 |
 
 ### Compatibility
 
@@ -74,23 +75,24 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 
 ## Scoreboard — Test Coverage
 
-| Test File | Component | Status | Sprint |
-|---|---|---|---|
-| `ContextEngineTest.php` | `ContextEngine` | ✅ | S-01 |
-| `ContextCacheTest.php` | `ContextCache` | ✅ | S-01 |
-| `SirusContextTest.php` | `SirusContext` | ✅ | S-01 |
-| `NetworkContextBrokerTest.php` | `NetworkContextBroker` | ✅ | S-01 |
-| `IdentityResolverTest.php` | `IdentityResolver` | ✅ | S-01 |
-| `DeviceContinuityTest.php` | `DeviceContinuity` | ✅ | S-01 |
-| `DeviceRecordTest.php` | `DeviceRecord` | ✅ | S-01 |
-| `TrustEngineTest.php` | `TrustEngine` | 🔲 | **S-02** |
-| `PulseGeneratorTest.php` | `PulseGenerator` | 🔲 | **S-02** |
-| `EnvironmentResolverTest.php` | `EnvironmentResolver` | 🔲 | **S-02** |
-| `DeviceMatcherTest.php` | `DeviceMatcher` | 🔲 | **S-02** |
-| `ConsentManagerTest.php` | `ConsentManager` | 🔲 | **S-02** |
-| `StepUpPolicyTest.php` | `StepUpPolicy` | 🔲 | **S-02** |
-| `ContextBootExceptionTest.php` | `ContextBootException` | 🔲 | **S-02** |
-| `ContextPulseTest.php` | `ContextPulse` | 🔲 | **S-02** |
+| Test File | Component | Status | Sprint | Tests |
+|---|---|---|---|---|
+| `ContextEngineTest.php` | `ContextEngine` | ✅ | S-01 | 6 |
+| `ContextCacheTest.php` | `ContextCache` | ✅ | S-01 | — |
+| `SirusContextTest.php` | `SirusContext` | ✅ | S-01 | — |
+| `NetworkContextBrokerTest.php` | `NetworkContextBroker` | ✅ | S-01 | — |
+| `IdentityResolverTest.php` | `IdentityResolver` | ✅ | S-01 | — |
+| `DeviceContinuityTest.php` | `DeviceContinuity` | ✅ | S-01 | — |
+| `DeviceRecordTest.php` | `DeviceRecord` | ✅ | S-01 | — |
+| `TrustEngineTest.php` | `TrustEngine` | ✅ | **S-02** | 18 |
+| `PulseGeneratorTest.php` | `PulseGenerator` | ✅ | **S-02** | 17 |
+| `TrustResolverTest.php` | `TrustResolver` | ✅ | **S-02** | 15 |
+| `EnvironmentResolverTest.php` | `EnvironmentResolver` | 🔲 | S-02 | — |
+| `DeviceMatcherTest.php` | `DeviceMatcher` | 🔲 | S-02 | — |
+| `ConsentManagerTest.php` | `ConsentManager` | 🔲 | S-02 | — |
+| `StepUpPolicyTest.php` | `StepUpPolicy` | 🔲 | S-02 | — |
+| `ContextBootExceptionTest.php` | `ContextBootException` | 🔲 | S-02 | — |
+| `ContextPulseTest.php` | `ContextPulse` | 🔲 | S-02 | — |
 
 ---
 
@@ -159,30 +161,33 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 - [x] CLI system context path (`SYSTEM`/`GLOBAL`/`CLI`)
 - [x] `SirusContext` DTO — `trust_score` field added
 - [x] `TrustEngine` — frozen algorithm (base 1.0, deductions clamped to [0.0, 1.0])
+- [x] `TrustResolver` — credential-level base + drift/session deductions for `buildFromDevice()`
 - [x] `PulseGenerator` — HMAC-SHA256, no identity in pulse, key from constant only
 - [x] `ContextPulse` DTO — immutable, provisional Ouroboros mirror
 - [x] `ContextBootException` — provisional Ouroboros mirror
-- [x] `EnvironmentResolver` — Matomo DeviceDetector + regex fallback
+- [x] `EnvironmentResolver` — Matomo DeviceDetector + regex fallback + Throwable guard
 - [x] `DeviceMatcher` — EXACT=1.0, DRIFT=0.6, single boundary constant
-- [x] `ConsentManager` — technical + purpose consent, append-only history
+- [x] `ConsentManager` — three-level cascade (user meta → site option → deny), purpose consent, append-only history
 - [x] `StepUpPolicy` — frozen Level 3/Level 2 thresholds, recommendation only
-- [x] `NetworkContextBroker` — `tl`/`ts` round-trip in portable payload
+- [x] `NetworkContextBroker` — `tl`/`ts` round-trip in portable payload; absent `ts` derived from `tl`
 - [x] README.md — full spec alignment documentation
+- [x] PUBLIC_API.md — public surface document for cross-repo consumers
 
 ---
 
-### S-02 — Test Coverage for S-01 Components (Next)
+### S-02 — Test Coverage for S-01 Components (In Progress)
 
 > Every S-01 component built without a unit test needs one. PHPUnit ^11.5.50, extends `SirusTestCase`.
 
-- [ ] `TrustEngineTest` — frozen algorithm: all signal combinations, clamping to [0.0, 1.0], level mapping
-- [ ] `PulseGeneratorTest` — key validation (< 32 bytes throws), pulse fields, no identity_id, TTL, HMAC sig not empty
+- [x] `TrustEngineTest` — 18 tests: frozen algorithm, all signal combos, clamping to [0.0, 1.0], level mapping
+- [x] `PulseGeneratorTest` — 17 tests: key validation (< 32 bytes throws), pulse fields, no identity_id, TTL, HMAC sig
+- [x] `TrustResolverTest` — 15 tests: all credential bases, drift deduction, new-session deduction, combined, clamping
 - [ ] `ContextPulseTest` — DTO immutability, field access, no identity_id field present
 - [ ] `ContextBootExceptionTest` — extends `\RuntimeException`, message passthrough
 - [ ] `EnvironmentResolverTest` — UA parsing (browser/OS/device), fallback regex path, network filter
 - [ ] `DeviceMatcherTest` — score = 1.0 (EXACT), score = 0.6 (DRIFT), score < 0.6 (no match), component weights
-- [ ] `ConsentManagerTest` — get/set technical consent, purpose consent map, append-only history, no UPDATE/DELETE
-- [ ] `StepUpPolicyTest` — Level 3 always true, Level 2 with trust_score < 0.7 true, Level 2 with trust_score >= 0.7 false, Level 1 always false
+- [ ] `ConsentManagerTest` — get/set technical consent, cascade order, purpose consent map, append-only history
+- [ ] `StepUpPolicyTest` — Level 3 always true, Level 2 with trust_score < 0.7 true, Level 2 ≥ 0.7 false, Level 1 false
 
 **Acceptance criteria:** `composer run test:unit` passes with no failures or deprecations.
 
@@ -256,4 +261,4 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 
 ---
 
-*Last updated: 2026-04-06 | Spec version: Sirus Context Engine Spec v3.0*
+*Last updated: 2026-04-09 | Spec version: Sirus Context Engine Spec v3.0*
