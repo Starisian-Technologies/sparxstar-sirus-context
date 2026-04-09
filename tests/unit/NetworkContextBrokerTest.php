@@ -40,6 +40,7 @@ final class NetworkContextBrokerTest extends TestCase
             role_set:       [],
             capabilities:   ['read', 'publish'],
             trust_level:    'user',
+            trust_score:    1.0,
             issued_at:      time(),
             expires:        time() + 300,
         );
@@ -109,6 +110,7 @@ final class NetworkContextBrokerTest extends TestCase
             role_set:       [],
             capabilities:   [],
             trust_level:    'user',
+            trust_score:    1.0,
             issued_at:      time(),
             expires:        time() + 300,
         );

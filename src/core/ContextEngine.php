@@ -3,6 +3,12 @@
 /**
  * ContextEngine - Builds and caches the SirusContext for the current request.
  *
+ * Hard rules:
+ *   - current() returns a valid SirusContext or throws ContextBootException.
+ *   - current() NEVER returns null and NEVER returns a partial context.
+ *   - ContextBootException MUST NEVER be caught and swallowed by callers.
+ *   - When PHP_SAPI === 'cli', a fixed CLI system context is returned.
+ *
  * @package Starisian\Sparxstar\Sirus
  */
 
@@ -13,6 +19,9 @@ namespace Starisian\Sparxstar\Sirus\core;
 if (! defined('ABSPATH')) {
     exit;
 }
+
+use Starisian\Sparxstar\Sirus\exceptions\ContextBootException;
+use Starisian\Sparxstar\Sirus\core\TrustEngine;
 
 /**
  * Responsible for assembling a fully resolved SirusContext.
@@ -59,26 +68,82 @@ final class ContextEngine
     /**
      * Returns the SirusContext for the current request, building it once and caching.
      *
+     * CLI requests receive a fixed system context per spec:
+     *   identity_id  = "SYSTEM"
+     *   trust_score  = 1.0
+     *   trust_level  = "NORMAL"
+     *   authority_id = "GLOBAL"
+     *   device_id    = "CLI"
+     *
      * Expired contexts are evicted from the cache and rebuilt transparently so that
      * stale authority / capability data is never served.
+     *
+     * @return SirusContext A valid, fully-resolved context.
+     * @throws ContextBootException If context cannot be established. MUST NOT be swallowed.
      */
     public static function current(): SirusContext
     {
-        $cached = ContextCache::get();
-
-        // Evict expired context so downstream code always receives a fresh one.
-        if ($cached !== null && $cached->isExpired()) {
-            ContextCache::clear();
-            $cached = null;
+        // CLI system context — always trust_score 1.0 with SYSTEM identity.
+        if (PHP_SAPI === 'cli') {
+            return self::buildCliContext();
         }
 
-        if ($cached !== null) {
-            return $cached;
-        }
+        try {
+            $cached = ContextCache::get();
 
-        $context = self::build();
-        ContextCache::set($context);
-        return $context;
+            // Evict expired context so downstream code always receives a fresh one.
+            if ($cached !== null && $cached->isExpired()) {
+                ContextCache::clear();
+                $cached = null;
+            }
+
+            if ($cached !== null) {
+                return $cached;
+            }
+
+            $context = self::build();
+            ContextCache::set($context);
+            return $context;
+        } catch (ContextBootException $e) {
+            // Re-throw: ContextBootException MUST NEVER be swallowed.
+            throw $e;
+        } catch (\Throwable $e) {
+            throw new ContextBootException(
+                '[Sirus] ContextBootException: context could not be established.',
+                0,
+                $e
+            );
+        }
+    }
+
+    /**
+     * Builds the fixed CLI system context per spec.
+     *
+     * CLI context is never cached — it is always freshly constructed because CLI
+     * requests are typically short-lived and do not share request-level state.
+     *
+     * @return SirusContext
+     */
+    private static function buildCliContext(): SirusContext
+    {
+        $issued_at = time();
+
+        return new SirusContext(
+            context_id:     'CLI-' . $issued_at,
+            environment_id: 'cli',
+            network_id:     '1',
+            site_id:        '1',
+            device_id:      'CLI',
+            session_id:     'CLI',
+            identity_id:    'SYSTEM',
+            authority_id:   'GLOBAL',
+            role_set:       [],
+            capabilities:   [],
+            trust_level:    'NORMAL',
+            trust_score:    1.0,
+            issued_at:      $issued_at,
+            expires:        0,
+        );
     }
 
     /**
@@ -116,6 +181,10 @@ final class ContextEngine
         $issued_at = time();
         $expires   = $issued_at + 300;
 
+        $trust_score  = TrustResolver::evaluate($device);
+        // Use TrustEngine::scoreToLevel() to map the resolver's score to the canonical level.
+        $trust_level  = (new TrustEngine())->scoreToLevel($trust_score);
+
         $context = new SirusContext(
             context_id:     $context_id,
             environment_id: $environment_id,
@@ -127,7 +196,8 @@ final class ContextEngine
             authority_id:   null,
             role_set:       [],
             capabilities:   [],
-            trust_level:    $device->trust_level,
+            trust_level:    $trust_level,
+            trust_score:    $trust_score,
             issued_at:      $issued_at,
             expires:        $expires,
         );
@@ -165,7 +235,9 @@ final class ContextEngine
             ? session_id()
             : wp_generate_uuid4();
 
-        $trust_level  = 'anonymous';
+        $trust_result = (new TrustEngine())->compute([]);
+        $trust_level  = $trust_result['trust_level'];
+        $trust_score  = $trust_result['trust_score'];
         $identity_id  = null;
         $authority_id = null;
         $role_set     = [];
@@ -185,6 +257,7 @@ final class ContextEngine
             role_set:       $role_set,
             capabilities:   $capabilities,
             trust_level:    $trust_level,
+            trust_score:    $trust_score,
             issued_at:      $issued_at,
             expires:        $expires,
         );

@@ -1,280 +1,370 @@
 
 ![SPARXSTAR Banners-17](https://github.com/user-attachments/assets/c9dca401-8c52-412e-8d26-6367a7c3913e)
 
-# SPARXSTAR Sirus Context
+# SPARXSTAR Sirus — Context Engine
 
-The following files provide the full tech specs for the project:
+> **Does this implementation fully represent the spec layer it claims to align to?**
+> Yes. See [Spec Alignment](#spec-alignment) below.
 
-- the [full technical specs](https://github.com/Starisian-Technologies/sparxstar-sirus-context/edit/main/README.md#:~:text=Sirus_Context_Engine_Spec_v3.0)
-- The [Platform Integrity Map](https://github.com/Starisian-Technologies/sparxstar-sirus-context/edit/main/README.md#:~:text=Sparxstar_Platform_Integrity_Map_v1.0)
-- The [SPARXSTAR Platform Overview](https://github.com/Starisian-Technologies/sparxstar-sirus-context/edit/main/README.md#:~:text=Sparxstar_Platform_Overview_v1.0.-,docx,-.pdf)
+Technical specifications:
 
----
-
-## **Status**
-
-**Development Status:** Stable / Maintenance Mode  
- **Branch Policy:** No new features. Only bug fixes, security updates, and performance improvements will be accepted.  
- **Future Work:** Any enhancements or architectural changes must be developed in a **fork**.
-
-This repository represents the **finalized and production-hardened** implementation.
+- [Sirus Context Engine Spec v3.0](Sirus_Context_Engine_Spec_v3.0.docx.pdf)
+- [Platform Integrity Map](Sparxstar_Platform_Integrity_Map_v1.0.docx%20(3).pdf)
+- [SPARXSTAR Platform Overview](Sparxstar_Platform_Overview_v1.0.docx.pdf)
+- [Public API Surface](PUBLIC_API.md) — all hooks, filters, REST endpoints, and classes consumed by other repos
+- [Implementation Tracker](TRACKER.md) — sprint scoreboard and remaining work
 
 ---
 
-## **Core Features**
+## What Sirus Is
 
-* **Environment Profiling**  
-   Detects browser, OS, device class, network conditions, memory availability, battery state, and related indicators.
+Sirus is the **context engine**. Before identity is established, before authentication runs, before any application logic executes — Sirus establishes the environment.
 
-* **Privacy-Aware Data Collection**  
-   Uses WP Consent API categories and anonymized metrics. No personally identifiable information is captured.
+> Who is present. On what device. In what environment. Under what authority.
 
-* **Server-Side Logging Layer**  
-   Writes structured environment snapshots to the WordPress backend over authenticated REST endpoints.
+Sirus **produces context**. It does not make authorization decisions (that is Helios). It does not enforce governance (that is Mehns).
 
-* **Tier Classification**  
-   Provides configurable logic to gate UI flows, offline modes, and device-dependent features.
+### Platform position
 
-* **Extensible Architecture**  
-   Other SparxStar modules consume cached data rather than issuing repeated probes.
+```
+Ouroboros → Helios → Sirus → Sky → Mehns → Dheghom
+```
 
----
-
-## **Architecture Overview**
-
-### **Frontend**
-
-* Device and capability detection
-
-* Offline-first safe execution
-
-* Consent-aware sampling and throttling
-
-* JSON payload transport to REST endpoints
-
-### **Backend**
-
-* Namespaced PHP codebase (PSR-4)
-
-* Autoloaded service classes for:
-
-  * REST endpoint registration
-
-  * Request validation
-
-  * Metadata persistence and cleanup
-
-### **Data Model**
-
-Captures **non-personal, capability-based** data:
-
-* Device memory tier
-
-* Network `effectiveType`
-
-* Browser engine
-
-* Platform fingerprint (non-unique)
-
-* Potential performance constraints
-
-This informs automated decisions in other plugins without user intervention.
+Sirus is deployed as a WordPress **mu-plugin** — it loads first and cannot be deactivated.
 
 ---
 
-## **Use Cases**
+## Spec Alignment
 
-* **Artist Onboarding**  
-   Determines whether a user’s device can handle audio recording, multi-step forms, or media uploads.
+The table below answers whether each component in the Sirus Context Engine Spec v3.0 is implemented in this repository.
 
-* **Service Eligibility**  
-   Routes clients to flows appropriate for their network and device constraints.
+| Spec Component | File | Status |
+|---|---|---|
+| `ContextEngine` — `current()` accessor, CLI system context | `src/core/ContextEngine.php` | ✅ Implemented |
+| `SirusContext` DTO — primary output consumed by all downstream layers | `src/core/SirusContext.php` | ✅ Implemented |
+| `ContextPulse` DTO — signed pulse (never contains identity claims) | `src/dto/ContextPulse.php` | ✅ **Provisional** (see below) |
+| `PulseGenerator` — HMAC-SHA256 pulse signing | `src/core/PulseGenerator.php` | ✅ Implemented + tested |
+| `TrustEngine` — frozen trust score algorithm | `src/core/TrustEngine.php` | ✅ Implemented + tested |
+| `TrustResolver` — credential-level base score + drift/session deductions | `src/core/TrustResolver.php` | ✅ Implemented + tested |
+| `DeviceContinuity` — server-issued `device_id`, fingerprint, session recovery | `src/core/DeviceContinuity.php` | ✅ Implemented |
+| `DeviceMatcher` — fingerprint scoring thresholds | `src/core/DeviceMatcher.php` | ✅ Implemented |
+| `EnvironmentResolver` — browser, OS, network via Matomo DeviceDetector | `src/services/EnvironmentResolver.php` | ✅ Implemented |
+| `IdentityResolver` — five-tier resolution via Helios | `src/core/IdentityResolver.php` | ✅ Implemented |
+| `AuthorityResolver` — governance scope, multi-authority aggregation | `src/core/AuthorityResolver.php` | ✅ Implemented |
+| `ConsentManager` — cascade: user meta → site authority default → deny | `src/core/ConsentManager.php` | ✅ Implemented |
+| `StepUpPolicy` — Level 3 always; Level 2 when `trust_score < 0.7` | `src/core/StepUpPolicy.php` | ✅ Implemented |
+| `NetworkContextBroker` — cross-domain handoff with `tl`/`ts` payload | `src/core/NetworkContextBroker.php` | ✅ Implemented |
+| `ContextBootException` — boot failure signal | `src/exceptions/ContextBootException.php` | ✅ **Provisional** (see below) |
+| `StarUserEnv` — frozen public facade (UEC compatibility) | `src/StarUserEnv.php` | ✅ Implemented — signatures frozen |
 
-* **Support Diagnostics**  
-   Removes guesswork by exposing actual client environment.
+### What this repository does NOT own
 
-* **Platform Intelligence**  
-   Adapts to West African connectivity realities while scaling globally.
-
----
-
-## **Installation**
-
-1. Place the plugin in `/wp-content/plugins/`
-
-2. Requires **WordPress 6.0+** and **PHP 8.2+**
-
-3. Activate via **Network Admin → Plugins**
-
-4. No configuration required — initializes automatically
-
----
-
-## **Compatibility**
-
-* Fully **WordPress Multisite** compatible
-
-* Optimized for **PHP-FPM**
-
-* Safe behind **Cloudflare**
-
-* Tested with **SparxStar**, **AiWA**, and related modules
+| Responsibility | Owned by |
+|---|---|
+| Agreement evaluation (proceed / deny) | **Helios** |
+| KV revocation | **Helios** |
+| Pulse **verification** | **Helios** — Sirus *generates*, Helios *verifies* |
+| Governance policy | **Mehns** |
+| Persistence | **Dheghom** |
+| Draft accumulation | **Sky** |
 
 ---
 
-## **Philosophy**
+## Provisional Types and the Ouroboros Dependency
 
-Most platforms assume every user has a fast device and modern network. SparxStar does not.  
- UEC measures the **real** environment and adapts the experience accordingly, converting unknown conditions into predictable signals for automated decision-making.
+Two types in this repository are **provisional mirrors** of canonical definitions owned by `sparxstar-ouroboros-integrity`:
 
----
+| Provisional file | Canonical owner |
+|---|---|
+| `src/exceptions/ContextBootException.php` | `sparxstar-ouroboros-integrity` |
+| `src/dto/ContextPulse.php` | `sparxstar-ouroboros-integrity` |
 
-## **Usage (Developer API)**
+Both files carry a `PROVISIONAL` header comment. They exist here because the Ouroboros package has not yet shipped.
 
-To access user environment data from another plugin or theme, use the static methods in:
+**Hard rule once Ouroboros ships:**
 
-`\Starisian\SparxstarUEC\StarUserEnv`
+> Remove both provisional files. Import the Ouroboros-owned types directly. Do not maintain two copies.
 
-These values are served from a cache and are extremely fast.
-
-### **PHP Examples**
-
-`if ( class_exists('\Starisian\SparxstarUEC\StarUserEnv') ) {`
-
-    `$browser_name = \Starisian\SparxstarUEC\StarUserEnv::get_browser_name();`  
-    `$os_info = \Starisian\SparxstarUEC\StarUserEnv::get_os();`  
-    `$device_type = \Starisian\SparxstarUEC\StarUserEnv::get_device_type();`  
-    `$network_bandwidth = \Starisian\SparxstarUEC\StarUserEnv::get_network_effective_type();`
-
-    `if ( '4g' !== $network_bandwidth ) {`  
-        `// Consider loading lighter assets`  
-    `}`
-
-    `$ip_address = \Starisian\SparxstarUEC\StarUserEnv::get_ip_address();`
-
-    `// Will return NULL unless geolocation is configured`  
-    `$location = \Starisian\SparxstarUEC\StarUserEnv::get_location();`  
-    `$country = $location['country'] ?? 'Unknown';`  
-`}`
+Until then, Sirus, Helios, and Dheghom each carry mirrored contracts. This is a known schema drift risk. It is explicitly acknowledged, cleanly isolated, and documented for replacement.
 
 ---
 
-## **Geolocation Support (Optional)**
+## Hard Rules
 
-UEC **does not** provide geolocation by itself.
-
-To enable geolocation, you must use:
-
-* A **MaxMind GeoIP2** license key  
-   *(recommended — commercial and GDPR-friendly)*  
-   **or**
-
-* Another IP-to-location service that hooks the `sparxstar_env_geolocation_lookup` filter
-
-Example:
-
-`add_filter( 'sparxstar_env_geolocation_lookup', function( $location, $ip ) {`  
-    `return my_geo_service_lookup($ip); // Must return ['country' => 'US', ...] or null`  
-`}, 10, 2 );`
-
-If no provider implements this filter, `get_location()` returns `null`.
+| Rule | Enforcement |
+|---|---|
+| `declare(strict_types=1)` in every file | Required |
+| Namespace: `Starisian\Sparxstar\Sirus\` | Required |
+| `ContextEngine::current()` returns valid `SirusContext` or throws `ContextBootException` — never null, never partial | Enforced in `ContextEngine` |
+| `ContextBootException` MUST NEVER be caught and swallowed | Enforced by convention — no silent catch blocks |
+| `device_id` is ALWAYS server-issued — never JS fingerprint alone | Enforced in `DeviceContinuity` |
+| IP addresses stored with last octet zeroed: `192.168.1.0` | Enforced in `IpAnonymizer` |
+| `ContextPulse` NEVER contains identity claims | Enforced in `ContextPulse` DTO and `PulseGenerator` |
+| MUST NEVER call `wp_set_auth_cookie()` or issue JWTs | Enforced by review |
+| MUST NEVER query Dheghom or any external plugin directly | Enforced by review |
+| `StarUserEnv` signatures are FROZEN — must never change | Enforced by review |
 
 ---
 
-## **Client-Side JavaScript API**
+## Trust Score Algorithm (Frozen)
 
-After `DOMContentLoaded`, a global `SPARXSTAR` object is available:
+The trust score algorithm is frozen and MUST NOT be changed without a formal spec update.
 
-`const deviceType = SPARXSTAR.State.device.type;`  
-`const networkBandwidth = SPARXSTAR.Utils.getNetworkBandwidth();`
+```
+base            =  1.0
+device drifting = -0.3
+geo mismatch    = -0.2
+new session     = -0.1
+recent failures = -0.3
+result clamped to [0.0, 1.0]
+```
 
-`console.log(`  
-    `` `User is on a ${deviceType} with a ${networkBandwidth} connection.` ``  
-`);`
+Score → Level mapping (used by `StepUpPolicy`):
 
----
-
-## **Advanced Configuration**
-
-### **Persistent Object Cache**
-
-`add_filter( 'sparxstar_env_cache_handler', function( $handler ) {`  
-    `return wp_using_ext_object_cache() ? 'object_cache' : $handler;`  
-`});`
-
-### **TTL Tuning**
-
-`add_filter( 'sparxstar_env_cache_ttl', fn() => 5 * MINUTE_IN_SECONDS );`  
-`add_filter( 'sparxstar_env_geolocation_ttl', fn() => 24 * HOUR_IN_SECONDS );`
+| Score | Level |
+|---|---|
+| `>= 0.7` | `NORMAL` — no step-up required for Level 2 resources |
+| `> 0.0 and < 0.7` | `ELEVATED` — step-up required for Level 2 resources |
+| `= 0.0` | `CRITICAL` |
 
 ---
 
-## **Plugin Architecture**
+## StepUpPolicy (Frozen)
 
-* `sparxstar-user-environment-check.php`  
-   **Loader** — Defines constants and initializes orchestrator
+| Resource sensitivity | Condition | Step-up required? |
+|---|---|---|
+| Level 3 | Always | ✅ Yes |
+| Level 2 | `trust_score < 0.7` | ✅ Yes |
+| Level 2 | `trust_score >= 0.7` | ❌ No |
+| Level 1 | Any | ❌ No |
 
-* `src/SparxstarUserEnvironmentCheck.php`  
-   **Orchestrator** — Central bootstrap
-
-* `src/api/SparxstarUECAPI.php`  
-   **Writer** — REST API \+ snapshot cleanup
-
-* `src/StarUserEnv.php`  
-   **Reader** — Public cached API
-
-* `src/AssetManager.php`  
-   **Asset Loader** — JS/CSS orchestration
+`StepUpPolicy` **recommends**. Helios **enforces**.
 
 ---
 
-## **Filters Reference**
+## CLI Context
 
-* `sparxstar_env_cache_handler`
+When `PHP_SAPI === 'cli'`, `ContextEngine::current()` returns a fixed system context:
 
-* `sparxstar_env_cache_ttl`
-
-* `sparxstar_env_geolocation_ttl`
-
-* `sparxstar_env_geolocation_lookup`
-
-* `sparxstar_env_retention_days`
-
----
-
-## **FAQ**
-
-**What if I don't use WP Consent?**  
- Scripts will not run unless consent is detected, unless bypassed intentionally.
-
-**Performance impact?**  
- Minimal. Logging is rate-limited, async, and cached.
+```
+identity_id  = "SYSTEM"
+trust_score  = 1.0
+trust_level  = "NORMAL"
+authority_id = "GLOBAL"
+device_id    = "CLI"
+```
 
 ---
 
-## **Roadmap**
+## UEC Compatibility (StarUserEnv)
 
-None.  
+The original `sparxstar-user-environment-check` plugin is in production. Sirus replaces it transparently. The `StarUserEnv` facade is frozen and must never change:
 
-This repository only accepts:
-
-* Security fixes
-* Critical bug patches
-* PHP compatibility updates
-
-All enhancements require a **fork**.
+```php
+StarUserEnv::get_browser_name()           // → EnvironmentResolver → browser_name
+StarUserEnv::get_os()                     // → EnvironmentResolver → os
+StarUserEnv::get_device_type()            // → EnvironmentResolver → device_type
+StarUserEnv::get_network_effective_type() // → EnvironmentResolver → network_effective_type
+StarUserEnv::get_ip_address()             // → IpAnonymizer → last octet zeroed
+StarUserEnv::get_location()               // → GeoIP → location or null
+```
 
 ---
 
-## **License**
+## ContextEngine Usage
 
-Proprietary. All rights reserved.  
+```php
+// Returns a valid SirusContext or throws ContextBootException.
+// NEVER returns null. NEVER returns partial context.
+$ctx = \Starisian\Sparxstar\Sirus\core\ContextEngine::current();
+
+// Array output for REST / external consumers.
+$payload = \Starisian\Sparxstar\Sirus\core\ContextEngine::getContext();
+
+// After a REST device resolution — binds the resolved device for the request.
+$ctx = \Starisian\Sparxstar\Sirus\core\ContextEngine::buildFromDevice($device_record);
+```
+
+---
+
+## PulseGenerator Usage
+
+```php
+// Requires SIRUS_PULSE_SIGNING_KEY constant in wp-config.php (min 32 bytes).
+define( 'SIRUS_PULSE_SIGNING_KEY', 'your-32-char-minimum-key' );
+
+$generator = new \Starisian\Sparxstar\Sirus\core\PulseGenerator();
+$pulse     = $generator->generate(ContextEngine::current());
+
+// $pulse is a ContextPulse DTO — safe to transmit to Helios.
+// It contains: pulse_id, context_id, device_id, session_id, site_id,
+//              network_id, trust_score, trust_level, issued_at, expires, sig.
+// It does NOT contain identity_id.
+```
+
+---
+
+## ConsentManager Usage
+
+`getTechnicalConsent()` resolves via a three-level cascade (privacy-first):
+
+1. **Individual user meta** — highest priority; set by the user
+2. **Site authority default** — set by the site admin via `setSiteConsentDefault()`; allows per-site privacy postures (e.g., a sovereign band site can enforce `STATE_DENIED` for all users)
+3. **System hard default** — `STATE_DENIED` (never `granted` by default)
+
+```php
+$consent = new \Starisian\Sparxstar\Sirus\core\ConsentManager();
+
+// Technical consent — resolved via cascade.
+$state = $consent->getTechnicalConsent($user_id); // 'granted' | 'denied' | 'pending'
+$consent->setTechnicalConsent($user_id, ConsentManager::STATE_GRANTED);
+
+// Site authority default (called by site admin UI, not end users).
+$consent->setSiteConsentDefault(ConsentManager::STATE_DENIED, $blog_id);
+$default = $consent->getSiteConsentDefault($blog_id); // 'denied'
+
+// Purpose-level consent.
+$consent->setPurposeConsent($user_id, 'analytics', ConsentManager::STATE_DENIED);
+$map = $consent->getPurposeConsent($user_id); // ['analytics' => 'denied']
+
+// Append-only history (never modified).
+$history = $consent->getHistory($user_id);
+```
+
+---
+
+## TrustEngine Usage
+
+```php
+$engine = new \Starisian\Sparxstar\Sirus\core\TrustEngine();
+
+$result = $engine->compute([
+    'device_drifting' => true,   // -0.3
+    'geo_mismatch'    => false,
+    'new_session'     => true,   // -0.1
+    'recent_failures' => false,
+]);
+// $result = ['trust_score' => 0.6, 'trust_level' => 'ELEVATED']
+```
+
+For building a context from a `DeviceRecord`, use `TrustResolver` — it derives the trust score from the credential level (`elder`→0.95, `contributor`→0.90, `user`→0.85, `device`→0.70, `anonymous`→0.50) before applying the same frozen deductions:
+
+```php
+$score = \Starisian\Sparxstar\Sirus\core\TrustResolver::evaluate($device_record);
+// $score = float in [0.0, 1.0]
+```
+
+`ContextEngine::buildFromDevice()` calls this automatically. Do not call it directly unless building a context outside `ContextEngine`.
+
+---
+
+## Geolocation (Optional)
+
+Sirus does not provide geolocation itself. Hook the filter to plug in a provider:
+
+```php
+add_filter( 'sparxstar_env_geolocation_lookup', function( $location, $ip ) {
+    return my_geo_service_lookup($ip); // Must return ['country' => 'US', ...] or null
+}, 10, 2 );
+```
+
+Without a provider, `StarUserEnv::get_location()` returns `null`.
+
+---
+
+## Available Filters (Stable — Do Not Remove)
+
+| Filter | Purpose |
+|---|---|
+| `sparxstar_env_cache_handler` | Switch cache backend |
+| `sparxstar_env_cache_ttl` | Set cache duration |
+| `sparxstar_env_geolocation_ttl` | Set geolocation cache duration |
+| `sparxstar_env_geolocation_lookup` | Custom geolocation provider |
+| `sparxstar_env_retention_days` | Snapshot retention window |
+| `sparxstar_sirus_device_ttl_days` | Device record TTL (default 90 days) |
+
+---
+
+## Build and Test
+
+```bash
+composer install
+composer test           # Full suite: lint + analyze + unit tests
+composer run lint       # PHPCS PSR-12 + WordPress VIP
+composer run analyze    # PHPStan Level 5
+composer run test:unit  # PHPUnit only
+```
+
+### Dependencies from sparxstar-ouroboros-integrity
+
+When the Ouroboros package ships, the following will be imported from it. Do not redefine them:
+
+- `ContextBootException`
+- `ContextPulse` DTO
+- `AgreementResult` enum
+- `ValidationHelper`
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    SIRUS CONTEXT ENGINE                     │
+├──────────────┬──────────────┬───────────────┬──────────────┤
+│ ContextEngine│  TrustEngine │ PulseGenerator│EnvironmentR. │
+│  current()   │  compute()   │  generate()   │  resolve()   │
+│  build()     │  (frozen)    │  (sign only)  │  (UA parse)  │
+│  buildFrom   │              │               │              │
+│  Device()    │              │               │              │
+├──────────────┴──────────────┴───────────────┴──────────────┤
+│              SirusContext DTO (trust_score included)        │
+├──────────────┬──────────────┬───────────────┬──────────────┤
+│DeviceCont.   │ConsentManager│ StepUpPolicy  │ DeviceMatcher│
+│server-issued │ tech+purpose │ recommends    │ DRIFT=0.6    │
+│ device_id    │ append-only  │ Helios enf.   │ EXACT=1.0    │
+├──────────────┴──────────────┴───────────────┴──────────────┤
+│ IdentityResolver  │ AuthorityResolver │ NetworkContextBroker│
+│ (Helios only)     │ (authority type)  │ (cross-domain token)│
+├──────────────────────────────────────────────────────────────┤
+│             StarUserEnv  ← FROZEN (UEC compatibility)       │
+└─────────────────────────────────────────────────────────────┘
+          ↓ generates pulses         ↑ does NOT verify
+          ↓ passes context        HELIOS verifies pulses
+          ↓ recommends step-up   HELIOS decides proceed/deny
+```
+
+---
+
+## Installation
+
+1. Place the plugin in `/wp-content/mu-plugins/` (mu-plugin — cannot be deactivated)
+2. Requires **WordPress 6.8+** and **PHP 8.2+**
+3. Loads automatically — no activation step
+4. Add `SIRUS_PULSE_SIGNING_KEY` to `wp-config.php` (required for `PulseGenerator`)
+
+---
+
+## Compatibility
+
+- Fully **WordPress Multisite** compatible (network-aware from boot)
+- Optimized for **PHP-FPM**
+- Safe behind **Cloudflare → Nginx → Varnish → Apache**
+- Consumes `sparxstar-helios-trust` for identity context
+
+---
+
+## License
+
+Proprietary. All rights reserved.
 Commercial usage requires written consent from **Starisian Technologies / MaximillianGroup**.
 
 ---
 
-## **Credits**
+## Credits
 
-Developed by **Max Barrett** and **Starisian Technologies**.  
- Built to power scalable digital marketing tools and creative ecosystems across West Africa and beyond.
+Developed by **Max Barrett** and **Starisian Technologies**.
+Built to power scalable digital tools and creative ecosystems across West Africa and beyond.
 
+
+---
