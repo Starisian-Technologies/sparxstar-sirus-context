@@ -163,14 +163,15 @@ Derives trust score from `DeviceRecord::$trust_level` as a base, then applies Tr
 ```php
 namespace Starisian\Sparxstar\Sirus\core;
 
-PulseGenerator::generate(SirusContext $context, int $now = 0): ContextPulse
+PulseGenerator::generate(SirusContext $context, int $now = 0, int $ttlSeconds = PulseGenerator::PULSE_TTL): ContextPulse
 ```
 
 **Requirements:**
 - PHP constant `SIRUS_PULSE_SIGNING_KEY` must be defined and ≥ 32 bytes. Throws `\RuntimeException` otherwise.
 - Signing algorithm: HMAC-SHA256.
 - `ContextPulse` NEVER contains `identity_id`.
-- TTL: 60 seconds from `$now`.
+- `$now = 0` means use `time()`. Pass an explicit timestamp for deterministic testing.
+- `$ttlSeconds` defaults to `PULSE_TTL` (60). Callers that resolve TTL from governance context (sovereign window, low-connectivity, etc.) must pass the correct value — `PulseGenerator` is policy-agnostic and does not read TTL from SirusContext.
 
 ---
 
@@ -179,7 +180,8 @@ PulseGenerator::generate(SirusContext $context, int $now = 0): ContextPulse
 ```php
 namespace Starisian\Sparxstar\Sirus\core;
 
-StepUpPolicy::requiresStepUp(SirusContext $context, int $auth_level): bool
+StepUpPolicy::isRequired(SirusContext $context, int $sensitivity_level): bool
+StepUpPolicy::getRequiredLevel(SirusContext $context, int $sensitivity_level): int  // 0 = none, 2 = L2, 3 = L3
 ```
 
 **Frozen policy:**
@@ -235,11 +237,11 @@ ConsentManager::STATE_PENDING  // 'pending'
 ```php
 namespace Starisian\Sparxstar\Sirus\core;
 
-NetworkContextBroker::issueToken(SirusContext $context): string          // base64url-encoded signed token
-NetworkContextBroker::verifyToken(string $token, string $secret): ?SirusContext
+NetworkContextBroker::generateToken(SirusContext $context): string    // base64url-encoded signed token
+NetworkContextBroker::verifyToken(string $token): ?SirusContext       // null on invalid/expired
 ```
 
-**Token payload field map:** Same as `SirusContext::toPortablePayload()` above (minus `identity_id`). `ts` field added in v1.0 — absent `ts` is derived from `tl` for backward compatibility.
+**Token payload field map:** Same as `SirusContext::toPortablePayload()` above (minus `identity_id`). `ts` field added in v1.0 — absent `ts` is derived from `tl` for backward compatibility. Signing secret is derived via `wp_salt('auth')` — no external secret required.
 
 ---
 
@@ -248,12 +250,13 @@ NetworkContextBroker::verifyToken(string $token, string $secret): ?SirusContext
 ```php
 namespace Starisian\Sparxstar\Sirus\core;
 
-DeviceContinuity::getDeviceContext(string $fingerprint_hash): DeviceRecord
+DeviceContinuity::getDeviceContext(DeviceRecord $device): array
+// Returns: ['device_hash' => string, 'continuity_score' => float, 'risk_flags' => string[]]
 ```
 
 **Contract:**
-- `device_id` is ALWAYS server-issued. JS fingerprint is an input to `fingerprint_hash`, not a device identifier.
-- Throws `\RuntimeException` if `fingerprint_hash` is empty.
+- `device_id` is ALWAYS server-issued. JS fingerprint is an input to `DeviceRecord::fingerprint_hash`, not a device identifier.
+- Throws `\RuntimeException` if `$device->device_id` or `$device->fingerprint_hash` is empty.
 
 ---
 

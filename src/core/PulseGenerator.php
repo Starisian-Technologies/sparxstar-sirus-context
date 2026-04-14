@@ -30,13 +30,14 @@ use Starisian\Sparxstar\Sirus\dto\ContextPulse;
 /**
  * Issues signed ContextPulse instances from a resolved SirusContext.
  *
- * Each pulse has a 60-second TTL by default, making it suitable for
- * cross-domain handoffs where Helios needs to verify context without
- * a round-trip back to Sirus.
+ * The TTL is caller-controlled via $ttlSeconds so that governance-sensitive
+ * operational modes (sovereign/high-connectivity/low-connectivity) can supply
+ * the appropriate window without the generator making a policy decision.
+ * The default of 60 seconds applies when no TTL is specified.
  */
 final class PulseGenerator
 {
-    /** Default pulse TTL in seconds. */
+    /** Default pulse TTL in seconds. Used when no $ttlSeconds is supplied. */
     public const PULSE_TTL = 60;
 
     /** Minimum required key length (bytes). */
@@ -45,17 +46,19 @@ final class PulseGenerator
     /**
      * Generates a signed ContextPulse from the given SirusContext.
      *
-     * @param SirusContext $context The fully resolved context to pulse.
+     * @param SirusContext $context    The fully resolved context to pulse.
+     * @param int          $now        Unix timestamp to use as issued_at. Pass 0 (default) to use time().
+     * @param int          $ttlSeconds Pulse TTL in seconds. Defaults to PULSE_TTL (60).
      * @return ContextPulse The signed pulse, ready for transmission to Helios.
      * @throws \RuntimeException If SIRUS_PULSE_SIGNING_KEY is not defined or too short.
      */
-    public function generate(SirusContext $context): ContextPulse
+    public function generate(SirusContext $context, int $now = 0, int $ttlSeconds = self::PULSE_TTL): ContextPulse
     {
         $key = $this->resolveSigningKey();
 
         $pulse_id  = wp_generate_uuid4();
-        $issued_at = time();
-        $expires   = $issued_at + self::PULSE_TTL;
+        $issued_at = $now > 0 ? $now : time();
+        $expires   = $issued_at + $ttlSeconds;
 
         $canonical = implode('|', [
             $pulse_id,

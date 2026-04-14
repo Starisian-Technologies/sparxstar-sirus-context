@@ -38,7 +38,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | `TrustEngine` | `src/core/TrustEngine.php` | ✅ | S-01/S-02 | Frozen algorithm; 18 unit tests in `TrustEngineTest` |
 | `TrustResolver` | `src/core/TrustResolver.php` | ✅ | S-01/S-02 | Credential-level base + drift/session deductions; 15 unit tests in `TrustResolverTest` |
 | `StepUpPolicy` | `src/core/StepUpPolicy.php` | 🟡 | S-01 | Frozen policy; unit tests pending S-02 |
-| `PulseGenerator` | `src/core/PulseGenerator.php` | ✅ | S-01/S-02 | HMAC-SHA256 only; 17 unit tests in `PulseGeneratorTest` |
+| `PulseGenerator` | `src/core/PulseGenerator.php` | ✅ | S-01/S-02 | HMAC-SHA256 only; 20 unit tests in `PulseGeneratorTest`; `$now`/`$ttlSeconds` explicit params |
 
 ### Device and Identity
 
@@ -85,7 +85,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | `DeviceContinuityTest.php` | `DeviceContinuity` | ✅ | S-01 | — |
 | `DeviceRecordTest.php` | `DeviceRecord` | ✅ | S-01 | — |
 | `TrustEngineTest.php` | `TrustEngine` | ✅ | **S-02** | 18 |
-| `PulseGeneratorTest.php` | `PulseGenerator` | ✅ | **S-02** | 17 |
+| `PulseGeneratorTest.php` | `PulseGenerator` | ✅ | **S-02** | 20 |
 | `TrustResolverTest.php` | `TrustResolver` | ✅ | **S-02** | 15 |
 | `EnvironmentResolverTest.php` | `EnvironmentResolver` | 🔲 | S-02 | — |
 | `DeviceMatcherTest.php` | `DeviceMatcher` | 🔲 | S-02 | — |
@@ -180,7 +180,7 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 > Every S-01 component built without a unit test needs one. PHPUnit ^11.5.50, extends `SirusTestCase`.
 
 - [x] `TrustEngineTest` — 18 tests: frozen algorithm, all signal combos, clamping to [0.0, 1.0], level mapping
-- [x] `PulseGeneratorTest` — 17 tests: key validation (< 32 bytes throws), pulse fields, no identity_id, TTL, HMAC sig
+- [x] `PulseGeneratorTest` — 20 tests: key validation, pulse fields, no identity_id, TTL = issued_at + default, explicit `$now`/`$ttlSeconds` honoured, sig is 64-char hex
 - [x] `TrustResolverTest` — 15 tests: all credential bases, drift deduction, new-session deduction, combined, clamping
 - [ ] `ContextPulseTest` — DTO immutability, field access, no identity_id field present
 - [ ] `ContextBootExceptionTest` — extends `\RuntimeException`, message passthrough

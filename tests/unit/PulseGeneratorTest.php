@@ -188,6 +188,43 @@ final class PulseGeneratorTest extends SirusTestCase
         $this->assertLessThanOrEqual($after, $pulse->issued_at);
     }
 
+    /**
+     * Explicit $now is honoured: pulse.issued_at equals the provided timestamp.
+     */
+    public function testExplicitNowIsHonoured(): void
+    {
+        $now   = 1_700_000_000;
+        $pulse = $this->generator->generate($this->makeContext(), $now);
+
+        $this->assertSame($now, $pulse->issued_at);
+    }
+
+    /**
+     * Explicit $ttlSeconds controls pulse.expires independently of the default TTL.
+     */
+    public function testExplicitTtlSecondsIsHonoured(): void
+    {
+        $now = 1_700_000_000;
+        $ttl = 120;
+
+        $pulse = $this->generator->generate($this->makeContext(), $now, $ttl);
+
+        $this->assertSame($now + $ttl, $pulse->expires);
+    }
+
+    /**
+     * generate() with $now=0 falls back to time() (not to the Unix epoch).
+     */
+    public function testZeroNowFallsBackToCurrentTime(): void
+    {
+        $before = time();
+        $pulse  = $this->generator->generate($this->makeContext(), 0);
+        $after  = time();
+
+        $this->assertGreaterThanOrEqual($before, $pulse->issued_at);
+        $this->assertLessThanOrEqual($after, $pulse->issued_at);
+    }
+
     // ── Signature ─────────────────────────────────────────────────────────────
 
     /**
