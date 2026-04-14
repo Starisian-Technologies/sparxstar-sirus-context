@@ -3,10 +3,11 @@
 /**
  * Tests for StepUpPolicy – frozen authentication step-up boundary.
  *
- * StepUpPolicy encodes a governance-sensitive frozen decision boundary:
- *   ResourceSensitivity::HIGH   — step-up always required (regardless of trust score)
- *   ResourceSensitivity::MEDIUM — step-up required when trust_score < 0.7
- *   ResourceSensitivity::LOW    — no step-up required
+ * StepUpPolicy encodes a governance-sensitive frozen decision boundary per spec §15 / Helios §11:
+ *   trust_level === STEP_UP_REQUIRED — step-up always required (pre-flagged context)
+ *   ResourceSensitivity::HIGH        — step-up always required (regardless of trust score)
+ *   ResourceSensitivity::MEDIUM      — step-up required when trust_score < 0.7
+ *   ResourceSensitivity::LOW         — no step-up required
  *
  * These tests lock the boundary so downstream auth behavior cannot drift unintentionally.
  *
@@ -22,7 +23,7 @@ use Starisian\Sparxstar\Sirus\core\StepUpPolicy;
 use Starisian\Sparxstar\Sirus\dto\ContextPulse;
 
 /**
- * Unit tests for StepUpPolicy::isRequired() and StepUpPolicy::getRequiredLevel().
+ * Unit tests for StepUpPolicy::requiresStepUp() and StepUpPolicy::getRequiredLevel().
  */
 final class StepUpPolicyTest extends SirusTestCase
 {
@@ -34,7 +35,49 @@ final class StepUpPolicyTest extends SirusTestCase
         $this->policy = new StepUpPolicy();
     }
 
-    // ── isRequired — HIGH sensitivity ──────────────────────────────────────────
+    // ── STEP_UP_REQUIRED trust level — pre-flagged override ────────────────────
+
+    /**
+     * A pulse with trust_level === STEP_UP_REQUIRED always requires step-up,
+     * even for LOW sensitivity and a perfect trust score of 1.0.
+     *
+     * This is the security gate: a context pre-flagged for step-up cannot be
+     * cleared by having a high numeric trust score at a low sensitivity level.
+     */
+    public function testStepUpRequiredTrustLevelAlwaysRequiresStepUpAtLow(): void
+    {
+        $pulse = $this->makePulse(trust_score: 1.0, trust_level: StepUpPolicy::TRUST_LEVEL_STEP_UP_REQUIRED);
+
+        $this->assertTrue(
+            $this->policy->requiresStepUp($pulse, ResourceSensitivity::LOW)
+        );
+    }
+
+    /**
+     * A pulse with trust_level === STEP_UP_REQUIRED always requires step-up for MEDIUM.
+     */
+    public function testStepUpRequiredTrustLevelAlwaysRequiresStepUpAtMedium(): void
+    {
+        $pulse = $this->makePulse(trust_score: 0.9, trust_level: StepUpPolicy::TRUST_LEVEL_STEP_UP_REQUIRED);
+
+        $this->assertTrue(
+            $this->policy->requiresStepUp($pulse, ResourceSensitivity::MEDIUM)
+        );
+    }
+
+    /**
+     * getRequiredLevel returns non-null for a STEP_UP_REQUIRED pulse at LOW sensitivity.
+     */
+    public function testGetRequiredLevelForStepUpRequiredAtLowReturnsNonNull(): void
+    {
+        $pulse = $this->makePulse(trust_score: 1.0, trust_level: StepUpPolicy::TRUST_LEVEL_STEP_UP_REQUIRED);
+
+        $level = $this->policy->getRequiredLevel($pulse, ResourceSensitivity::LOW);
+
+        $this->assertNotNull($level);
+    }
+
+    // ── requiresStepUp — HIGH sensitivity ──────────────────────────────────────
 
     /**
      * HIGH resource requires step-up even with trust_score = 1.0 (perfect trust).
@@ -42,7 +85,7 @@ final class StepUpPolicyTest extends SirusTestCase
     public function testHighRequiresStepUpAtPerfectTrust(): void
     {
         $this->assertTrue(
-            $this->policy->isRequired($this->makePulse(trust_score: 1.0), ResourceSensitivity::HIGH)
+            $this->policy->requiresStepUp($this->makePulse(trust_score: 1.0), ResourceSensitivity::HIGH)
         );
     }
 
@@ -52,11 +95,11 @@ final class StepUpPolicyTest extends SirusTestCase
     public function testHighRequiresStepUpAtZeroTrust(): void
     {
         $this->assertTrue(
-            $this->policy->isRequired($this->makePulse(trust_score: 0.0), ResourceSensitivity::HIGH)
+            $this->policy->requiresStepUp($this->makePulse(trust_score: 0.0), ResourceSensitivity::HIGH)
         );
     }
 
-    // ── isRequired — MEDIUM sensitivity ────────────────────────────────────────
+    // ── requiresStepUp — MEDIUM sensitivity ────────────────────────────────────
 
     /**
      * MEDIUM resource: trust_score exactly at threshold (0.7) does NOT require step-up.
@@ -64,7 +107,7 @@ final class StepUpPolicyTest extends SirusTestCase
     public function testMediumAtExactThresholdDoesNotRequireStepUp(): void
     {
         $this->assertFalse(
-            $this->policy->isRequired(
+            $this->policy->requiresStepUp(
                 $this->makePulse(trust_score: StepUpPolicy::LEVEL_2_TRUST_THRESHOLD),
                 ResourceSensitivity::MEDIUM
             )
@@ -77,7 +120,7 @@ final class StepUpPolicyTest extends SirusTestCase
     public function testMediumAboveThresholdDoesNotRequireStepUp(): void
     {
         $this->assertFalse(
-            $this->policy->isRequired($this->makePulse(trust_score: 0.701), ResourceSensitivity::MEDIUM)
+            $this->policy->requiresStepUp($this->makePulse(trust_score: 0.701), ResourceSensitivity::MEDIUM)
         );
     }
 
@@ -87,7 +130,7 @@ final class StepUpPolicyTest extends SirusTestCase
     public function testMediumBelowThresholdRequiresStepUp(): void
     {
         $this->assertTrue(
-            $this->policy->isRequired($this->makePulse(trust_score: 0.699), ResourceSensitivity::MEDIUM)
+            $this->policy->requiresStepUp($this->makePulse(trust_score: 0.699), ResourceSensitivity::MEDIUM)
         );
     }
 
@@ -97,7 +140,7 @@ final class StepUpPolicyTest extends SirusTestCase
     public function testMediumAtZeroTrustRequiresStepUp(): void
     {
         $this->assertTrue(
-            $this->policy->isRequired($this->makePulse(trust_score: 0.0), ResourceSensitivity::MEDIUM)
+            $this->policy->requiresStepUp($this->makePulse(trust_score: 0.0), ResourceSensitivity::MEDIUM)
         );
     }
 
@@ -107,20 +150,20 @@ final class StepUpPolicyTest extends SirusTestCase
     public function testMediumAtFullTrustDoesNotRequireStepUp(): void
     {
         $this->assertFalse(
-            $this->policy->isRequired($this->makePulse(trust_score: 1.0), ResourceSensitivity::MEDIUM)
+            $this->policy->requiresStepUp($this->makePulse(trust_score: 1.0), ResourceSensitivity::MEDIUM)
         );
     }
 
-    // ── isRequired — LOW sensitivity ────────────────────────────────────────────
+    // ── requiresStepUp — LOW sensitivity ────────────────────────────────────────
 
     /**
-     * LOW resource never requires step-up, regardless of trust score.
+     * LOW resource with NORMAL trust level never requires step-up.
      */
     public function testLowNeverRequiresStepUp(): void
     {
         foreach ([0.0, 0.5, 0.699, 0.7, 1.0] as $score) {
             $this->assertFalse(
-                $this->policy->isRequired($this->makePulse(trust_score: $score), ResourceSensitivity::LOW),
+                $this->policy->requiresStepUp($this->makePulse(trust_score: $score), ResourceSensitivity::LOW),
                 "LOW resource should not require step-up at trust_score={$score}"
             );
         }
@@ -169,7 +212,7 @@ final class StepUpPolicyTest extends SirusTestCase
     // ── getRequiredLevel — LOW sensitivity ────────────────────────────────────
 
     /**
-     * LOW resource: getRequiredLevel always returns null.
+     * LOW resource with NORMAL trust level: getRequiredLevel always returns null.
      */
     public function testGetRequiredLevelForLowReturnsNull(): void
     {
@@ -208,9 +251,10 @@ final class StepUpPolicyTest extends SirusTestCase
     /**
      * Builds a minimal ContextPulse for use in assertions.
      *
-     * @param float $trust_score Trust score to use (default 1.0).
+     * @param float  $trust_score Trust score to use (default 1.0).
+     * @param string $trust_level Trust level string (default 'NORMAL').
      */
-    private function makePulse(float $trust_score = 1.0): ContextPulse
+    private function makePulse(float $trust_score = 1.0, string $trust_level = 'NORMAL'): ContextPulse
     {
         $now = time();
 
@@ -222,7 +266,7 @@ final class StepUpPolicyTest extends SirusTestCase
             site_id:     '1',
             network_id:  '1',
             trust_score: $trust_score,
-            trust_level: 'NORMAL',
+            trust_level: $trust_level,
             issued_at:   $now,
             expires:     $now + 60,
             sig:         str_repeat('a', 64),

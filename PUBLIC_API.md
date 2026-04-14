@@ -181,17 +181,27 @@ PulseGenerator::generate(SirusContext $context, int $now = 0, int $ttlSeconds = 
 namespace Starisian\Sparxstar\Sirus\core;
 
 // ResourceSensitivity is a backed int enum: LOW=1, MEDIUM=2, HIGH=3
-StepUpPolicy::isRequired(ContextPulse $pulse, ResourceSensitivity $level): bool
+StepUpPolicy::requiresStepUp(ContextPulse $pulse, ResourceSensitivity $level): bool
 StepUpPolicy::getRequiredLevel(ContextPulse $pulse, ResourceSensitivity $level): ?ResourceSensitivity  // null = no step-up
 ```
 
 **Frozen policy (spec §15 / Helios §11):**
 
-| Level | Condition |
+Evaluation order (first match wins):
+
+| Condition | Result |
 |---|---|
+| `trust_level === STEP_UP_REQUIRED` | Always requires step-up (pre-flagged context) |
 | `HIGH` (3) | Always requires step-up |
-| `MEDIUM` (2) | Requires step-up when `trust_score < 0.7` |
+| `MEDIUM` (2) and `trust_score < 0.7` | Requires step-up |
 | `LOW` (1) | Never requires step-up |
+
+**Pre-flagged step-up:** If a pulse carries `trust_level === 'STEP_UP_REQUIRED'`, step-up is required unconditionally regardless of sensitivity level or numeric trust score. This handles contexts where the issuing system has already detected an anomaly (concurrent sessions, privilege escalation attempt, admin-flagged review).
+
+```php
+StepUpPolicy::TRUST_LEVEL_STEP_UP_REQUIRED  // 'STEP_UP_REQUIRED'
+StepUpPolicy::LEVEL_2_TRUST_THRESHOLD       // 0.7
+```
 
 StepUpPolicy operates on **`ContextPulse`** (not `SirusContext`) so the same evaluation runs identically at the edge and at the origin. Returns recommendation only. **Helios enforces.**
 
@@ -248,13 +258,13 @@ ConsentManager::STATE_PENDING  // 'pending'
 ```php
 namespace Starisian\Sparxstar\Sirus\core;
 
-// The signing secret is explicit so the class is portable across PHP origin,
-// TypeScript edge workers, and sovereign minimal deployments.
+// The signing secret is explicit so the class is fully portable — no implicit
+// WordPress function calls (no wp_salt(), no wp_json_encode()).
 NetworkContextBroker::issueToken(SirusContext $context, string $secret): string    // base64url-encoded signed token
 NetworkContextBroker::verifyToken(string $token, string $secret): ?SirusContext    // null on invalid/expired
 ```
 
-**Secret:** In WordPress contexts pass `wp_salt('auth')`. In edge/sovereign deployments use an environment-supplied secret. Same secret must be used for both `issueToken()` and `verifyToken()`.
+**Secret:** The caller supplies the secret from their environment. In WordPress contexts pass `wp_salt('auth')`. In edge workers or sovereign deployments use an environment variable. The same secret must be used for both `issueToken()` and `verifyToken()`. The class itself never calls `wp_salt()` or any WordPress function.
 
 **Token payload field map:** Same as `SirusContext::toPortablePayload()` above (minus `identity_id`). `ts` field added in v1.0 — absent `ts` is derived from `tl` for backward compatibility.
 

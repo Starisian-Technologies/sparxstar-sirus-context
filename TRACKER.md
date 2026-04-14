@@ -37,7 +37,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 |---|---|---|---|---|
 | `TrustEngine` | `src/core/TrustEngine.php` | ✅ | S-01/S-02 | Frozen algorithm; 18 unit tests in `TrustEngineTest` |
 | `TrustResolver` | `src/core/TrustResolver.php` | ✅ | S-01/S-02 | Credential-level base + drift/session deductions; 15 unit tests in `TrustResolverTest` |
-| `StepUpPolicy` | `src/core/StepUpPolicy.php` | ✅ | S-01/S-02 | Frozen policy; operates on `ContextPulse` + `ResourceSensitivity`; 14 unit tests |
+| `StepUpPolicy` | `src/core/StepUpPolicy.php` | ✅ | S-01/S-02 | Frozen policy; `requiresStepUp()` + `TRUST_LEVEL_STEP_UP_REQUIRED` pre-flag check; 17 unit tests |
 | `PulseGenerator` | `src/core/PulseGenerator.php` | ✅ | S-01/S-02 | HMAC-SHA256 only; 20 unit tests in `PulseGeneratorTest`; `$now`/`$ttlSeconds` explicit params |
 
 ### Device and Identity
@@ -45,7 +45,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | Component | File | Status | Sprint | Notes |
 |---|---|---|---|---|
 | `DeviceContinuity` | `src/core/DeviceContinuity.php` | ✅ | S-01 | Two-stage pipeline: `resolveDevice()` + `evaluateContinuity()` |
-| `DeviceMatcher` | `src/core/DeviceMatcher.php` | 🟡 | S-01 | EXACT=1.0 / DRIFT=0.6 thresholds; missing unit tests |
+| `DeviceMatcher` | `src/core/DeviceMatcher.php` | ✅ | S-01 | EXACT=1.0 / DRIFT=0.6 thresholds; 20 unit tests |
 | `DeviceRecord` DTO | `src/core/DeviceRecord.php` | ✅ | S-01 | |
 | `DeviceRepository` | `src/core/DeviceRepository.php` | ✅ | S-01 | |
 | `IdentityResolver` | `src/core/IdentityResolver.php` | ✅ | S-01 | Five-tier resolution via Helios |
@@ -88,9 +88,9 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | `PulseGeneratorTest.php` | `PulseGenerator` | ✅ | **S-02** | 20 |
 | `TrustResolverTest.php` | `TrustResolver` | ✅ | **S-02** | 15 |
 | `EnvironmentResolverTest.php` | `EnvironmentResolver` | 🔲 | S-02 | — |
-| `DeviceMatcherTest.php` | `DeviceMatcher` | 🔲 | S-02 | — |
+| `DeviceMatcherTest.php` | `DeviceMatcher` | ✅ | **S-02** | 20 |
 | `ConsentManagerTest.php` | `ConsentManager` | 🔲 | S-02 | — |
-| `StepUpPolicyTest.php` | `StepUpPolicy` | ✅ | **S-02** | 14 |
+| `StepUpPolicyTest.php` | `StepUpPolicy` | ✅ | **S-02** | 17 |
 | `ContextBootExceptionTest.php` | `ContextBootException` | 🔲 | S-02 | — |
 | `ContextPulseTest.php` | `ContextPulse` | 🔲 | S-02 | — |
 
@@ -168,7 +168,7 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 - [x] `EnvironmentResolver` — Matomo DeviceDetector + regex fallback + Throwable guard
 - [x] `DeviceMatcher` — EXACT=1.0, DRIFT=0.6, single boundary constant
 - [x] `ConsentManager` — three-level cascade (user meta → site option → deny), purpose consent, append-only history
-- [x] `StepUpPolicy` — uses `ContextPulse` + `ResourceSensitivity` enum; `isRequired()`/`getRequiredLevel()` frozen boundary; 15 tests in `StepUpPolicyTest`
+- [x] `StepUpPolicy` — uses `ContextPulse` + `ResourceSensitivity` enum; `requiresStepUp()`/`getRequiredLevel()` frozen boundary; `TRUST_LEVEL_STEP_UP_REQUIRED` pre-flag; 17 tests in `StepUpPolicyTest`
 - [x] `NetworkContextBroker` — `issueToken(context, secret)` / `verifyToken(token, secret)` — explicit secret; `tl`/`ts` round-trip; absent `ts` derived from `tl`; 10 tests
 - [x] README.md — full spec alignment documentation
 - [x] PUBLIC_API.md — public surface document for cross-repo consumers
@@ -185,9 +185,9 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 - [ ] `ContextPulseTest` — DTO immutability, field access, no identity_id field present
 - [ ] `ContextBootExceptionTest` — extends `\RuntimeException`, message passthrough
 - [ ] `EnvironmentResolverTest` — UA parsing (browser/OS/device), fallback regex path, network filter
-- [ ] `DeviceMatcherTest` — score = 1.0 (EXACT), score = 0.6 (DRIFT), score < 0.6 (no match), component weights
+- [ ] `DeviceMatcherTest` — ✅ COMPLETE (20 tests: scoreHash, scoreComponents, isExactMatch, isDrift, isNewDevice, mutual exclusivity)
 - [ ] `ConsentManagerTest` — get/set technical consent, cascade order, purpose consent map, append-only history
-- [ ] `StepUpPolicyTest` — ✅ COMPLETE (committed above)
+- [ ] `StepUpPolicyTest` — ✅ COMPLETE (17 tests — includes STEP_UP_REQUIRED trust level pre-flag)
 
 **Acceptance criteria:** `composer run test:unit` passes with no failures or deprecations.
 

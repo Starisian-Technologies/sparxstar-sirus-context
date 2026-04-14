@@ -50,7 +50,10 @@ final class NetworkContextBroker
         $payload['nbf'] = $now;
         $payload['exp'] = $now + self::TOKEN_TTL;
 
-        $json        = (string) wp_json_encode($payload);
+        $json        = json_encode($payload);
+        if ($json === false) {
+            throw new \RuntimeException('[Sirus NetworkContextBroker] Failed to encode token payload as JSON.');
+        }
         $payload_b64 = $this->base64url_encode($json);
         $signature   = hash_hmac('sha256', $payload_b64, $secret, true);
         $sig_b64     = $this->base64url_encode($signature);
