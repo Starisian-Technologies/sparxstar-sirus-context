@@ -15,10 +15,13 @@ use Starisian\Sparxstar\Sirus\core\NetworkContextBroker;
 use Starisian\Sparxstar\Sirus\core\SirusContext;
 
 /**
- * Validates token generation and verification in NetworkContextBroker.
+ * Validates token issuance and verification in NetworkContextBroker.
  */
 final class NetworkContextBrokerTest extends TestCase
 {
+    /** Fixed test secret used across all happy-path tests (portable, no wp_salt dependency). */
+    private const TEST_SECRET = 'sirus-ncb-test-secret-32bytes!!!';
+
     /** @var NetworkContextBroker */
     private NetworkContextBroker $broker;
 
@@ -47,11 +50,11 @@ final class NetworkContextBrokerTest extends TestCase
     }
 
     /**
-     * generateToken() returns a non-empty string.
+     * issueToken() returns a non-empty string.
      */
-    public function testGenerateTokenReturnsNonEmptyString(): void
+    public function testIssueTokenReturnsNonEmptyString(): void
     {
-        $token = $this->broker->generateToken($this->context);
+        $token = $this->broker->issueToken($this->context, self::TEST_SECRET);
 
         $this->assertNotEmpty($token);
         $this->assertIsString($token);
@@ -60,20 +63,20 @@ final class NetworkContextBrokerTest extends TestCase
     /**
      * Token contains exactly one dot separator (payload.signature).
      */
-    public function testGeneratedTokenHasOneDotSeparator(): void
+    public function testIssuedTokenHasOneDotSeparator(): void
     {
-        $token = $this->broker->generateToken($this->context);
+        $token = $this->broker->issueToken($this->context, self::TEST_SECRET);
 
         $this->assertSame(1, substr_count($token, '.'));
     }
 
     /**
-     * verifyToken() returns a SirusContext for a freshly generated (valid) token.
+     * verifyToken() returns a SirusContext for a freshly issued (valid) token.
      */
     public function testVerifyTokenReturnsContextForValidToken(): void
     {
-        $token  = $this->broker->generateToken($this->context);
-        $result = $this->broker->verifyToken($token);
+        $token  = $this->broker->issueToken($this->context, self::TEST_SECRET);
+        $result = $this->broker->verifyToken($token, self::TEST_SECRET);
 
         $this->assertInstanceOf(SirusContext::class, $result);
     }
@@ -83,8 +86,8 @@ final class NetworkContextBrokerTest extends TestCase
      */
     public function testVerifyTokenPreservesPayloadFields(): void
     {
-        $token  = $this->broker->generateToken($this->context);
-        $result = $this->broker->verifyToken($token);
+        $token  = $this->broker->issueToken($this->context, self::TEST_SECRET);
+        $result = $this->broker->verifyToken($token, self::TEST_SECRET);
 
         $this->assertNotNull($result);
         $this->assertSame('ctx-test-1', $result->context_id);
@@ -115,8 +118,8 @@ final class NetworkContextBrokerTest extends TestCase
             expires:        time() + 300,
         );
 
-        $token  = $this->broker->generateToken($ctx_with_identity);
-        $result = $this->broker->verifyToken($token);
+        $token  = $this->broker->issueToken($ctx_with_identity, self::TEST_SECRET);
+        $result = $this->broker->verifyToken($token, self::TEST_SECRET);
 
         $this->assertNotNull($result);
         $this->assertNull($result->identity_id);
@@ -127,12 +130,12 @@ final class NetworkContextBrokerTest extends TestCase
      */
     public function testVerifyTokenReturnsNullForTamperedSignature(): void
     {
-        $token  = $this->broker->generateToken($this->context);
+        $token  = $this->broker->issueToken($this->context, self::TEST_SECRET);
         $parts  = explode('.', $token, 2);
         // Append a character to corrupt the signature.
         $tampered = $parts[0] . '.' . $parts[1] . 'X';
 
-        $result = $this->broker->verifyToken($tampered);
+        $result = $this->broker->verifyToken($tampered, self::TEST_SECRET);
 
         $this->assertNull($result);
     }
@@ -142,12 +145,12 @@ final class NetworkContextBrokerTest extends TestCase
      */
     public function testVerifyTokenReturnsNullForTamperedPayload(): void
     {
-        $token  = $this->broker->generateToken($this->context);
+        $token  = $this->broker->issueToken($this->context, self::TEST_SECRET);
         $parts  = explode('.', $token, 2);
         // Append a character to corrupt the payload.
         $tampered = $parts[0] . 'X.' . $parts[1];
 
-        $result = $this->broker->verifyToken($tampered);
+        $result = $this->broker->verifyToken($tampered, self::TEST_SECRET);
 
         $this->assertNull($result);
     }
@@ -157,16 +160,30 @@ final class NetworkContextBrokerTest extends TestCase
      */
     public function testVerifyTokenReturnsNullForGarbage(): void
     {
-        $this->assertNull($this->broker->verifyToken(''));
-        $this->assertNull($this->broker->verifyToken('notavalidtoken'));
-        $this->assertNull($this->broker->verifyToken('aaa.bbb.ccc'));
+        $this->assertNull($this->broker->verifyToken('', self::TEST_SECRET));
+        $this->assertNull($this->broker->verifyToken('notavalidtoken', self::TEST_SECRET));
+        $this->assertNull($this->broker->verifyToken('aaa.bbb.ccc', self::TEST_SECRET));
+    }
+
+    /**
+     * verifyToken() returns null when a different secret is used for verification.
+     * This ensures tokens are secret-scoped: a token issued with secret A cannot
+     * be verified with secret B.
+     */
+    public function testVerifyTokenReturnsNullForWrongSecret(): void
+    {
+        $token = $this->broker->issueToken($this->context, self::TEST_SECRET);
+
+        $result = $this->broker->verifyToken($token, 'a-completely-different-secret!!');
+
+        $this->assertNull($result);
     }
 
     /**
      * verifyToken() returns null when the token's exp has passed.
      *
      * We manually construct a token with a past exp to verify the rejection path,
-     * since generateToken() always issues a fresh 30-second token.
+     * since issueToken() always issues a fresh 30-second token.
      */
     public function testVerifyTokenReturnsNullForExpiredToken(): void
     {
@@ -187,11 +204,11 @@ final class NetworkContextBrokerTest extends TestCase
 
         $json        = (string) json_encode($payload, JSON_THROW_ON_ERROR);
         $payload_b64 = rtrim(strtr(base64_encode($json), '+/', '-_'), '=');
-        $signature   = hash_hmac('sha256', $payload_b64, wp_salt('auth'), true);
+        $signature   = hash_hmac('sha256', $payload_b64, self::TEST_SECRET, true);
         $sig_b64     = rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
 
         $token  = $payload_b64 . '.' . $sig_b64;
-        $result = $this->broker->verifyToken($token);
+        $result = $this->broker->verifyToken($token, self::TEST_SECRET);
 
         $this->assertNull($result, 'An expired token must not be accepted.');
     }

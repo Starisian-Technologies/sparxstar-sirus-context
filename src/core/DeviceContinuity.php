@@ -152,17 +152,21 @@ final class DeviceContinuity
     private const DRIFT_PENALTY_PER_EVENT = 0.05;
 
     /**
-     * Returns the standardized device context for a resolved DeviceRecord.
+     * Evaluates the continuity state for a resolved DeviceRecord.
      *
-     * Per spec §A, this is the single canonical output method for device data.
-     * Output shape is fixed — no optional keys, no dynamic structure.
+     * This is the analysis stage of the two-stage device pipeline:
+     *   Stage 1 — resolveDevice()     : fingerprint/ID → DeviceRecord (boundary resolution)
+     *   Stage 2 — evaluateContinuity(): DeviceRecord   → continuity state (derived analysis)
+     *
+     * Per spec §A, this method produces the canonical device-state output consumed by
+     * ContextEngine. Output shape is fixed — no optional keys, no dynamic structure.
      *
      * @param DeviceRecord $device A fully resolved DeviceRecord.
      * @return array{device_hash: string, continuity_score: float, risk_flags: array<int, string>}
      *
-     * @throws \RuntimeException If the device context is missing (empty device_id or empty fingerprint_hash).
+     * @throws \RuntimeException If the device context is missing (empty device_id or fingerprint_hash).
      */
-    public function getDeviceContext(DeviceRecord $device): array
+    public function evaluateContinuity(DeviceRecord $device): array
     {
         if ($device->device_id === '') {
             throw new \RuntimeException(

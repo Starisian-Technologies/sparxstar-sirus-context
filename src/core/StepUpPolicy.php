@@ -3,10 +3,15 @@
 /**
  * StepUpPolicy - Determines whether step-up authentication is required.
  *
- * Policy is FROZEN per the Sirus Context Engine Spec v3.0:
- *   Level 3 resource: step-up always required.
- *   Level 2 resource: step-up required when trust_score < 0.7.
- *   Level 1 resource: no step-up required.
+ * Policy is FROZEN per the Sirus Context Engine Spec v3.0 §15 / Helios Spec §11:
+ *   ResourceSensitivity::HIGH   — step-up always required
+ *   ResourceSensitivity::MEDIUM — step-up required when trust_score < 0.7
+ *   ResourceSensitivity::LOW    — no step-up required
+ *
+ * StepUpPolicy operates on ContextPulse (not SirusContext) so that the same
+ * evaluation can run identically on the edge (Cloudflare Worker) and at the
+ * origin (PHP). ContextPulse is the shared, signed artifact that both sides
+ * receive; SirusContext is an internal origin-only object.
  *
  * This class produces a recommendation. Enforcement is the responsibility
  * of Helios. Sirus MUST NOT make authorization decisions.
@@ -22,66 +27,65 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
+use Starisian\Sparxstar\Sirus\dto\ContextPulse;
+
 /**
  * Evaluates whether a step-up authentication challenge should be issued for
- * a given context and resource sensitivity level.
+ * a given ContextPulse and resource sensitivity level.
  *
- * Resource sensitivity levels:
- *   1 = public / low-sensitivity (no step-up)
- *   2 = authenticated / medium-sensitivity (step-up if trust_score < 0.7)
- *   3 = protected / high-sensitivity (step-up always)
+ * Using ContextPulse as the input artifact ensures that:
+ * - The same evaluation logic applies on the edge and at the origin.
+ * - No internal SirusContext fields are leaked across trust boundaries.
+ * - The input is always a signed, tamper-evident payload.
  */
 final class StepUpPolicy
 {
-    /** Minimum trust_score for Level 2 access without step-up. */
+    /** Minimum trust_score for MEDIUM resources without step-up. Frozen per spec §15. */
     public const LEVEL_2_TRUST_THRESHOLD = 0.7;
 
     /**
-     * Returns true if step-up authentication is required for the given context
-     * and resource sensitivity level.
+     * Returns true if step-up authentication is required.
      *
-     * @param SirusContext $context           The current context.
-     * @param int          $sensitivity_level Resource sensitivity (1, 2, or 3).
+     * @param ContextPulse        $pulse The signed context pulse carrying trust state.
+     * @param ResourceSensitivity $level The resource sensitivity level.
      * @return bool True if step-up is required.
      */
-    public function isRequired(SirusContext $context, int $sensitivity_level): bool
+    public function isRequired(ContextPulse $pulse, ResourceSensitivity $level): bool
     {
-        // Level 3: step-up always required, regardless of trust score.
-        if ($sensitivity_level >= 3) {
+        // HIGH: step-up always required, regardless of trust score.
+        if ($level === ResourceSensitivity::HIGH) {
             return true;
         }
 
-        // Level 2: step-up required when trust_score is below threshold.
-        if ($sensitivity_level === 2) {
-            return $context->trust_score < self::LEVEL_2_TRUST_THRESHOLD;
+        // MEDIUM: step-up required when trust_score is below threshold.
+        if ($level === ResourceSensitivity::MEDIUM) {
+            return $pulse->trust_score < self::LEVEL_2_TRUST_THRESHOLD;
         }
 
-        // Level 1 (or below): no step-up required.
+        // LOW: no step-up required.
         return false;
     }
 
     /**
-     * Returns the recommended step-up level for the given context and sensitivity.
+     * Returns the recommended step-up sensitivity level, or null if no step-up is needed.
      *
-     * When no step-up is required, returns 0.
-     * When step-up is required:
-     *   - Sensitivity 3 always recommends Level 3 step-up.
-     *   - Sensitivity 2 recommends Level 2 step-up.
+     * Callers may use this to communicate the challenge level to Helios.
+     * A null return means no challenge is needed — Helios should not prompt for step-up.
      *
-     * @param SirusContext $context           The current context.
-     * @param int          $sensitivity_level Resource sensitivity (1, 2, or 3).
-     * @return int Recommended step-up level (0 = none, 2 = L2, 3 = L3).
+     * @param ContextPulse        $pulse The signed context pulse carrying trust state.
+     * @param ResourceSensitivity $level The resource sensitivity level.
+     * @return ResourceSensitivity|null The required step-up level, or null (no step-up needed).
      */
-    public function getRequiredLevel(SirusContext $context, int $sensitivity_level): int
+    public function getRequiredLevel(ContextPulse $pulse, ResourceSensitivity $level): ?ResourceSensitivity
     {
-        if ($sensitivity_level >= 3) {
-            return 3;
+        if ($level === ResourceSensitivity::HIGH) {
+            return ResourceSensitivity::HIGH;
         }
 
-        if ($sensitivity_level === 2 && $context->trust_score < self::LEVEL_2_TRUST_THRESHOLD) {
-            return 2;
+        if ($level === ResourceSensitivity::MEDIUM && $pulse->trust_score < self::LEVEL_2_TRUST_THRESHOLD) {
+            return ResourceSensitivity::MEDIUM;
         }
 
-        return 0;
+        return null;
     }
 }

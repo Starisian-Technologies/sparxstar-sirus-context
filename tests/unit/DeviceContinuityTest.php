@@ -263,16 +263,16 @@ final class DeviceContinuityTest extends SirusTestCase
         $this->assertSame('anonymous', $result->trust_level);
     }
 
-    // ── getDeviceContext ──────────────────────────────────────────────────────
+    // ── evaluateContinuity ──────────────────────────────────────────────────────
 
     /**
-     * getDeviceContext() returns fixed output shape for a valid record.
+     * evaluateContinuity() returns fixed output shape for a valid record.
      */
     public function testGetDeviceContextReturnsFixedSchema(): void
     {
         $record = $this->seedRecord('dev-ctx', 'fp-ctx-hash');
 
-        $ctx = $this->continuity->getDeviceContext($record);
+        $ctx = $this->continuity->evaluateContinuity($record);
 
         $this->assertArrayHasKey('device_hash', $ctx);
         $this->assertArrayHasKey('continuity_score', $ctx);
@@ -283,7 +283,7 @@ final class DeviceContinuityTest extends SirusTestCase
     }
 
     /**
-     * getDeviceContext() throws when device_id is empty.
+     * evaluateContinuity() throws when device_id is empty.
      */
     public function testGetDeviceContextThrowsOnEmptyDeviceId(): void
     {
@@ -300,11 +300,11 @@ final class DeviceContinuityTest extends SirusTestCase
             drift_score:      0,
         );
 
-        $this->continuity->getDeviceContext($record);
+        $this->continuity->evaluateContinuity($record);
     }
 
     /**
-     * getDeviceContext() throws when fingerprint_hash is empty.
+     * evaluateContinuity() throws when fingerprint_hash is empty.
      */
     public function testGetDeviceContextThrowsOnEmptyFingerprintHash(): void
     {
@@ -321,7 +321,7 @@ final class DeviceContinuityTest extends SirusTestCase
             drift_score:      0,
         );
 
-        $this->continuity->getDeviceContext($record);
+        $this->continuity->evaluateContinuity($record);
     }
 
     /**
@@ -342,9 +342,9 @@ final class DeviceContinuityTest extends SirusTestCase
             drift_score:      100,
         );
 
-        $ctx_no_drift   = $this->continuity->getDeviceContext($record_no_drift);
-        $ctx_with_drift = $this->continuity->getDeviceContext($record_with_drift);
-        $ctx_max_drift  = $this->continuity->getDeviceContext($record_max_drift);
+        $ctx_no_drift   = $this->continuity->evaluateContinuity($record_no_drift);
+        $ctx_with_drift = $this->continuity->evaluateContinuity($record_with_drift);
+        $ctx_max_drift  = $this->continuity->evaluateContinuity($record_max_drift);
 
         // Score formula: max(0.0, 1.0 - (drift_score * DRIFT_PENALTY_PER_EVENT))
         // where DRIFT_PENALTY_PER_EVENT = 0.05

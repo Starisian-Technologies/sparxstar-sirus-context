@@ -37,14 +37,14 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 |---|---|---|---|---|
 | `TrustEngine` | `src/core/TrustEngine.php` | ✅ | S-01/S-02 | Frozen algorithm; 18 unit tests in `TrustEngineTest` |
 | `TrustResolver` | `src/core/TrustResolver.php` | ✅ | S-01/S-02 | Credential-level base + drift/session deductions; 15 unit tests in `TrustResolverTest` |
-| `StepUpPolicy` | `src/core/StepUpPolicy.php` | 🟡 | S-01 | Frozen policy; unit tests pending S-02 |
+| `StepUpPolicy` | `src/core/StepUpPolicy.php` | ✅ | S-01/S-02 | Frozen policy; operates on `ContextPulse` + `ResourceSensitivity`; 15 unit tests |
 | `PulseGenerator` | `src/core/PulseGenerator.php` | ✅ | S-01/S-02 | HMAC-SHA256 only; 20 unit tests in `PulseGeneratorTest`; `$now`/`$ttlSeconds` explicit params |
 
 ### Device and Identity
 
 | Component | File | Status | Sprint | Notes |
 |---|---|---|---|---|
-| `DeviceContinuity` | `src/core/DeviceContinuity.php` | ✅ | S-01 | Server-issued `device_id` enforced |
+| `DeviceContinuity` | `src/core/DeviceContinuity.php` | ✅ | S-01 | Two-stage pipeline: `resolveDevice()` + `evaluateContinuity()` |
 | `DeviceMatcher` | `src/core/DeviceMatcher.php` | 🟡 | S-01 | EXACT=1.0 / DRIFT=0.6 thresholds; missing unit tests |
 | `DeviceRecord` DTO | `src/core/DeviceRecord.php` | ✅ | S-01 | |
 | `DeviceRepository` | `src/core/DeviceRepository.php` | ✅ | S-01 | |
@@ -56,7 +56,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | Component | File | Status | Sprint | Notes |
 |---|---|---|---|---|
 | `EnvironmentResolver` | `src/services/EnvironmentResolver.php` | 🟡 | S-01 | Matomo DeviceDetector; missing unit tests |
-| `NetworkContextBroker` | `src/core/NetworkContextBroker.php` | ✅ | S-01 | Cross-domain handoff; `tl`/`ts` in payload |
+| `NetworkContextBroker` | `src/core/NetworkContextBroker.php` | ✅ | S-01 | `issueToken(context, secret)` / `verifyToken(token, secret)` — explicit secret; portable |
 
 ### Consent and Compliance
 
@@ -80,7 +80,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | `ContextEngineTest.php` | `ContextEngine` | ✅ | S-01 | 6 |
 | `ContextCacheTest.php` | `ContextCache` | ✅ | S-01 | — |
 | `SirusContextTest.php` | `SirusContext` | ✅ | S-01 | — |
-| `NetworkContextBrokerTest.php` | `NetworkContextBroker` | ✅ | S-01 | — |
+| `NetworkContextBrokerTest.php` | `NetworkContextBroker` | ✅ | S-01 | 10 tests: issue/verify round-trip, tamper detection, wrong secret, expired |
 | `IdentityResolverTest.php` | `IdentityResolver` | ✅ | S-01 | — |
 | `DeviceContinuityTest.php` | `DeviceContinuity` | ✅ | S-01 | — |
 | `DeviceRecordTest.php` | `DeviceRecord` | ✅ | S-01 | — |
@@ -90,7 +90,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | `EnvironmentResolverTest.php` | `EnvironmentResolver` | 🔲 | S-02 | — |
 | `DeviceMatcherTest.php` | `DeviceMatcher` | 🔲 | S-02 | — |
 | `ConsentManagerTest.php` | `ConsentManager` | 🔲 | S-02 | — |
-| `StepUpPolicyTest.php` | `StepUpPolicy` | 🔲 | S-02 | — |
+| `StepUpPolicyTest.php` | `StepUpPolicy` | ✅ | **S-02** | 15 |
 | `ContextBootExceptionTest.php` | `ContextBootException` | 🔲 | S-02 | — |
 | `ContextPulseTest.php` | `ContextPulse` | 🔲 | S-02 | — |
 
@@ -168,8 +168,8 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 - [x] `EnvironmentResolver` — Matomo DeviceDetector + regex fallback + Throwable guard
 - [x] `DeviceMatcher` — EXACT=1.0, DRIFT=0.6, single boundary constant
 - [x] `ConsentManager` — three-level cascade (user meta → site option → deny), purpose consent, append-only history
-- [x] `StepUpPolicy` — frozen Level 3/Level 2 thresholds, recommendation only
-- [x] `NetworkContextBroker` — `tl`/`ts` round-trip in portable payload; absent `ts` derived from `tl`
+- [x] `StepUpPolicy` — uses `ContextPulse` + `ResourceSensitivity` enum; `isRequired()`/`getRequiredLevel()` frozen boundary; 15 tests in `StepUpPolicyTest`
+- [x] `NetworkContextBroker` — `issueToken(context, secret)` / `verifyToken(token, secret)` — explicit secret; `tl`/`ts` round-trip; absent `ts` derived from `tl`; 10 tests
 - [x] README.md — full spec alignment documentation
 - [x] PUBLIC_API.md — public surface document for cross-repo consumers
 
@@ -187,7 +187,7 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 - [ ] `EnvironmentResolverTest` — UA parsing (browser/OS/device), fallback regex path, network filter
 - [ ] `DeviceMatcherTest` — score = 1.0 (EXACT), score = 0.6 (DRIFT), score < 0.6 (no match), component weights
 - [ ] `ConsentManagerTest` — get/set technical consent, cascade order, purpose consent map, append-only history
-- [ ] `StepUpPolicyTest` — Level 3 always true, Level 2 with trust_score < 0.7 true, Level 2 ≥ 0.7 false, Level 1 false
+- [ ] `StepUpPolicyTest` — ✅ COMPLETE (committed above)
 
 **Acceptance criteria:** `composer run test:unit` passes with no failures or deprecations.
 

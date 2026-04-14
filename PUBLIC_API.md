@@ -180,19 +180,30 @@ PulseGenerator::generate(SirusContext $context, int $now = 0, int $ttlSeconds = 
 ```php
 namespace Starisian\Sparxstar\Sirus\core;
 
-StepUpPolicy::isRequired(SirusContext $context, int $sensitivity_level): bool
-StepUpPolicy::getRequiredLevel(SirusContext $context, int $sensitivity_level): int  // 0 = none, 2 = L2, 3 = L3
+// ResourceSensitivity is a backed int enum: LOW=1, MEDIUM=2, HIGH=3
+StepUpPolicy::isRequired(ContextPulse $pulse, ResourceSensitivity $level): bool
+StepUpPolicy::getRequiredLevel(ContextPulse $pulse, ResourceSensitivity $level): ?ResourceSensitivity  // null = no step-up
 ```
 
-**Frozen policy:**
+**Frozen policy (spec §15 / Helios §11):**
 
 | Level | Condition |
 |---|---|
-| 3 | Always requires step-up |
-| 2 | Requires step-up when `trust_score < 0.7` |
-| ≤ 1 | Never requires step-up |
+| `HIGH` (3) | Always requires step-up |
+| `MEDIUM` (2) | Requires step-up when `trust_score < 0.7` |
+| `LOW` (1) | Never requires step-up |
 
-Returns recommendation only. **Helios enforces.**
+StepUpPolicy operates on **`ContextPulse`** (not `SirusContext`) so the same evaluation runs identically at the edge and at the origin. Returns recommendation only. **Helios enforces.**
+
+**`ResourceSensitivity` enum** — `src/core/ResourceSensitivity.php`:
+
+```php
+enum ResourceSensitivity: int {
+    case LOW    = 1;
+    case MEDIUM = 2;
+    case HIGH   = 3;
+}
+```
 
 ---
 
@@ -237,26 +248,44 @@ ConsentManager::STATE_PENDING  // 'pending'
 ```php
 namespace Starisian\Sparxstar\Sirus\core;
 
-NetworkContextBroker::generateToken(SirusContext $context): string    // base64url-encoded signed token
-NetworkContextBroker::verifyToken(string $token): ?SirusContext       // null on invalid/expired
+// The signing secret is explicit so the class is portable across PHP origin,
+// TypeScript edge workers, and sovereign minimal deployments.
+NetworkContextBroker::issueToken(SirusContext $context, string $secret): string    // base64url-encoded signed token
+NetworkContextBroker::verifyToken(string $token, string $secret): ?SirusContext    // null on invalid/expired
 ```
 
-**Token payload field map:** Same as `SirusContext::toPortablePayload()` above (minus `identity_id`). `ts` field added in v1.0 — absent `ts` is derived from `tl` for backward compatibility. Signing secret is derived via `wp_salt('auth')` — no external secret required.
+**Secret:** In WordPress contexts pass `wp_salt('auth')`. In edge/sovereign deployments use an environment-supplied secret. Same secret must be used for both `issueToken()` and `verifyToken()`.
+
+**Token payload field map:** Same as `SirusContext::toPortablePayload()` above (minus `identity_id`). `ts` field added in v1.0 — absent `ts` is derived from `tl` for backward compatibility.
 
 ---
 
 ### `DeviceContinuity` — `src/core/DeviceContinuity.php`
 
+Two-stage pipeline — resolution then evaluation:
+
 ```php
 namespace Starisian\Sparxstar\Sirus\core;
 
-DeviceContinuity::getDeviceContext(DeviceRecord $device): array
+// Stage 1 — Resolution (boundary method): untrusted signals → server-issued DeviceRecord
+DeviceContinuity::resolveDevice(
+    string $device_id,
+    string $device_secret,
+    string $fingerprint_hash,
+    array  $environment_data
+): DeviceRecord
+
+DeviceContinuity::registerDevice(string $fingerprint_hash, array $environment_data): DeviceRecord
+
+// Stage 2 — Evaluation (analysis method): DeviceRecord → continuity state
+DeviceContinuity::evaluateContinuity(DeviceRecord $device): array
 // Returns: ['device_hash' => string, 'continuity_score' => float, 'risk_flags' => string[]]
 ```
 
 **Contract:**
 - `device_id` is ALWAYS server-issued. JS fingerprint is an input to `DeviceRecord::fingerprint_hash`, not a device identifier.
-- Throws `\RuntimeException` if `$device->device_id` or `$device->fingerprint_hash` is empty.
+- `resolveDevice()` handles hard-anchor (device_id + secret) and soft-signal (fingerprint_hash) paths, registering a new device on first visit.
+- `evaluateContinuity()` throws `\RuntimeException` if `$device->device_id` or `$device->fingerprint_hash` is empty.
 
 ---
 

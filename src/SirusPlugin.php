@@ -171,7 +171,7 @@ final class SirusPlugin
 
         $context = ContextEngine::current();
         $broker  = new NetworkContextBroker();
-        $token   = $broker->generateToken($context);
+        $token   = $broker->issueToken($context, wp_salt('auth'));
 
         wp_enqueue_script(
             'sparxstar-sirus-context',

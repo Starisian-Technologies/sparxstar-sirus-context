@@ -1,7 +1,11 @@
 <?php
 
 /**
- * NetworkContextBroker - Generates and verifies signed cross-domain context tokens.
+ * NetworkContextBroker - Issues and verifies signed cross-domain context tokens.
+ *
+ * The signing secret is passed explicitly to both issueToken() and verifyToken()
+ * so that the class is portable across PHP origin, TypeScript edge workers, and
+ * sovereign minimal deployments that do not have access to WordPress functions.
  *
  * @package Starisian\Sparxstar\Sirus
  */
@@ -17,6 +21,14 @@ if (! defined('ABSPATH')) {
 /**
  * Creates and verifies short-lived signed tokens that carry a portable SirusContext
  * payload across network boundaries without exposing the identity_id.
+ *
+ * Token format: base64url(json_payload) . '.' . base64url(hmac_signature)
+ *
+ * The caller is responsible for supplying the signing secret so that:
+ * - The implementation has no implicit dependency on wp_salt() or any WP function.
+ * - The same logic can run identically on origin (PHP), edge (TypeScript), and
+ *   sovereign / air-gapped deployments.
+ * - Test vectors remain deterministic: same inputs → identical signatures.
  */
 final class NetworkContextBroker
 {
@@ -24,14 +36,14 @@ final class NetworkContextBroker
     private const TOKEN_TTL = 30;
 
     /**
-     * Generates a signed base64url-encoded context token.
-     *
-     * Format: base64url(json_payload) . '.' . base64url(hmac_signature)
+     * Issues a signed base64url-encoded context token.
      *
      * @param SirusContext $context The context to encode into the token.
+     * @param string       $secret  HMAC-SHA256 signing secret. Must not be empty.
+     *                              In WordPress contexts pass `wp_salt('auth')`.
      * @return string The signed token string.
      */
-    public function generateToken(SirusContext $context): string
+    public function issueToken(SirusContext $context, string $secret): string
     {
         $now            = time();
         $payload        = $context->toPortablePayload();
@@ -40,7 +52,7 @@ final class NetworkContextBroker
 
         $json        = (string) wp_json_encode($payload);
         $payload_b64 = $this->base64url_encode($json);
-        $signature   = hash_hmac('sha256', $payload_b64, wp_salt('auth'), true);
+        $signature   = hash_hmac('sha256', $payload_b64, $secret, true);
         $sig_b64     = $this->base64url_encode($signature);
 
         return $payload_b64 . '.' . $sig_b64;
@@ -49,10 +61,12 @@ final class NetworkContextBroker
     /**
      * Verifies a signed token and returns a reconstructed SirusContext, or null on failure.
      *
-     * @param string $token The token string to verify.
+     * @param string $token  The token string to verify.
+     * @param string $secret HMAC-SHA256 signing secret. Must match the secret used in issueToken().
+     *                       In WordPress contexts pass `wp_salt('auth')`.
      * @return SirusContext|null The reconstructed context, or null if invalid/expired.
      */
-    public function verifyToken(string $token): ?SirusContext
+    public function verifyToken(string $token, string $secret): ?SirusContext
     {
         $parts = explode('.', $token, 2);
         if (count($parts) !== 2) {
@@ -61,7 +75,7 @@ final class NetworkContextBroker
 
         [$payload_b64, $sig_b64] = $parts;
 
-        $expected_sig = hash_hmac('sha256', $payload_b64, wp_salt('auth'), true);
+        $expected_sig = hash_hmac('sha256', $payload_b64, $secret, true);
         $provided_sig = $this->base64url_decode($sig_b64);
 
         // Guard against empty decoded signature before constant-time comparison.
