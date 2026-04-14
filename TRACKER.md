@@ -37,7 +37,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 |---|---|---|---|---|
 | `TrustEngine` | `src/core/TrustEngine.php` | ✅ | S-01/S-02 | Frozen algorithm; 18 unit tests in `TrustEngineTest` |
 | `TrustResolver` | `src/core/TrustResolver.php` | ✅ | S-01/S-02 | Credential-level base + drift/session deductions; 15 unit tests in `TrustResolverTest` |
-| `StepUpPolicy` | `src/core/StepUpPolicy.php` | ✅ | S-01/S-02 | Frozen policy; operates on `ContextPulse` + `ResourceSensitivity`; 15 unit tests |
+| `StepUpPolicy` | `src/core/StepUpPolicy.php` | ✅ | S-01/S-02 | Frozen policy; operates on `ContextPulse` + `ResourceSensitivity`; 14 unit tests |
 | `PulseGenerator` | `src/core/PulseGenerator.php` | ✅ | S-01/S-02 | HMAC-SHA256 only; 20 unit tests in `PulseGeneratorTest`; `$now`/`$ttlSeconds` explicit params |
 
 ### Device and Identity
@@ -90,7 +90,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | `EnvironmentResolverTest.php` | `EnvironmentResolver` | 🔲 | S-02 | — |
 | `DeviceMatcherTest.php` | `DeviceMatcher` | 🔲 | S-02 | — |
 | `ConsentManagerTest.php` | `ConsentManager` | 🔲 | S-02 | — |
-| `StepUpPolicyTest.php` | `StepUpPolicy` | ✅ | **S-02** | 15 |
+| `StepUpPolicyTest.php` | `StepUpPolicy` | ✅ | **S-02** | 14 |
 | `ContextBootExceptionTest.php` | `ContextBootException` | 🔲 | S-02 | — |
 | `ContextPulseTest.php` | `ContextPulse` | 🔲 | S-02 | — |
 

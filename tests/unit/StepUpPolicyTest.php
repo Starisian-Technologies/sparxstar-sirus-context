@@ -37,16 +37,6 @@ final class StepUpPolicyTest extends SirusTestCase
     // ── isRequired — HIGH sensitivity ──────────────────────────────────────────
 
     /**
-     * HIGH resource always requires step-up, regardless of trust score.
-     */
-    public function testHighAlwaysRequiresStepUpAtMaxTrust(): void
-    {
-        $this->assertTrue(
-            $this->policy->isRequired($this->makePulse(1.0), ResourceSensitivity::HIGH)
-        );
-    }
-
-    /**
      * HIGH resource requires step-up even with trust_score = 1.0 (perfect trust).
      */
     public function testHighRequiresStepUpAtPerfectTrust(): void

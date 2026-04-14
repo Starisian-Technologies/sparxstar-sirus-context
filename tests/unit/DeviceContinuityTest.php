@@ -268,7 +268,7 @@ final class DeviceContinuityTest extends SirusTestCase
     /**
      * evaluateContinuity() returns fixed output shape for a valid record.
      */
-    public function testGetDeviceContextReturnsFixedSchema(): void
+    public function testEvaluateContinuityReturnsFixedSchema(): void
     {
         $record = $this->seedRecord('dev-ctx', 'fp-ctx-hash');
 
@@ -285,7 +285,7 @@ final class DeviceContinuityTest extends SirusTestCase
     /**
      * evaluateContinuity() throws when device_id is empty.
      */
-    public function testGetDeviceContextThrowsOnEmptyDeviceId(): void
+    public function testEvaluateContinuityThrowsOnEmptyDeviceId(): void
     {
         $this->expectException(\RuntimeException::class);
 
@@ -306,7 +306,7 @@ final class DeviceContinuityTest extends SirusTestCase
     /**
      * evaluateContinuity() throws when fingerprint_hash is empty.
      */
-    public function testGetDeviceContextThrowsOnEmptyFingerprintHash(): void
+    public function testEvaluateContinuityThrowsOnEmptyFingerprintHash(): void
     {
         $this->expectException(\RuntimeException::class);
 
