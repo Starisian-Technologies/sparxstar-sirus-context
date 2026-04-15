@@ -181,9 +181,14 @@ final class ContextEngine
         $issued_at = time();
         $expires   = $issued_at + 300;
 
-        $trust_score  = TrustResolver::evaluate($device);
-        // Use TrustEngine::scoreToLevel() to map the resolver's score to the canonical level.
-        $trust_level  = (new TrustEngine())->scoreToLevel($trust_score);
+        $trust_score = TrustResolver::evaluate($device);
+
+        // If DeviceContinuity flagged this record with STEP_UP_REQUIRED (fingerprint
+        // changed on a verified device), propagate that flag directly to the context
+        // rather than deriving a level from the numeric score alone.
+        $trust_level = ($device->trust_level === StepUpPolicy::TRUST_LEVEL_STEP_UP_REQUIRED)
+            ? StepUpPolicy::TRUST_LEVEL_STEP_UP_REQUIRED
+            : (new TrustEngine())->scoreToLevel($trust_score);
 
         $context = new SirusContext(
             context_id:     $context_id,

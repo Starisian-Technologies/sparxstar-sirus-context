@@ -1,11 +1,12 @@
 <?php
 
 /**
- * DeviceMatcher - Fingerprint scoring and similarity thresholds for device continuity.
+ * DeviceMatcher - Fingerprint scoring and three-way classification for device continuity.
  *
- * Defines the numerical thresholds used by DeviceContinuity when deciding whether
- * a new fingerprint belongs to the same device. A score of 1.0 is a perfect match;
- * a score below DRIFT_THRESHOLD indicates meaningful device change.
+ * Implements spec §14.3. Scores are mapped to a MatchResult via classify():
+ *   STRONG_MATCH — score >= STRONG_MATCH_THRESHOLD (0.8): restore device normally.
+ *   WEAK_MATCH   — score >= WEAK_MATCH_THRESHOLD   (0.6): restore device, flag STEP_UP_REQUIRED.
+ *   NO_MATCH     — score <  WEAK_MATCH_THRESHOLD   (0.6): register as new device.
  *
  * @package Starisian\Sparxstar\Sirus
  */
@@ -29,37 +30,60 @@ if (! defined('ABSPATH')) {
 final class DeviceMatcher
 {
     /**
-     * Minimum similarity score for the device to be considered the SAME device without drift.
-     * Scores >= EXACT_THRESHOLD → identical fingerprint, no drift recorded.
+     * Minimum score to classify as STRONG_MATCH (same device, normal restore).
+     * A score equal to or above this threshold means the device environment is
+     * sufficiently identical to proceed without any additional verification.
      */
-    public const EXACT_THRESHOLD = 1.0;
+    public const STRONG_MATCH_THRESHOLD = 0.8;
 
     /**
-     * Boundary score between a drifting device and a new device.
-     *
-     * - Scores >= DRIFT_THRESHOLD and < EXACT_THRESHOLD → same device, drift recorded.
-     * - Scores <  DRIFT_THRESHOLD                       → new device registration.
-     *
-     * There is intentionally a single boundary constant because the upper bound of
-     * "new device" and the lower bound of "drift" are the same point on the scale.
+     * Minimum score to classify as WEAK_MATCH (same device, step-up required).
+     * Scores between WEAK_MATCH_THRESHOLD (inclusive) and STRONG_MATCH_THRESHOLD
+     * (exclusive) indicate meaningful environment change that warrants a step-up
+     * challenge before fully restoring the session.
+     * Scores below this threshold classify as NO_MATCH (new device registration).
      */
-    public const DRIFT_THRESHOLD = 0.6;
+    public const WEAK_MATCH_THRESHOLD = 0.6;
 
     /**
      * Component weights used when scoring a structured fingerprint map.
      * Higher weight = more significant signal for device continuity.
      *
+     * Keys are snake_case and match the server-canonical field names sent from
+     * the JS collector (PHP is authoritative for naming; snake_case throughout).
+     *
      * @var array<string, float>
      */
     private const COMPONENT_WEIGHTS = [
-        'canvas_hash'    => 0.30,
-        'screen'         => 0.20,
-        'timezone'       => 0.15,
-        'platform'       => 0.15,
-        'languages'      => 0.10,
-        'color_depth'    => 0.05,
-        'hardware_conc'  => 0.05,
+        'canvas_hash'          => 0.30,
+        'screen'               => 0.20,
+        'timezone'             => 0.15,
+        'platform'             => 0.15,
+        'languages'            => 0.10,
+        'color_depth'          => 0.05,
+        'hardware_concurrency' => 0.05,
     ];
+
+    /**
+     * Classifies a similarity score as STRONG_MATCH, WEAK_MATCH, or NO_MATCH.
+     *
+     * This is the canonical decision function used by DeviceContinuity::resolveDevice()
+     * to branch on the outcome of fingerprint comparison.
+     *
+     * @param float $score Similarity score in [0.0, 1.0].
+     */
+    public static function classify(float $score): MatchResult
+    {
+        if ($score >= self::STRONG_MATCH_THRESHOLD) {
+            return MatchResult::STRONG_MATCH;
+        }
+
+        if ($score >= self::WEAK_MATCH_THRESHOLD) {
+            return MatchResult::WEAK_MATCH;
+        }
+
+        return MatchResult::NO_MATCH;
+    }
 
     /**
      * Scores the similarity between two opaque fingerprint hashes (SHA-256 hex strings).
@@ -115,35 +139,5 @@ final class DeviceMatcher
         }
 
         return $matched_weight / $total_weight;
-    }
-
-    /**
-     * Returns true if the given score indicates an exact fingerprint match.
-     *
-     * @param float $score Similarity score from scoreHash() or scoreComponents().
-     */
-    public function isExactMatch(float $score): bool
-    {
-        return $score >= self::EXACT_THRESHOLD;
-    }
-
-    /**
-     * Returns true if the given score indicates drift on an otherwise verified device.
-     *
-     * @param float $score Similarity score.
-     */
-    public function isDrift(float $score): bool
-    {
-        return $score >= self::DRIFT_THRESHOLD && $score < self::EXACT_THRESHOLD;
-    }
-
-    /**
-     * Returns true if the given score indicates a new (unrecognised) device.
-     *
-     * @param float $score Similarity score.
-     */
-    public function isNewDevice(float $score): bool
-    {
-        return $score < self::DRIFT_THRESHOLD;
     }
 }

@@ -1,11 +1,16 @@
 <?php
 
 /**
- * Tests for DeviceMatcher – fingerprint scoring and threshold classification.
+ * Tests for DeviceMatcher – fingerprint scoring and three-way classification (spec §14.3).
  *
  * DeviceMatcher defines two thresholds:
- *   EXACT_THRESHOLD = 1.0  — identical fingerprint, no drift
- *   DRIFT_THRESHOLD = 0.6  — boundary between "same device with drift" and "new device"
+ *   STRONG_MATCH_THRESHOLD = 0.8  — same device, no additional verification needed
+ *   WEAK_MATCH_THRESHOLD   = 0.6  — same device with environment change, step-up required
+ *
+ * And one classify() method that maps any score to a MatchResult:
+ *   score >= 0.8  → MatchResult::STRONG_MATCH
+ *   score >= 0.6  → MatchResult::WEAK_MATCH
+ *   score <  0.6  → MatchResult::NO_MATCH
  *
  * These tests lock the classification logic so that threshold changes or
  * off-by-one errors cannot silently alter device continuity behavior.
@@ -18,10 +23,10 @@ declare(strict_types=1);
 namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 
 use Starisian\Sparxstar\Sirus\core\DeviceMatcher;
+use Starisian\Sparxstar\Sirus\core\MatchResult;
 
 /**
- * Unit tests for DeviceMatcher::scoreHash(), scoreComponents(),
- * isExactMatch(), isDrift(), and isNewDevice().
+ * Unit tests for DeviceMatcher::classify(), scoreHash(), and scoreComponents().
  */
 final class DeviceMatcherTest extends SirusTestCase
 {
@@ -32,10 +37,132 @@ final class DeviceMatcherTest extends SirusTestCase
         $this->matcher = new DeviceMatcher();
     }
 
+    // ── Threshold constants ───────────────────────────────────────────────────
+
+    /**
+     * STRONG_MATCH_THRESHOLD is 0.8.
+     */
+    public function testStrongMatchThresholdConstantIsPointEight(): void
+    {
+        $this->assertSame(0.8, DeviceMatcher::STRONG_MATCH_THRESHOLD);
+    }
+
+    /**
+     * WEAK_MATCH_THRESHOLD is 0.6.
+     */
+    public function testWeakMatchThresholdConstantIsPointSix(): void
+    {
+        $this->assertSame(0.6, DeviceMatcher::WEAK_MATCH_THRESHOLD);
+    }
+
+    // ── classify() ────────────────────────────────────────────────────────────
+
+    /**
+     * Score 1.0 (perfect hash match) is STRONG_MATCH.
+     */
+    public function testClassifyOnePointZeroIsStrongMatch(): void
+    {
+        $this->assertSame(MatchResult::STRONG_MATCH, DeviceMatcher::classify(1.0));
+    }
+
+    /**
+     * Score at exactly STRONG_MATCH_THRESHOLD (0.8) is STRONG_MATCH.
+     */
+    public function testClassifyAtStrongThresholdIsStrongMatch(): void
+    {
+        $this->assertSame(MatchResult::STRONG_MATCH, DeviceMatcher::classify(0.8));
+    }
+
+    /**
+     * Score above STRONG_MATCH_THRESHOLD (e.g. 0.9) is STRONG_MATCH.
+     */
+    public function testClassifyAboveStrongThresholdIsStrongMatch(): void
+    {
+        $this->assertSame(MatchResult::STRONG_MATCH, DeviceMatcher::classify(0.9));
+    }
+
+    /**
+     * Score just below STRONG_MATCH_THRESHOLD (0.799…) is WEAK_MATCH.
+     * A device scoring 0.75 should NOT be silently treated as a strong match —
+     * this was the silent behavioral bug in the previous two-threshold model.
+     */
+    public function testClassifyJustBelowStrongThresholdIsWeakMatch(): void
+    {
+        $this->assertSame(MatchResult::WEAK_MATCH, DeviceMatcher::classify(0.799));
+    }
+
+    /**
+     * Score 0.7 (between thresholds) is WEAK_MATCH.
+     */
+    public function testClassifyMidRangeIsWeakMatch(): void
+    {
+        $this->assertSame(MatchResult::WEAK_MATCH, DeviceMatcher::classify(0.7));
+    }
+
+    /**
+     * Score at exactly WEAK_MATCH_THRESHOLD (0.6) is WEAK_MATCH.
+     */
+    public function testClassifyAtWeakThresholdIsWeakMatch(): void
+    {
+        $this->assertSame(MatchResult::WEAK_MATCH, DeviceMatcher::classify(0.6));
+    }
+
+    /**
+     * Score just below WEAK_MATCH_THRESHOLD (0.599…) is NO_MATCH.
+     */
+    public function testClassifyJustBelowWeakThresholdIsNoMatch(): void
+    {
+        $this->assertSame(MatchResult::NO_MATCH, DeviceMatcher::classify(0.599));
+    }
+
+    /**
+     * Score 0.0 is NO_MATCH (completely different device).
+     */
+    public function testClassifyZeroIsNoMatch(): void
+    {
+        $this->assertSame(MatchResult::NO_MATCH, DeviceMatcher::classify(0.0));
+    }
+
+    /**
+     * Score 0.5 (below weak threshold) is NO_MATCH.
+     */
+    public function testClassifyBelowWeakThresholdIsNoMatch(): void
+    {
+        $this->assertSame(MatchResult::NO_MATCH, DeviceMatcher::classify(0.5));
+    }
+
+    /**
+     * MatchResult cases are mutually exclusive: each canonical score maps to exactly one case.
+     *
+     * This locks the three-way partition so that boundary changes or floating-point
+     * regressions cannot cause a score to appear in two cases simultaneously.
+     */
+    public function testClassifyResultsAreMutuallyExclusive(): void
+    {
+        $cases = [
+            [0.0,   MatchResult::NO_MATCH],
+            [0.59,  MatchResult::NO_MATCH],
+            [0.6,   MatchResult::WEAK_MATCH],
+            [0.7,   MatchResult::WEAK_MATCH],
+            [0.799, MatchResult::WEAK_MATCH],
+            [0.8,   MatchResult::STRONG_MATCH],
+            [0.85,  MatchResult::STRONG_MATCH],
+            [1.0,   MatchResult::STRONG_MATCH],
+        ];
+
+        foreach ($cases as [$score, $expected]) {
+            $this->assertSame(
+                $expected,
+                DeviceMatcher::classify($score),
+                "classify({$score}) should return {$expected->name}"
+            );
+        }
+    }
+
     // ── scoreHash ─────────────────────────────────────────────────────────────
 
     /**
-     * Identical hashes produce score 1.0.
+     * Identical hashes produce score 1.0 → STRONG_MATCH via classify().
      */
     public function testScoreHashReturnOneForIdenticalHashes(): void
     {
@@ -45,7 +172,7 @@ final class DeviceMatcherTest extends SirusTestCase
     }
 
     /**
-     * Different hashes produce score 0.0.
+     * Different hashes produce score 0.0 → NO_MATCH via classify().
      */
     public function testScoreHashReturnZeroForDifferentHashes(): void
     {
@@ -79,21 +206,49 @@ final class DeviceMatcherTest extends SirusTestCase
         $this->assertSame(0.0, $this->matcher->scoreHash('', ''));
     }
 
+    /**
+     * scoreHash result feeds directly into classify(): identical → STRONG_MATCH.
+     */
+    public function testScoreHashIntegrationWithClassify(): void
+    {
+        $hash   = hash('sha256', 'canonical-fingerprint');
+        $score  = $this->matcher->scoreHash($hash, $hash);
+        $result = DeviceMatcher::classify($score);
+
+        $this->assertSame(MatchResult::STRONG_MATCH, $result);
+    }
+
+    /**
+     * scoreHash result feeds directly into classify(): different → NO_MATCH.
+     */
+    public function testScoreHashDifferentHashesClassifyAsNoMatch(): void
+    {
+        $stored  = hash('sha256', 'old-fingerprint');
+        $current = hash('sha256', 'new-fingerprint');
+        $score   = $this->matcher->scoreHash($stored, $current);
+        $result  = DeviceMatcher::classify($score);
+
+        $this->assertSame(MatchResult::NO_MATCH, $result);
+    }
+
     // ── scoreComponents ───────────────────────────────────────────────────────
 
     /**
      * Identical component maps produce score 1.0.
+     *
+     * Keys use server-canonical snake_case (PHP is authoritative).
+     * hardware_concurrency is the correct form of JS hardwareConcurrency.
      */
     public function testScoreComponentsReturnOneForIdenticalMaps(): void
     {
         $components = [
-            'canvas_hash'   => 'abc123',
-            'screen'        => '1920x1080',
-            'timezone'      => 'America/Los_Angeles',
-            'platform'      => 'MacIntel',
-            'languages'     => 'en-US',
-            'color_depth'   => '24',
-            'hardware_conc' => '8',
+            'canvas_hash'          => 'abc123',
+            'screen'               => '1920x1080',
+            'timezone'             => 'America/Los_Angeles',
+            'platform'             => 'MacIntel',
+            'languages'            => 'en-US',
+            'color_depth'          => '24',
+            'hardware_concurrency' => '8',
         ];
 
         $this->assertSame(1.0, $this->matcher->scoreComponents($components, $components));
@@ -105,23 +260,23 @@ final class DeviceMatcherTest extends SirusTestCase
     public function testScoreComponentsReturnZeroForCompletelyDifferentMaps(): void
     {
         $stored = [
-            'canvas_hash'   => 'abc',
-            'screen'        => '1920x1080',
-            'timezone'      => 'America/LA',
-            'platform'      => 'MacIntel',
-            'languages'     => 'en-US',
-            'color_depth'   => '24',
-            'hardware_conc' => '8',
+            'canvas_hash'          => 'abc',
+            'screen'               => '1920x1080',
+            'timezone'             => 'America/LA',
+            'platform'             => 'MacIntel',
+            'languages'            => 'en-US',
+            'color_depth'          => '24',
+            'hardware_concurrency' => '8',
         ];
 
         $current = [
-            'canvas_hash'   => 'xyz',
-            'screen'        => '1280x720',
-            'timezone'      => 'Europe/Paris',
-            'platform'      => 'Win32',
-            'languages'     => 'fr-FR',
-            'color_depth'   => '16',
-            'hardware_conc' => '4',
+            'canvas_hash'          => 'xyz',
+            'screen'               => '1280x720',
+            'timezone'             => 'Europe/Paris',
+            'platform'             => 'Win32',
+            'languages'            => 'fr-FR',
+            'color_depth'          => '16',
+            'hardware_concurrency' => '4',
         ];
 
         $this->assertSame(0.0, $this->matcher->scoreComponents($stored, $current));
@@ -152,26 +307,28 @@ final class DeviceMatcherTest extends SirusTestCase
      *
      * canvas_hash weight = 0.30. All other components match.
      * Expected score = (1.0 - 0.30) = 0.70 (total_weight = 1.0 since all keys present).
+     * This is below STRONG_MATCH_THRESHOLD (0.8), so classify() → WEAK_MATCH.
      */
     public function testScoreComponentsPartialMatchOnlyCanvasDiffers(): void
     {
         $stored = [
-            'canvas_hash'   => 'abc',
-            'screen'        => '1920x1080',
-            'timezone'      => 'America/LA',
-            'platform'      => 'MacIntel',
-            'languages'     => 'en-US',
-            'color_depth'   => '24',
-            'hardware_conc' => '8',
+            'canvas_hash'          => 'abc',
+            'screen'               => '1920x1080',
+            'timezone'             => 'America/LA',
+            'platform'             => 'MacIntel',
+            'languages'            => 'en-US',
+            'color_depth'          => '24',
+            'hardware_concurrency' => '8',
         ];
 
-        $current = $stored;
-        $current['canvas_hash'] = 'xyz'; // only this differs
+        $current                 = $stored;
+        $current['canvas_hash']  = 'xyz';
 
-        $score = $this->matcher->scoreComponents($stored, $current);
+        $score  = $this->matcher->scoreComponents($stored, $current);
+        $result = DeviceMatcher::classify($score);
 
-        // Expect approximately 0.70 (0.30 weight lost)
         $this->assertEqualsWithDelta(0.70, $score, 0.001);
+        $this->assertSame(MatchResult::WEAK_MATCH, $result);
     }
 
     /**
@@ -182,178 +339,21 @@ final class DeviceMatcherTest extends SirusTestCase
         $stored  = ['canvas_hash' => 'abc'];
         $current = ['canvas_hash' => 'abc', 'screen' => '1920x1080'];
 
-        // Only canvas_hash is in both; it matches → score = 1.0
         $this->assertSame(1.0, $this->matcher->scoreComponents($stored, $current));
     }
 
-    // ── isExactMatch ──────────────────────────────────────────────────────────
-
     /**
-     * Score 1.0 is an exact match.
-     */
-    public function testIsExactMatchTrueForOnePointZero(): void
-    {
-        $this->assertTrue($this->matcher->isExactMatch(1.0));
-    }
-
-    /**
-     * Score just below 1.0 is NOT an exact match.
-     */
-    public function testIsExactMatchFalseForScoreBelowOne(): void
-    {
-        $this->assertFalse($this->matcher->isExactMatch(0.99));
-    }
-
-    /**
-     * Score 0.0 is not an exact match.
-     */
-    public function testIsExactMatchFalseForZero(): void
-    {
-        $this->assertFalse($this->matcher->isExactMatch(0.0));
-    }
-
-    // ── isDrift ───────────────────────────────────────────────────────────────
-
-    /**
-     * Score at DRIFT_THRESHOLD (0.6) is a drift match.
-     */
-    public function testIsDriftTrueAtDriftThreshold(): void
-    {
-        $this->assertTrue($this->matcher->isDrift(DeviceMatcher::DRIFT_THRESHOLD));
-    }
-
-    /**
-     * Score above DRIFT_THRESHOLD but below EXACT_THRESHOLD (e.g., 0.8) is drift.
-     */
-    public function testIsDriftTrueForScoreBetweenThresholds(): void
-    {
-        $this->assertTrue($this->matcher->isDrift(0.8));
-    }
-
-    /**
-     * Score at EXACT_THRESHOLD (1.0) is NOT drift (it's exact).
-     */
-    public function testIsDriftFalseAtExactThreshold(): void
-    {
-        $this->assertFalse($this->matcher->isDrift(DeviceMatcher::EXACT_THRESHOLD));
-    }
-
-    /**
-     * Score below DRIFT_THRESHOLD (0.59) is NOT drift (it's a new device).
-     */
-    public function testIsDriftFalseBelowDriftThreshold(): void
-    {
-        $this->assertFalse($this->matcher->isDrift(0.59));
-    }
-
-    /**
-     * Score 0.0 is not drift.
-     */
-    public function testIsDriftFalseForZero(): void
-    {
-        $this->assertFalse($this->matcher->isDrift(0.0));
-    }
-
-    // ── isNewDevice ───────────────────────────────────────────────────────────
-
-    /**
-     * Score 0.0 (no match) is a new device.
-     */
-    public function testIsNewDeviceTrueForZeroScore(): void
-    {
-        $this->assertTrue($this->matcher->isNewDevice(0.0));
-    }
-
-    /**
-     * Score just below DRIFT_THRESHOLD (0.59) is a new device.
-     */
-    public function testIsNewDeviceTrueJustBelowDriftThreshold(): void
-    {
-        $this->assertTrue($this->matcher->isNewDevice(0.59));
-    }
-
-    /**
-     * Score at DRIFT_THRESHOLD (0.6) is NOT a new device.
-     */
-    public function testIsNewDeviceFalseAtDriftThreshold(): void
-    {
-        $this->assertFalse($this->matcher->isNewDevice(DeviceMatcher::DRIFT_THRESHOLD));
-    }
-
-    /**
-     * Score 1.0 (exact match) is not a new device.
-     */
-    public function testIsNewDeviceFalseForExactMatch(): void
-    {
-        $this->assertFalse($this->matcher->isNewDevice(1.0));
-    }
-
-    // ── Threshold constants ───────────────────────────────────────────────────
-
-    /**
-     * EXACT_THRESHOLD constant is 1.0.
-     */
-    public function testExactThresholdConstantIsOne(): void
-    {
-        $this->assertSame(1.0, DeviceMatcher::EXACT_THRESHOLD);
-    }
-
-    /**
-     * DRIFT_THRESHOLD constant is 0.6.
-     */
-    public function testDriftThresholdConstantIsPointSix(): void
-    {
-        $this->assertSame(0.6, DeviceMatcher::DRIFT_THRESHOLD);
-    }
-
-    /**
-     * The boundary is non-overlapping: at exactly DRIFT_THRESHOLD a score is
-     * either drift (≥ threshold) or new device (< threshold), never both.
+     * hardware_concurrency key (not hardware_conc) is scored correctly.
      *
-     * At exactly 0.6:
-     *   isDrift()     → true  (score >= 0.6 && score < 1.0)
-     *   isNewDevice() → false (score >= 0.6)
+     * This verifies the key-name fix: the old hardware_conc would score silently
+     * as zero because it never matched the JS-emitted field name.
      */
-    public function testBoundaryAtDriftThresholdIsNonOverlapping(): void
+    public function testHardwareConcurrencyKeyIsRecognised(): void
     {
-        $score = DeviceMatcher::DRIFT_THRESHOLD;
+        $stored  = ['hardware_concurrency' => '8'];
+        $current = ['hardware_concurrency' => '8'];
 
-        $this->assertTrue($this->matcher->isDrift($score));
-        $this->assertFalse($this->matcher->isNewDevice($score));
-    }
-
-    /**
-     * The three classification methods are mutually exclusive for canonical scores.
-     *
-     * Any score is exactly one of: exactMatch, drift, or newDevice.
-     */
-    public function testClassificationsAreMutuallyExclusive(): void
-    {
-        $cases = [
-            [0.0,  false, false, true],  // new device
-            [0.59, false, false, true],  // new device
-            [0.6,  false, true,  false], // drift
-            [0.8,  false, true,  false], // drift
-            [0.99, false, true,  false], // drift
-            [1.0,  true,  false, false], // exact
-        ];
-
-        foreach ($cases as [$score, $exact, $drift, $new]) {
-            $this->assertSame(
-                $exact,
-                $this->matcher->isExactMatch($score),
-                "isExactMatch({$score})"
-            );
-            $this->assertSame(
-                $drift,
-                $this->matcher->isDrift($score),
-                "isDrift({$score})"
-            );
-            $this->assertSame(
-                $new,
-                $this->matcher->isNewDevice($score),
-                "isNewDevice({$score})"
-            );
-        }
+        // Only hardware_concurrency present in both; it matches → score 1.0.
+        $this->assertSame(1.0, $this->matcher->scoreComponents($stored, $current));
     }
 }

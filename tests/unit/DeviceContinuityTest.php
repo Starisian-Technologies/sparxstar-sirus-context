@@ -108,7 +108,8 @@ final class DeviceContinuityTest extends SirusTestCase
         string $fingerprint_hash,
         string $secret = self::GOOD_SECRET,
         int $drift_score = 0,
-        int $last_seen_offset = 0
+        int $last_seen_offset = 0,
+        string $trust_level = 'device'
     ): DeviceRecord {
         $record = new DeviceRecord(
             device_id:        $device_id,
@@ -117,7 +118,7 @@ final class DeviceContinuityTest extends SirusTestCase
             environment_json: '{}',
             first_seen:       time() - 3600,
             last_seen:        time() + $last_seen_offset,
-            trust_level:      'device',
+            trust_level:      $trust_level,
             drift_score:      $drift_score,
         );
         $this->store[$device_id]          = $record;
@@ -144,8 +145,9 @@ final class DeviceContinuityTest extends SirusTestCase
     // ── Path 1b: hard-anchor match, fingerprint drift ────────────────────────
 
     /**
-     * When device_id + secret match but fingerprint changed, drift is accepted:
-     * fingerprint is updated and drift_score is incremented.
+     * When device_id + secret match but fingerprint changed, the new WEAK_MATCH
+     * path updates the fingerprint, increments drift_score, and flags trust_level
+     * as STEP_UP_REQUIRED (in-memory only — the stored credential level is unchanged).
      */
     public function testDriftOnVerifiedDeviceUpdatesFingerprintAndIncrementsDriftScore(): void
     {
@@ -158,6 +160,39 @@ final class DeviceContinuityTest extends SirusTestCase
         $this->assertSame(1, $result->drift_score);
         $this->assertSame('fp-new', $this->updatedFingerprints['dev-2']);
         $this->assertSame(1, $this->driftIncrements['dev-2']);
+    }
+
+    /**
+     * Verified device with changed fingerprint → trust_level is STEP_UP_REQUIRED.
+     *
+     * The returned in-memory DeviceRecord carries STEP_UP_REQUIRED so that
+     * ContextEngine::buildFromDevice() propagates it to the SirusContext trust_level,
+     * triggering StepUpPolicy. The stored DB record's trust_level is NOT changed.
+     */
+    public function testChangedFingerprintOnVerifiedDeviceSetsStepUpRequired(): void
+    {
+        $this->seedRecord('dev-step', 'fp-original', trust_level: 'anonymous');
+
+        $result = $this->continuity->resolveDevice('dev-step', self::GOOD_SECRET, 'fp-changed', []);
+
+        $this->assertSame('dev-step', $result->device_id);
+        $this->assertSame('STEP_UP_REQUIRED', $result->trust_level);
+        $this->assertSame('fp-changed', $result->fingerprint_hash);
+        $this->assertSame(1, $result->drift_score);
+    }
+
+    /**
+     * Verified device with SAME fingerprint → trust_level is NOT STEP_UP_REQUIRED
+     * (the stored trust_level is preserved as-is).
+     */
+    public function testSameFingerprintOnVerifiedDevicePreservesStoredTrustLevel(): void
+    {
+        $this->seedRecord('dev-ok', 'fp-same', trust_level: 'user');
+
+        $result = $this->continuity->resolveDevice('dev-ok', self::GOOD_SECRET, 'fp-same', []);
+
+        $this->assertSame('dev-ok', $result->device_id);
+        $this->assertSame('user', $result->trust_level);
     }
 
     /**

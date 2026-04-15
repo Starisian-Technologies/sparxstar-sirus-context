@@ -294,8 +294,41 @@ DeviceContinuity::evaluateContinuity(DeviceRecord $device): array
 
 **Contract:**
 - `device_id` is ALWAYS server-issued. JS fingerprint is an input to `DeviceRecord::fingerprint_hash`, not a device identifier.
-- `resolveDevice()` handles hard-anchor (device_id + secret) and soft-signal (fingerprint_hash) paths, registering a new device on first visit.
+- `resolveDevice()` calls `DeviceMatcher::classify()` and branches on three outcomes (spec §14.3):
+  - **STRONG_MATCH** — fingerprint identical; restore device, touch `last_seen`.
+  - **WEAK_MATCH** — verified device, fingerprint changed; restore device, set `trust_level = STEP_UP_REQUIRED` (in-memory only), increment `drift_score`.
+  - **NO_MATCH** — no verified anchor and no matching fingerprint; register new device.
 - `evaluateContinuity()` throws `\RuntimeException` if `$device->device_id` or `$device->fingerprint_hash` is empty.
+
+---
+
+### `DeviceMatcher` — `src/core/DeviceMatcher.php`
+
+Fingerprint scoring and three-way classification (spec §14.3):
+
+```php
+namespace Starisian\Sparxstar\Sirus\core;
+
+// Thresholds
+DeviceMatcher::STRONG_MATCH_THRESHOLD  // 0.8 — restore normally
+DeviceMatcher::WEAK_MATCH_THRESHOLD    // 0.6 — restore + flag STEP_UP_REQUIRED
+
+// Classification
+DeviceMatcher::classify(float $score): MatchResult
+
+// Scoring
+DeviceMatcher::scoreHash(string $stored, string $current): float        // 1.0 or 0.0
+DeviceMatcher::scoreComponents(array $stored, array $current): float    // [0.0, 1.0]
+
+// MatchResult cases
+MatchResult::STRONG_MATCH  // score >= 0.8
+MatchResult::WEAK_MATCH    // 0.6 <= score < 0.8
+MatchResult::NO_MATCH      // score < 0.6
+```
+
+**Component weight keys (snake_case, PHP-authoritative):**
+`canvas_hash` (0.30), `screen` (0.20), `timezone` (0.15), `platform` (0.15),
+`languages` (0.10), `color_depth` (0.05), `hardware_concurrency` (0.05)
 
 ---
 

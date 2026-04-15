@@ -45,7 +45,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | Component | File | Status | Sprint | Notes |
 |---|---|---|---|---|
 | `DeviceContinuity` | `src/core/DeviceContinuity.php` | ✅ | S-01 | Two-stage pipeline: `resolveDevice()` + `evaluateContinuity()` |
-| `DeviceMatcher` | `src/core/DeviceMatcher.php` | ✅ | S-01 | EXACT=1.0 / DRIFT=0.6 thresholds; 20 unit tests |
+| `DeviceMatcher` | `src/core/DeviceMatcher.php` | ✅ | S-01 | spec §14.3: `STRONG_MATCH_THRESHOLD=0.8` / `WEAK_MATCH_THRESHOLD=0.6`; `MatchResult` enum; `classify()`; 22 unit tests |
 | `DeviceRecord` DTO | `src/core/DeviceRecord.php` | ✅ | S-01 | |
 | `DeviceRepository` | `src/core/DeviceRepository.php` | ✅ | S-01 | |
 | `IdentityResolver` | `src/core/IdentityResolver.php` | ✅ | S-01 | Five-tier resolution via Helios |
@@ -82,13 +82,13 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | `SirusContextTest.php` | `SirusContext` | ✅ | S-01 | — |
 | `NetworkContextBrokerTest.php` | `NetworkContextBroker` | ✅ | S-01 | 10 tests: issue/verify round-trip, tamper detection, wrong secret, expired |
 | `IdentityResolverTest.php` | `IdentityResolver` | ✅ | S-01 | — |
-| `DeviceContinuityTest.php` | `DeviceContinuity` | ✅ | S-01 | — |
+| `DeviceContinuityTest.php` | `DeviceContinuity` | ✅ | S-01 | +2 STEP_UP_REQUIRED tests |
 | `DeviceRecordTest.php` | `DeviceRecord` | ✅ | S-01 | — |
 | `TrustEngineTest.php` | `TrustEngine` | ✅ | **S-02** | 18 |
 | `PulseGeneratorTest.php` | `PulseGenerator` | ✅ | **S-02** | 20 |
 | `TrustResolverTest.php` | `TrustResolver` | ✅ | **S-02** | 15 |
 | `EnvironmentResolverTest.php` | `EnvironmentResolver` | 🔲 | S-02 | — |
-| `DeviceMatcherTest.php` | `DeviceMatcher` | ✅ | **S-02** | 20 |
+| `DeviceMatcherTest.php` | `DeviceMatcher` | ✅ | **S-02** | 22 |
 | `ConsentManagerTest.php` | `ConsentManager` | 🔲 | S-02 | — |
 | `StepUpPolicyTest.php` | `StepUpPolicy` | ✅ | **S-02** | 17 |
 | `ContextBootExceptionTest.php` | `ContextBootException` | 🔲 | S-02 | — |
@@ -166,7 +166,7 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 - [x] `ContextPulse` DTO — immutable, provisional Ouroboros mirror
 - [x] `ContextBootException` — provisional Ouroboros mirror
 - [x] `EnvironmentResolver` — Matomo DeviceDetector + regex fallback + Throwable guard
-- [x] `DeviceMatcher` — EXACT=1.0, DRIFT=0.6, single boundary constant
+- [x] `DeviceMatcher` — spec §14.3: `STRONG_MATCH_THRESHOLD=0.8` / `WEAK_MATCH_THRESHOLD=0.6`; `MatchResult` enum (STRONG/WEAK/NO); `classify()` static method; `hardware_concurrency` key (not `hardware_conc`)
 - [x] `ConsentManager` — three-level cascade (user meta → site option → deny), purpose consent, append-only history
 - [x] `StepUpPolicy` — uses `ContextPulse` + `ResourceSensitivity` enum; `requiresStepUp()`/`getRequiredLevel()` frozen boundary; `TRUST_LEVEL_STEP_UP_REQUIRED` pre-flag; 17 tests in `StepUpPolicyTest`
 - [x] `NetworkContextBroker` — `issueToken(context, secret)` / `verifyToken(token, secret)` — explicit secret; `tl`/`ts` round-trip; absent `ts` derived from `tl`; 10 tests
@@ -185,7 +185,7 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 - [ ] `ContextPulseTest` — DTO immutability, field access, no identity_id field present
 - [ ] `ContextBootExceptionTest` — extends `\RuntimeException`, message passthrough
 - [ ] `EnvironmentResolverTest` — UA parsing (browser/OS/device), fallback regex path, network filter
-- [ ] `DeviceMatcherTest` — ✅ COMPLETE (20 tests: scoreHash, scoreComponents, isExactMatch, isDrift, isNewDevice, mutual exclusivity)
+- [x] `DeviceMatcherTest` — ✅ COMPLETE (22 tests: classify() three-way branching, STRONG/WEAK/NO_MATCH cases, boundary at 0.8 and 0.6, scoreHash, scoreComponents, hardware_concurrency key validation)
 - [ ] `ConsentManagerTest` — get/set technical consent, cascade order, purpose consent map, append-only history
 - [ ] `StepUpPolicyTest` — ✅ COMPLETE (17 tests — includes STEP_UP_REQUIRED trust level pre-flag)
 
