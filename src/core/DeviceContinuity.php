@@ -71,27 +71,10 @@ final class DeviceContinuity
                     $fingerprint_hash !== '' && $existing->fingerprint_hash !== '' && $existing->fingerprint_hash !== $fingerprint_hash
                 ) {
                     // Fingerprint changed on a verified (secret-confirmed) device.
-                    // The hard anchor proves this is the same device, so we never
-                    // register a new device here. Classify the change:
-                    //   STRONG_MATCH  — impossible (hashes differ, so score = 0.0)
-                    //   WEAK_MATCH    — impossible with opaque SHA-256 hashes (score is 0 or 1)
-                    //   NO_MATCH      — score = 0.0; but since device is verified, treat as WEAK
-                    //                   (environment changed, step-up required, not a new device).
-                    $score = $matcher->scoreHash($existing->fingerprint_hash, $fingerprint_hash);
-                    $match = DeviceMatcher::classify($score);
-
-                    if ($match === MatchResult::STRONG_MATCH) {
-                        // Hash comparison returned 1.0 — this branch should not be reached
-                        // because the outer condition already checked inequality.
-                        // Touch last_seen and return existing record.
-                        $this->repository->updateLastSeen($device_id);
-                        return $existing;
-                    }
-
-                    // WEAK_MATCH or NO_MATCH on a verified device → restore + flag STEP_UP_REQUIRED.
-                    // The stored record's trust_level is NOT persisted as STEP_UP_REQUIRED;
-                    // the flag is carried in the in-memory DeviceRecord only, so the DB
-                    // retains the actual credential level for future requests.
+                    // The hard anchor proves this is the same device (spec §14.3 WEAK_MATCH):
+                    // update the stored fingerprint, increment drift, and return the device
+                    // with trust_level = STEP_UP_REQUIRED (in-memory only — the DB retains
+                    // the actual credential level for future requests).
                     $this->repository->updateFingerprintHash($device_id, $fingerprint_hash);
                     $this->repository->incrementDriftScore($device_id);
 
@@ -107,7 +90,7 @@ final class DeviceContinuity
                     );
                 }
 
-                // No fingerprint change — STRONG_MATCH, touch last_seen and return.
+                // Fingerprint unchanged — STRONG_MATCH, touch last_seen and return.
                 $this->repository->updateLastSeen($device_id);
                 return $existing;
             }
@@ -116,10 +99,13 @@ final class DeviceContinuity
         }
 
         // ── Path 2: Soft-signal lookup — fingerprint hash only ─────────────────
+        // findByFingerprintHash() is an exact-match lookup; when it returns a record
+        // the score is always 1.0 → STRONG_MATCH. classify() is called explicitly so
+        // the classification logic is always the canonical path, making it safe to
+        // extend to component-based (partial) matching in the future.
         if ($fingerprint_hash !== '') {
             $by_fp = $this->repository->findByFingerprintHash($fingerprint_hash);
             if ($by_fp !== null) {
-                // Exact hash match → STRONG_MATCH.
                 $match = DeviceMatcher::classify(
                     $matcher->scoreHash($by_fp->fingerprint_hash, $fingerprint_hash)
                 );
@@ -129,8 +115,8 @@ final class DeviceContinuity
                     return $by_fp;
                 }
 
-                // WEAK_MATCH or NO_MATCH with only a soft signal → cannot confidently
-                // recover the device without the hard anchor. Fall through to registration.
+                // Future: component-based WEAK_MATCH could recover the device here.
+                // For now, partial matches without a hard anchor fall through to registration.
             }
         }
 
