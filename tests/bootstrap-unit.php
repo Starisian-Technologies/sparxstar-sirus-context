@@ -1413,6 +1413,43 @@ if (!class_exists('WP_Error')) {
     }
 }
 
+if (!function_exists('get_user_meta')) {
+    /**
+     * Retrieve user meta from the in-memory store.
+     *
+     * @param int    $user_id  User ID.
+     * @param string $meta_key Meta key.
+     * @param bool   $single   If true, return a single value instead of an array.
+     * @return mixed Stored value, empty string (single mode), or empty array.
+     */
+    function get_user_meta(int $user_id, string $meta_key = '', bool $single = false): mixed
+    {
+        if ($single) {
+            return $GLOBALS['wp_user_meta'][$user_id][$meta_key] ?? '';
+        }
+
+        return isset($GLOBALS['wp_user_meta'][$user_id][$meta_key])
+            ? [$GLOBALS['wp_user_meta'][$user_id][$meta_key]]
+            : [];
+    }
+}
+
+if (!function_exists('update_user_meta')) {
+    /**
+     * Update user meta in the in-memory store.
+     *
+     * @param int    $user_id    User ID.
+     * @param string $meta_key   Meta key.
+     * @param mixed  $meta_value Meta value.
+     * @return bool Always true (mirrors WordPress behaviour on success).
+     */
+    function update_user_meta(int $user_id, string $meta_key, mixed $meta_value): bool
+    {
+        $GLOBALS['wp_user_meta'][$user_id][$meta_key] = $meta_value;
+        return true;
+    }
+}
+
 if (!function_exists('sanitize_key')) {
     /**
      * Stub for WordPress' sanitize_key.

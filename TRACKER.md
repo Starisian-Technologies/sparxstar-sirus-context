@@ -62,7 +62,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 
 | Component | File | Status | Sprint | Notes |
 |---|---|---|---|---|
-| `ConsentManager` | `src/core/ConsentManager.php` | 🟡 | S-01 | Three-level cascade (user→site→deny); purpose consent; append-only history; unit tests pending S-02 |
+| `ConsentManager` | `src/core/ConsentManager.php` | ✅ | S-01 | Three-level cascade (user→site→deny); purpose consent; append-only history; 16 tests ✅ |
 
 ### Compatibility
 
@@ -89,7 +89,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | `TrustResolverTest.php` | `TrustResolver` | ✅ | **S-02** | 15 |
 | `EnvironmentResolverTest.php` | `EnvironmentResolver` | 🔲 | S-02 | — |
 | `DeviceMatcherTest.php` | `DeviceMatcher` | ✅ | **S-02** | 22 |
-| `ConsentManagerTest.php` | `ConsentManager` | 🔲 | S-02 | — |
+| `ConsentManagerTest.php` | `ConsentManager` | ✅ | S-02 | 16 tests — cascade order, privacy-first hard default, anonymous user, invalid meta, multisite isolation, history, purpose consent |
 | `StepUpPolicyTest.php` | `StepUpPolicy` | ✅ | **S-02** | 17 |
 | `ContextBootExceptionTest.php` | `ContextBootException` | 🔲 | S-02 | — |
 | `ContextPulseTest.php` | `ContextPulse` | 🔲 | S-02 | — |
@@ -186,7 +186,7 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 - [ ] `ContextBootExceptionTest` — extends `\RuntimeException`, message passthrough
 - [ ] `EnvironmentResolverTest` — UA parsing (browser/OS/device), fallback regex path, network filter
 - [x] `DeviceMatcherTest` — ✅ COMPLETE (22 tests: classify() three-way branching, STRONG/WEAK/NO_MATCH cases, boundary at 0.8 and 0.6, scoreHash, scoreComponents, hardware_concurrency key validation)
-- [ ] `ConsentManagerTest` — get/set technical consent, cascade order, purpose consent map, append-only history
+- [x] `ConsentManagerTest` — cascade order (user→site→deny), privacy-first hard default, anonymous user skip, invalid meta fallthrough, multisite isolation, history append-only, purpose consent (16 tests ✅)
 - [ ] `StepUpPolicyTest` — ✅ COMPLETE (17 tests — includes STEP_UP_REQUIRED trust level pre-flag)
 
 **Acceptance criteria:** `composer run test:unit` passes with no failures or deprecations.
