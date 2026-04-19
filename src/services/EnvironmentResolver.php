@@ -170,7 +170,7 @@ final class EnvironmentResolver
         $device_type  = 'unknown';
 
         if ($ua === '') {
-            return ['browser_name' => $browser_name, 'os' => $os, 'device_type' => $device_type] + ['network_effective_type' => 'unknown'];
+            return ['browser_name' => $browser_name, 'os' => $os, 'device_type' => $device_type, 'network_effective_type' => 'unknown'];
         }
 
         // Browser detection (most-specific first).
@@ -216,7 +216,7 @@ final class EnvironmentResolver
             $device_type = 'desktop';
         }
 
-        return ['browser_name' => $browser_name, 'os' => $os, 'device_type' => $device_type] + ['network_effective_type' => 'unknown'];
+        return ['browser_name' => $browser_name, 'os' => $os, 'device_type' => $device_type, 'network_effective_type' => 'unknown'];
     }
 
     /**
