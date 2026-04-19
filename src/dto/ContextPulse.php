@@ -64,7 +64,6 @@ final readonly class ContextPulse
      * Creates a ContextPulse from a raw array (e.g. from JSON decode).
      *
      * @param array<string, mixed> $data Raw pulse data.
-     * @return self
      * @throws \InvalidArgumentException If required fields are missing or invalid.
      */
     public static function fromArray(array $data): self
@@ -75,7 +74,7 @@ final readonly class ContextPulse
         foreach ($required as $key) {
             if (! array_key_exists($key, $data)) {
                 throw new \InvalidArgumentException(
-                    "[Sirus] ContextPulse::fromArray() missing required field: {$key}"
+                    '[Sirus] ContextPulse::fromArray() missing required field: ' . $key
                 );
             }
         }

@@ -163,8 +163,10 @@ final class SirusPlugin
         $asset_path = SIRUS_PLUGIN_PATH . 'assets/js/sirus-context.js';
         if (! file_exists($asset_path)) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-                error_log('[Sirus] Front-end asset not found, skipping enqueue: ' . $asset_path);
+                wp_trigger_error(
+                    __CLASS__ . '::enqueueAssets',
+                    '[Sirus] Front-end asset not found, skipping enqueue: ' . $asset_path
+                );
             }
             return;
         }
@@ -243,7 +245,7 @@ final class SirusPlugin
         if (! isset($schedules['every_5_minutes'])) {
             $schedules['every_5_minutes'] = [
                 'interval' => SirusEventAggregator::CRON_INTERVAL_SEC,
-                'display'  => esc_html__('Every 5 Minutes', 'sparxstar-sirus'),
+                'display'  => esc_html__('Every 5 Minutes', 'sparxstar'),
             ];
         }
         return $schedules;

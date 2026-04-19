@@ -124,7 +124,6 @@ final class EnvironmentResolver
     private function resolveWithDetector(string $ua): array
     {
         try {
-            /** @var \DeviceDetector\DeviceDetector $dd */
             $dd = new \DeviceDetector\DeviceDetector($ua);
             $dd->parse();
 
@@ -153,7 +152,7 @@ final class EnvironmentResolver
                 'device_type'            => $device_type,
                 'network_effective_type' => 'unknown',
             ];
-        } catch (\Throwable $throwable) {
+        } catch (\Throwable) {
             return $this->resolveWithFallback($ua);
         }
     }
@@ -171,7 +170,7 @@ final class EnvironmentResolver
         $device_type  = 'unknown';
 
         if ($ua === '') {
-            return compact('browser_name', 'os', 'device_type') + ['network_effective_type' => 'unknown'];
+            return ['browser_name' => $browser_name, 'os' => $os, 'device_type' => $device_type] + ['network_effective_type' => 'unknown'];
         }
 
         // Browser detection (most-specific first).
@@ -217,7 +216,7 @@ final class EnvironmentResolver
             $device_type = 'desktop';
         }
 
-        return compact('browser_name', 'os', 'device_type') + ['network_effective_type' => 'unknown'];
+        return ['browser_name' => $browser_name, 'os' => $os, 'device_type' => $device_type] + ['network_effective_type' => 'unknown'];
     }
 
     /**
