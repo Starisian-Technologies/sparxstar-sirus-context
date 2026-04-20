@@ -40,8 +40,14 @@ final readonly class DeviceRecord
      * @param string $environment_json JSON-encoded environment data snapshot.
      * @param int $first_seen Unix timestamp of first registration.
      * @param int $last_seen Unix timestamp of most recent activity.
-     * @param string $trust_level Current trust level for this device.
+     * @param string $trust_level Credential tier for this device (e.g. 'user', 'anonymous').
+     *                            Always the persisted credential level — never 'STEP_UP_REQUIRED'.
+     *                            Carry step-up intent via $step_up_required instead.
      * @param int $drift_score Number of fingerprint changes detected (default 0).
+     * @param bool $step_up_required In-memory flag set when a verified device's fingerprint has
+     *                               drifted (WEAK_MATCH path). Not persisted to DB. When true,
+     *                               ContextEngine propagates STEP_UP_REQUIRED to SirusContext
+     *                               trust_level so that StepUpPolicy fires correctly.
      */
     public function __construct(
         public string $device_id,
@@ -52,6 +58,7 @@ final readonly class DeviceRecord
         public int $last_seen,
         public string $trust_level,
         public int $drift_score = 0,
+        public bool $step_up_required = false,
     ) {
     }
 

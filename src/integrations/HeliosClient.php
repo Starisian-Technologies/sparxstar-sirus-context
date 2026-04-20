@@ -180,7 +180,7 @@ final readonly class HeliosClient implements HeliosClientInterface
         return array_values(
             array_filter(
                 $data[$key],
-                static fn (mixed $v): bool => is_string($v)
+                is_string(...)
             )
         );
     }
