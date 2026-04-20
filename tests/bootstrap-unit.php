@@ -910,6 +910,37 @@ if (!function_exists('delete_option')) {
     }
 }
 
+if (!function_exists('get_blog_option')) {
+    /**
+     * Get an option for a specific blog from the in-memory store.
+     *
+     * @param int    $blog_id Blog/site ID.
+     * @param string $name    Option name.
+     * @param mixed  $default Default value.
+     * @return mixed
+     */
+    function get_blog_option(int $blog_id, string $name, mixed $default = false): mixed
+    {
+        return $GLOBALS['wp_options'][$blog_id][$name] ?? $default;
+    }
+}
+
+if (!function_exists('update_blog_option')) {
+    /**
+     * Update an option for a specific blog in the in-memory store.
+     *
+     * @param int    $blog_id Blog/site ID.
+     * @param string $name    Option name.
+     * @param mixed  $value   Option value.
+     * @return bool True after storing.
+     */
+    function update_blog_option(int $blog_id, string $name, mixed $value): bool
+    {
+        $GLOBALS['wp_options'][$blog_id][$name] = $value;
+        return true;
+    }
+}
+
 if (!function_exists('wp_rand')) {
     /**
      * Shim for WordPress' wp_rand helper using PHP's random_int.
@@ -1379,6 +1410,43 @@ if (!class_exists('WP_Error')) {
         {
             return $this->message;
         }
+    }
+}
+
+if (!function_exists('get_user_meta')) {
+    /**
+     * Retrieve user meta from the in-memory store.
+     *
+     * @param int    $user_id  User ID.
+     * @param string $meta_key Meta key.
+     * @param bool   $single   If true, return a single value instead of an array.
+     * @return mixed Stored value, empty string (single mode), or empty array.
+     */
+    function get_user_meta(int $user_id, string $meta_key = '', bool $single = false): mixed
+    {
+        if ($single) {
+            return $GLOBALS['wp_user_meta'][$user_id][$meta_key] ?? '';
+        }
+
+        return isset($GLOBALS['wp_user_meta'][$user_id][$meta_key])
+            ? [$GLOBALS['wp_user_meta'][$user_id][$meta_key]]
+            : [];
+    }
+}
+
+if (!function_exists('update_user_meta')) {
+    /**
+     * Update user meta in the in-memory store.
+     *
+     * @param int    $user_id    User ID.
+     * @param string $meta_key   Meta key.
+     * @param mixed  $meta_value Meta value.
+     * @return bool Always true (mirrors WordPress behaviour on success).
+     */
+    function update_user_meta(int $user_id, string $meta_key, mixed $meta_value): bool
+    {
+        $GLOBALS['wp_user_meta'][$user_id][$meta_key] = $meta_value;
+        return true;
     }
 }
 

@@ -248,7 +248,7 @@ final class SirusRESTController
         $context = ContextEngine::buildFromDevice($device_record);
 
         $broker = new NetworkContextBroker();
-        $token  = $broker->generateToken($context);
+        $token  = $broker->issueToken($context, wp_salt('auth'));
 
         return new WP_REST_Response(
             [
@@ -284,7 +284,7 @@ final class SirusRESTController
 
         if ($ctx_token !== '') {
             $broker  = new NetworkContextBroker();
-            $context = $broker->verifyToken($ctx_token);
+            $context = $broker->verifyToken($ctx_token, wp_salt('auth'));
 
             if ($context === null) {
                 return new WP_Error(

@@ -27,16 +27,16 @@ importers:
     devDependencies:
       '@rollup/plugin-commonjs':
         specifier: ^29.0.2
-        version: 29.0.2(rollup@4.60.0)
+        version: 29.0.2(rollup@4.60.1)
       '@rollup/plugin-json':
         specifier: ^6.1.0
-        version: 6.1.0(rollup@4.60.0)
+        version: 6.1.0(rollup@4.60.1)
       '@rollup/plugin-node-resolve':
         specifier: ^16.0.3
-        version: 16.0.3(rollup@4.60.0)
+        version: 16.0.3(rollup@4.60.1)
       '@rollup/plugin-terser':
         specifier: ^1.0.0
-        version: 1.0.0(rollup@4.60.0)
+        version: 1.0.0(rollup@4.60.1)
       cssnano:
         specifier: ^7.1.4
         version: 7.1.4(postcss@8.5.8)
@@ -71,8 +71,8 @@ importers:
         specifier: ^3.8.1
         version: 3.8.1
       rollup:
-        specifier: ^4.60.0
-        version: 4.60.0
+        specifier: ^4.60.1
+        version: 4.60.1
       stylelint:
         specifier: ^16.26.1
         version: 16.26.1
