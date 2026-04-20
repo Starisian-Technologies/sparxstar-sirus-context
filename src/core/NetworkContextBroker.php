@@ -45,6 +45,10 @@ final class NetworkContextBroker
      */
     public function issueToken(SirusContext $context, string $secret): string
     {
+        if (trim($secret) === '') {
+            throw new \InvalidArgumentException('[Sirus NetworkContextBroker] Signing secret must not be empty.');
+        }
+
         $now            = time();
         $payload        = $context->toPortablePayload();
         $payload['nbf'] = $now;
@@ -71,6 +75,10 @@ final class NetworkContextBroker
      */
     public function verifyToken(string $token, string $secret): ?SirusContext
     {
+        if (trim($secret) === '') {
+            return null;
+        }
+
         $parts = explode('.', $token, 2);
         if (count($parts) !== 2) {
             return null;

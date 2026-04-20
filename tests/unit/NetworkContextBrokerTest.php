@@ -212,4 +212,40 @@ final class NetworkContextBrokerTest extends TestCase
 
         $this->assertNull($result, 'An expired token must not be accepted.');
     }
+
+    /**
+     * issueToken() throws InvalidArgumentException for an empty secret.
+     */
+    public function testIssueTokenThrowsForEmptySecret(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->broker->issueToken($this->context, '');
+    }
+
+    /**
+     * issueToken() throws InvalidArgumentException for a whitespace-only secret.
+     */
+    public function testIssueTokenThrowsForWhitespaceOnlySecret(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->broker->issueToken($this->context, '   ');
+    }
+
+    /**
+     * verifyToken() returns null when the secret is empty (fail-closed).
+     */
+    public function testVerifyTokenReturnsNullForEmptySecret(): void
+    {
+        $token = $this->broker->issueToken($this->context, self::TEST_SECRET);
+        $this->assertNull($this->broker->verifyToken($token, ''));
+    }
+
+    /**
+     * verifyToken() returns null when the secret is whitespace only (fail-closed).
+     */
+    public function testVerifyTokenReturnsNullForWhitespaceOnlySecret(): void
+    {
+        $token = $this->broker->issueToken($this->context, self::TEST_SECRET);
+        $this->assertNull($this->broker->verifyToken($token, '   '));
+    }
 }
