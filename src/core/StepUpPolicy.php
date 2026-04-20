@@ -100,9 +100,9 @@ final class StepUpPolicy
      */
     public function getRequiredLevel(ContextPulse $pulse, ResourceSensitivity $level): ?ResourceSensitivity
     {
-        // Pre-flagged step-up: escalate to the given sensitivity level (minimum HIGH for safety).
+        // Pre-flagged step-up: enforce a HIGH challenge level for safety.
         if ($pulse->trust_level === self::TRUST_LEVEL_STEP_UP_REQUIRED) {
-            return $level === ResourceSensitivity::HIGH ? ResourceSensitivity::HIGH : ResourceSensitivity::MEDIUM;
+            return ResourceSensitivity::HIGH;
         }
 
         if ($level === ResourceSensitivity::HIGH) {
