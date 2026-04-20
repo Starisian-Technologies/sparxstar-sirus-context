@@ -45,7 +45,7 @@
     "flatted": "^3.4.2"
   },
   "dependencies": {
-    "@fingerprintjs/fingerprintjs": "^5.1.0",
+    "@fingerprintjs/fingerprintjs": "^5.2.0",
     "device-detector-js": "^3.0.3"
   },
   "packageManager": "pnpm@8.6.0",
