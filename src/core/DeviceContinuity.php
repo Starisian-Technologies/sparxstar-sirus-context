@@ -60,6 +60,8 @@ final class DeviceContinuity
         string $fingerprint_hash,
         array $environment_data
     ): DeviceRecord {
+        $matcher = new DeviceMatcher();
+
         // ── Path 1: Hard-anchor lookup — device_id + secret ───────────────────
         if ($device_id !== '') {
             $existing = $this->repository->findByDeviceId($device_id);
@@ -68,9 +70,13 @@ final class DeviceContinuity
                 if (
                     $fingerprint_hash !== '' && $existing->fingerprint_hash !== '' && $existing->fingerprint_hash !== $fingerprint_hash
                 ) {
-                    // Fingerprint drift on a verified device.
-                    // Update the stored fingerprint and increment drift_score.
-                    // The device_id is unchanged — no logout occurs.
+                    // Fingerprint changed on a verified (secret-confirmed) device.
+                    // The hard anchor proves this is the same device (spec §14.3 WEAK_MATCH):
+                    // update the stored fingerprint, increment drift, and return the device
+                    // with step_up_required = true (in-memory flag only — the DB retains
+                    // the actual credential tier and this flag is never persisted).
+                    // trust_level is preserved as the original credential tier so that
+                    // TrustResolver::evaluate() can use it correctly.
                     $this->repository->updateFingerprintHash($device_id, $fingerprint_hash);
                     $this->repository->incrementDriftScore($device_id);
 
@@ -83,10 +89,11 @@ final class DeviceContinuity
                         last_seen:        time(),
                         trust_level:      $existing->trust_level,
                         drift_score:      $existing->drift_score + 1,
+                        step_up_required: true,
                     );
                 }
 
-                // No drift — simply touch last_seen.
+                // Fingerprint unchanged — STRONG_MATCH, touch last_seen and return.
                 $this->repository->updateLastSeen($device_id);
                 return $existing;
             }
@@ -95,15 +102,28 @@ final class DeviceContinuity
         }
 
         // ── Path 2: Soft-signal lookup — fingerprint hash only ─────────────────
+        // findByFingerprintHash() is an exact-match lookup; when it returns a record
+        // the score is always 1.0 → STRONG_MATCH. classify() is called explicitly so
+        // the classification logic is always the canonical path, making it safe to
+        // extend to component-based (partial) matching in the future.
         if ($fingerprint_hash !== '') {
             $by_fp = $this->repository->findByFingerprintHash($fingerprint_hash);
             if ($by_fp !== null) {
-                $this->repository->updateLastSeen($by_fp->device_id);
-                return $by_fp;
+                $match = DeviceMatcher::classify(
+                    $matcher->scoreHash($by_fp->fingerprint_hash, $fingerprint_hash)
+                );
+
+                if ($match === MatchResult::STRONG_MATCH) {
+                    $this->repository->updateLastSeen($by_fp->device_id);
+                    return $by_fp;
+                }
+
+                // Future: component-based WEAK_MATCH could recover the device here.
+                // For now, partial matches without a hard anchor fall through to registration.
             }
         }
 
-        // ── Path 3: First visit — register brand-new device ────────────────────
+        // ── Path 3: First visit (NO_MATCH) — register brand-new device ─────────
         return $this->registerDevice($fingerprint_hash, $environment_data);
     }
 
@@ -152,17 +172,21 @@ final class DeviceContinuity
     private const DRIFT_PENALTY_PER_EVENT = 0.05;
 
     /**
-     * Returns the standardized device context for a resolved DeviceRecord.
+     * Evaluates the continuity state for a resolved DeviceRecord.
      *
-     * Per spec §A, this is the single canonical output method for device data.
-     * Output shape is fixed — no optional keys, no dynamic structure.
+     * This is the analysis stage of the two-stage device pipeline:
+     *   Stage 1 — resolveDevice()     : fingerprint/ID → DeviceRecord (boundary resolution)
+     *   Stage 2 — evaluateContinuity(): DeviceRecord   → continuity state (derived analysis)
+     *
+     * Per spec §A, this method produces the canonical device-state output consumed by
+     * ContextEngine. Output shape is fixed — no optional keys, no dynamic structure.
      *
      * @param DeviceRecord $device A fully resolved DeviceRecord.
      * @return array{device_hash: string, continuity_score: float, risk_flags: array<int, string>}
      *
-     * @throws \RuntimeException If the device context is missing (empty device_id or empty fingerprint_hash).
+     * @throws \RuntimeException If the device context is missing (empty device_id or fingerprint_hash).
      */
-    public function getDeviceContext(DeviceRecord $device): array
+    public function evaluateContinuity(DeviceRecord $device): array
     {
         if ($device->device_id === '') {
             throw new \RuntimeException(

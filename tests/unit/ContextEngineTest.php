@@ -41,14 +41,16 @@ final class ContextEngineTest extends TestCase
     }
 
     /**
-     * current() returns the same instance on subsequent calls (caching).
+     * ContextCache stores an instance and returns the same reference.
+     * (current() in CLI mode always returns a fresh system context; the caching
+     * path is verified here via ContextCache directly.)
      */
-    public function testCurrentReturnsCachedInstance(): void
+    public function testCacheStoreAndRetrieveReturnsSameInstance(): void
     {
-        $first  = ContextEngine::current();
-        $second = ContextEngine::current();
+        $ctx = ContextEngine::build();
+        ContextCache::set($ctx);
 
-        $this->assertSame($first, $second);
+        $this->assertSame($ctx, ContextCache::get());
     }
 
     /**
@@ -76,13 +78,14 @@ final class ContextEngineTest extends TestCase
     }
 
     /**
-     * A freshly built context has trust_level 'anonymous' and no identity or authority.
+     * A freshly built context has trust_level 'NORMAL' (TrustEngine with no signals)
+     * and no identity or authority.
      */
-    public function testBuiltContextDefaultsToAnonymous(): void
+    public function testBuiltContextDefaultsToNormalTrust(): void
     {
         $ctx = ContextEngine::build();
 
-        $this->assertSame('anonymous', $ctx->trust_level);
+        $this->assertSame('NORMAL', $ctx->trust_level);
         $this->assertNull($ctx->identity_id);
         $this->assertNull($ctx->authority_id);
     }
@@ -172,7 +175,9 @@ final class ContextEngineTest extends TestCase
     }
 
     /**
-     * buildFromDevice() primes the ContextCache so current() returns the same instance.
+     * buildFromDevice() primes the ContextCache so ContextCache::get() returns the same instance.
+     * (In CLI mode current() returns the fixed system context, not the cached web context;
+     * the cache is verified directly.)
      */
     public function testBuildFromDevicePrimesContextCache(): void
     {
@@ -186,16 +191,16 @@ final class ContextEngineTest extends TestCase
             trust_level:      'anonymous',
         );
 
-        $built   = ContextEngine::buildFromDevice($record);
-        $current = ContextEngine::current();
+        $built = ContextEngine::buildFromDevice($record);
 
-        $this->assertSame($built, $current);
+        $this->assertSame($built, ContextCache::get());
     }
 
     /**
-     * buildFromDevice() seeds trust_level from the DeviceRecord.
+     * buildFromDevice() computes trust_score via TrustResolver using credential-level base.
+     * 'contributor' trust_level = 0.90 base; no drift, not new session → score 0.90 → NORMAL.
      */
-    public function testBuildFromDeviceUsesTrustLevelFromRecord(): void
+    public function testBuildFromDeviceUsesTrustEngineLevel(): void
     {
         $record = new \Starisian\Sparxstar\Sirus\core\DeviceRecord(
             device_id:        'trusted-device-uuid',
@@ -204,12 +209,15 @@ final class ContextEngineTest extends TestCase
             environment_json: '{}',
             first_seen:       time() - 10,
             last_seen:        time(),
-            trust_level:      'contributor',
+            trust_level:      'contributor', // base 0.90 in TrustResolver
+            drift_score:      0,
         );
 
         $ctx = ContextEngine::buildFromDevice($record);
 
-        $this->assertSame('contributor', $ctx->trust_level);
+        // contributor base = 0.90, no drift, not new session → score 0.90 → NORMAL.
+        $this->assertSame('NORMAL', $ctx->trust_level);
+        $this->assertEqualsWithDelta(0.90, $ctx->trust_score, 0.0001);
     }
 
     // ── current() expiry eviction ─────────────────────────────────────────────
@@ -232,6 +240,7 @@ final class ContextEngineTest extends TestCase
             role_set:       [],
             capabilities:   [],
             trust_level:    'anonymous',
+            trust_score:    1.0,
             issued_at:      1000,
             expires:        1001, // already expired
         );
