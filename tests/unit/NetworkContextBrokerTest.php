@@ -248,4 +248,96 @@ final class NetworkContextBrokerTest extends TestCase
         $token = $this->broker->issueToken($this->context, self::TEST_SECRET);
         $this->assertNull($this->broker->verifyToken($token, '   '));
     }
+
+    /**
+     * verifyToken() returns null when context_id (ctx) is absent from the payload.
+     * A token without the primary context identifier must be rejected (fail closed).
+     */
+    public function testVerifyTokenReturnsNullWhenContextIdMissing(): void
+    {
+        $payload = [
+            'ctxv' => SirusContext::CONTEXT_VERSION,
+            // 'ctx' intentionally omitted
+            'env'  => 'env',
+            'net'  => '1',
+            'site' => '1',
+            'dev'  => 'dev-uuid',
+            'auth' => null,
+            'caps' => [],
+            'ts'   => 0.85,
+            'tl'   => 'user',
+            'iat'  => time(),
+            'exp'  => time() + 300,
+            'nbf'  => time(),
+        ];
+
+        $json        = (string) json_encode($payload, JSON_THROW_ON_ERROR);
+        $payload_b64 = rtrim(strtr(base64_encode($json), '+/', '-_'), '=');
+        $signature   = hash_hmac('sha256', $payload_b64, self::TEST_SECRET, true);
+        $sig_b64     = rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
+
+        $this->assertNull($this->broker->verifyToken($payload_b64 . '.' . $sig_b64, self::TEST_SECRET));
+    }
+
+    /**
+     * verifyToken() returns null when device_id (dev) is absent from the payload.
+     */
+    public function testVerifyTokenReturnsNullWhenDeviceIdMissing(): void
+    {
+        $payload = [
+            'ctxv' => SirusContext::CONTEXT_VERSION,
+            'ctx'  => 'ctx-test',
+            'env'  => 'env',
+            'net'  => '1',
+            'site' => '1',
+            // 'dev' intentionally omitted
+            'auth' => null,
+            'caps' => [],
+            'ts'   => 0.85,
+            'tl'   => 'user',
+            'iat'  => time(),
+            'exp'  => time() + 300,
+            'nbf'  => time(),
+        ];
+
+        $json        = (string) json_encode($payload, JSON_THROW_ON_ERROR);
+        $payload_b64 = rtrim(strtr(base64_encode($json), '+/', '-_'), '=');
+        $signature   = hash_hmac('sha256', $payload_b64, self::TEST_SECRET, true);
+        $sig_b64     = rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
+
+        $this->assertNull($this->broker->verifyToken($payload_b64 . '.' . $sig_b64, self::TEST_SECRET));
+    }
+
+    /**
+     * verifyToken() uses 'anonymous' trust (least privilege) when tl/ts fields are absent.
+     * Old tokens without trust fields must not be silently reconstructed with high trust.
+     */
+    public function testVerifyTokenUsesAnonymousTrustWhenTrustFieldsAbsent(): void
+    {
+        $payload = [
+            'ctxv' => SirusContext::CONTEXT_VERSION,
+            'ctx'  => 'ctx-anon-trust',
+            'env'  => 'env',
+            'net'  => '1',
+            'site' => '1',
+            'dev'  => 'dev-uuid',
+            'auth' => null,
+            'caps' => [],
+            // 'ts' and 'tl' intentionally omitted
+            'iat'  => time(),
+            'exp'  => time() + 300,
+            'nbf'  => time(),
+        ];
+
+        $json        = (string) json_encode($payload, JSON_THROW_ON_ERROR);
+        $payload_b64 = rtrim(strtr(base64_encode($json), '+/', '-_'), '=');
+        $signature   = hash_hmac('sha256', $payload_b64, self::TEST_SECRET, true);
+        $sig_b64     = rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
+
+        $result = $this->broker->verifyToken($payload_b64 . '.' . $sig_b64, self::TEST_SECRET);
+
+        $this->assertNotNull($result);
+        $this->assertSame('anonymous', $result->trust_level);
+        $this->assertLessThanOrEqual(0.50, $result->trust_score);
+    }
 }

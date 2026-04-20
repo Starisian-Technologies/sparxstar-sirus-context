@@ -73,8 +73,10 @@ final class DeviceContinuity
                     // Fingerprint changed on a verified (secret-confirmed) device.
                     // The hard anchor proves this is the same device (spec §14.3 WEAK_MATCH):
                     // update the stored fingerprint, increment drift, and return the device
-                    // with trust_level = STEP_UP_REQUIRED (in-memory only — the DB retains
-                    // the actual credential level for future requests).
+                    // with step_up_required = true (in-memory flag only — the DB retains
+                    // the actual credential tier and this flag is never persisted).
+                    // trust_level is preserved as the original credential tier so that
+                    // TrustResolver::evaluate() can use it correctly.
                     $this->repository->updateFingerprintHash($device_id, $fingerprint_hash);
                     $this->repository->incrementDriftScore($device_id);
 
@@ -85,8 +87,9 @@ final class DeviceContinuity
                         environment_json: $existing->environment_json,
                         first_seen:       $existing->first_seen,
                         last_seen:        time(),
-                        trust_level:      StepUpPolicy::TRUST_LEVEL_STEP_UP_REQUIRED,
+                        trust_level:      $existing->trust_level,
                         drift_score:      $existing->drift_score + 1,
+                        step_up_required: true,
                     );
                 }
 

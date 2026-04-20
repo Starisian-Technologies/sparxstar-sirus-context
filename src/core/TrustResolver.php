@@ -70,11 +70,19 @@ final class TrustResolver
      * for device drift (drift_score > 0) and new sessions (first_seen === last_seen).
      * The result is clamped to [0.0, 1.0].
      *
+     * Note: DeviceRecord::trust_level is always expected to be a credential-tier
+     * string (e.g. 'user', 'anonymous'). STEP_UP_REQUIRED is carried via the
+     * separate DeviceRecord::$step_up_required flag and must never appear here.
+     * This method treats any unrecognised trust_level (including 'STEP_UP_REQUIRED')
+     * as DEFAULT_BASE for defence-in-depth.
+     *
      * @param DeviceRecord $device The resolved device record.
      * @return float Trust score in [0.0, 1.0].
      */
     public static function evaluate(DeviceRecord $device): float
     {
+        // Defence-in-depth: if trust_level is the step-up sentinel (not a credential
+        // tier), fall through to DEFAULT_BASE rather than creating an unexpected score.
         $base = self::CREDENTIAL_BASE[$device->trust_level] ?? self::DEFAULT_BASE;
 
         // Apply frozen spec deductions (reuse TrustEngine constants for consistency).

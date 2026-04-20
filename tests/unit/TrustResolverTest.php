@@ -85,6 +85,21 @@ final class TrustResolverTest extends SirusTestCase
         $this->assertEqualsWithDelta(0.50, TrustResolver::evaluate($device), 0.0001);
     }
 
+    /**
+     * STEP_UP_REQUIRED in trust_level is treated as unrecognised (DEFAULT_BASE = 0.50).
+     *
+     * Defence-in-depth: with the step_up_required flag approach, STEP_UP_REQUIRED
+     * should never appear in trust_level. If it does (e.g. from a legacy code path),
+     * TrustResolver must not silently distort the score — it uses DEFAULT_BASE.
+     */
+    public function testStepUpRequiredInTrustLevelFallsToDefaultBase(): void
+    {
+        $device = $this->makeDevice(trust_level: 'STEP_UP_REQUIRED');
+
+        // STEP_UP_REQUIRED is not a credential tier key so DEFAULT_BASE (0.50) applies.
+        $this->assertEqualsWithDelta(0.50, TrustResolver::evaluate($device), 0.0001);
+    }
+
     // ── Drift deduction ───────────────────────────────────────────────────────
 
     /**

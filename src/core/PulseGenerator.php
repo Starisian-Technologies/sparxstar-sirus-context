@@ -54,6 +54,12 @@ final class PulseGenerator
      */
     public function generate(SirusContext $context, int $now = 0, int $ttlSeconds = self::PULSE_TTL): ContextPulse
     {
+        if ($ttlSeconds <= 0) {
+            throw new \InvalidArgumentException(
+                '[Sirus PulseGenerator] $ttlSeconds must be a positive integer; got ' . $ttlSeconds . '.'
+            );
+        }
+
         $key = $this->resolveSigningKey();
 
         $pulse_id  = wp_generate_uuid4();

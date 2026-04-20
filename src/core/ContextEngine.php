@@ -183,10 +183,10 @@ final class ContextEngine
 
         $trust_score = TrustResolver::evaluate($device);
 
-        // If DeviceContinuity flagged this record with STEP_UP_REQUIRED (fingerprint
-        // changed on a verified device), propagate that flag directly to the context
-        // rather than deriving a level from the numeric score alone.
-        $trust_level = ($device->trust_level === StepUpPolicy::TRUST_LEVEL_STEP_UP_REQUIRED)
+        // If DeviceContinuity flagged this record with step_up_required (fingerprint
+        // changed on a verified device), propagate STEP_UP_REQUIRED to the context
+        // trust_level rather than deriving a level from the numeric score alone.
+        $trust_level = $device->step_up_required
             ? StepUpPolicy::TRUST_LEVEL_STEP_UP_REQUIRED
             : (new TrustEngine())->scoreToLevel($trust_score);
 

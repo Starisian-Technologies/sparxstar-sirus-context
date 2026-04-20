@@ -113,12 +113,28 @@ final class NetworkContextBroker
             return null;
         }
 
+        // Fail closed: token is invalid if the primary context identifiers are absent.
+        $context_id = (string) ($data['ctx'] ?? '');
+        $device_id  = (string) ($data['dev'] ?? '');
+
+        if ($context_id === '' || $device_id === '') {
+            return null;
+        }
+
+        // Least-privilege fallback: when tl/ts are absent (pre-v2 token), default to
+        // 'anonymous' rather than reconstructing a higher-trust context from partial data.
+        $trust_level = isset($data['tl']) ? (string) $data['tl'] : 'anonymous';
+        $trust_score = max(0.0, min(1.0, isset($data['ts'])
+            ? (float) $data['ts']
+            : self::trustScoreFromLevel($trust_level)
+        ));
+
         return new SirusContext(
-            context_id:     (string) ($data['ctx'] ?? ''),
+            context_id:     $context_id,
             environment_id: (string) ($data['env'] ?? ''),
             network_id:     (string) ($data['net'] ?? ''),
             site_id:        (string) ($data['site'] ?? ''),
-            device_id:      (string) ($data['dev'] ?? ''),
+            device_id:      $device_id,
             session_id:     '',
             identity_id:    null,
             authority_id:   isset($data['auth']) ? (string) $data['auth'] : null,
@@ -126,11 +142,8 @@ final class NetworkContextBroker
             capabilities:   isset($data['caps']) && is_array($data['caps'])
                                 ? array_map(strval(...), $data['caps'])
                                 : [],
-            trust_level:    isset($data['tl']) ? (string) $data['tl'] : 'NORMAL',
-            trust_score:    max(0.0, min(1.0, isset($data['ts'])
-                ? (float) $data['ts']
-                : self::trustScoreFromLevel(isset($data['tl']) ? (string) $data['tl'] : 'NORMAL')
-            )),
+            trust_level:    $trust_level,
+            trust_score:    $trust_score,
             issued_at:      (int) ($data['iat'] ?? 0),
             expires:        (int) ($data['exp'] ?? 0),
         );

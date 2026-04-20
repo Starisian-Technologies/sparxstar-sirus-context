@@ -349,6 +349,26 @@ final class PulseGeneratorTest extends SirusTestCase
         $this->assertGreaterThanOrEqual(32, strlen(constant('SIRUS_PULSE_SIGNING_KEY')));
     }
 
+    /**
+     * generate() throws InvalidArgumentException when $ttlSeconds is zero.
+     */
+    public function testGenerateThrowsForZeroTtl(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->generator->generate($this->makeContext(), 1_700_000_000, 0);
+    }
+
+    /**
+     * generate() throws InvalidArgumentException when $ttlSeconds is negative.
+     */
+    public function testGenerateThrowsForNegativeTtl(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->generator->generate($this->makeContext(), 1_700_000_000, -30);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /**

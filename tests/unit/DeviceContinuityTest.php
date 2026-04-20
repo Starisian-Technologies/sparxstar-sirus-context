@@ -163,11 +163,12 @@ final class DeviceContinuityTest extends SirusTestCase
     }
 
     /**
-     * Verified device with changed fingerprint → trust_level is STEP_UP_REQUIRED.
+     * Verified device with changed fingerprint → step_up_required is true in the
+     * returned in-memory DeviceRecord, while trust_level retains the original credential tier.
      *
-     * The returned in-memory DeviceRecord carries STEP_UP_REQUIRED so that
-     * ContextEngine::buildFromDevice() propagates it to the SirusContext trust_level,
-     * triggering StepUpPolicy. The stored DB record's trust_level is NOT changed.
+     * The returned in-memory DeviceRecord carries step_up_required=true so that
+     * ContextEngine::buildFromDevice() propagates STEP_UP_REQUIRED to the SirusContext
+     * trust_level, triggering StepUpPolicy. The stored DB record's trust_level is NOT changed.
      */
     public function testChangedFingerprintOnVerifiedDeviceSetsStepUpRequired(): void
     {
@@ -176,14 +177,15 @@ final class DeviceContinuityTest extends SirusTestCase
         $result = $this->continuity->resolveDevice('dev-step', self::GOOD_SECRET, 'fp-changed', []);
 
         $this->assertSame('dev-step', $result->device_id);
-        $this->assertSame('STEP_UP_REQUIRED', $result->trust_level);
+        $this->assertTrue($result->step_up_required, 'step_up_required must be true after fingerprint drift');
+        $this->assertSame('anonymous', $result->trust_level, 'trust_level must preserve original credential tier');
         $this->assertSame('fp-changed', $result->fingerprint_hash);
         $this->assertSame(1, $result->drift_score);
     }
 
     /**
-     * Verified device with SAME fingerprint → trust_level is NOT STEP_UP_REQUIRED
-     * (the stored trust_level is preserved as-is).
+     * Verified device with SAME fingerprint → step_up_required is false (default) and
+     * trust_level is preserved as stored.
      */
     public function testSameFingerprintOnVerifiedDevicePreservesStoredTrustLevel(): void
     {
@@ -193,6 +195,7 @@ final class DeviceContinuityTest extends SirusTestCase
 
         $this->assertSame('dev-ok', $result->device_id);
         $this->assertSame('user', $result->trust_level);
+        $this->assertFalse($result->step_up_required, 'step_up_required must be false when fingerprint is unchanged');
     }
 
     /**
