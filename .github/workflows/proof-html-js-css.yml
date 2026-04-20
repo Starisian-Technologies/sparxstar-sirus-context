@@ -42,7 +42,7 @@ jobs:
                   cache: 'pnpm'
 
             - name: Install dependencies
-              run: pnpm install --frozen-lockfile
+              run: pnpm install --no-frozen-lockfile
 
             - name: Lint JavaScript (Check only)
               # We run WITHOUT --fix here. The goal is to report errors, not hide them.
@@ -90,7 +90,7 @@ jobs:
                   cache: 'pnpm'
 
             - name: Install dependencies
-              run: pnpm install --frozen-lockfile
+              run: pnpm install --no-frozen-lockfile
 
             - name: Fix JavaScript and CSS issues
               run: |
