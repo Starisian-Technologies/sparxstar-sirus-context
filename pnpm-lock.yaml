@@ -16,8 +16,8 @@ overrides:
 
 dependencies:
   '@fingerprintjs/fingerprintjs':
-    specifier: ^5.1.0
-    version: 5.1.0
+    specifier: ^5.2.0
+    version: 5.2.0
   device-detector-js:
     specifier: ^3.0.3
     version: 3.0.3
