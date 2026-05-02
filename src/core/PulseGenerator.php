@@ -25,7 +25,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-use Starisian\Sparxstar\Sirus\dto\ContextPulse;
+use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
 
 /**
  * Issues signed ContextPulse instances from a resolved SirusContext.

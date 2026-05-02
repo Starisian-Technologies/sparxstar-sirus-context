@@ -18,6 +18,13 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v4
 
+            - name: Authenticate git for private org packages
+              env:
+                  TOKEN: ${{ secrets.COPILOT_MCP_TOKEN }}
+              run: |
+                  git config --global url."https://x-access-token:${TOKEN}@github.com/Starisian-Technologies/".insteadOf "https://github.com/Starisian-Technologies/"
+                  git config --global url."https://x-access-token:${TOKEN}@github.com/Starisian-Technologies/".insteadOf "git@github.com:Starisian-Technologies/"
+
             - name: Setup PHP
               uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f
               # uses: shivammathur/setup-php@v2

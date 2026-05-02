@@ -6,7 +6,8 @@
   "autoload": {
     "psr-4": {
       "Starisian\\SparxstarUEC\\": "src/",
-      "Starisian\\Sparxstar\\Sirus\\": "src/"
+      "Starisian\\Sparxstar\\Sirus\\": "src/",
+      "Starisian\\Sparxstar\\Infrastructure\\": "packages/sparxstar-ouroboros-integrity/src/"
     }
   },
   "authors": [
@@ -17,7 +18,8 @@
   ],
   "minimum-stability": "stable",
   "require": {
-    "geoip2/geoip2": "^3.2"
+    "geoip2/geoip2": "^3.2",
+    "starisian/sparxstar-ouroboros-integrity": "^1.0"
   },
   "suggest": {
     "matomo/device-detector": "^6.4 — Required for server-side UA parsing. Install via: composer require matomo/device-detector. Without this package, SirusDeviceParser returns empty device metadata."
@@ -60,6 +62,19 @@
     {
       "type": "composer",
       "url": "https://wpackagist.org"
+    },
+    {
+      "_comment": "TODO: Remove once starisian/sparxstar-ouroboros-integrity is on Packagist. Remove packages/ dir, path entry, and Starisian\\Sparxstar\\Infrastructure\\ from autoload.",
+      "type": "vcs",
+      "url": "https://github.com/Starisian-Technologies/sparxstar-ouroboros-integrity"
+    },
+    {
+      "_comment_dev": "Local stub for sandbox/offline development — mirrors CO-001 API. Must be kept in sync with the real package. Remove once VCS is resolvable in all environments.",
+      "type": "path",
+      "url": "packages/sparxstar-ouroboros-integrity",
+      "options": {
+        "symlink": false
+      }
     }
   ],
   "scripts": {

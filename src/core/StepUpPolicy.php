@@ -28,7 +28,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-use Starisian\Sparxstar\Sirus\dto\ContextPulse;
+use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
 
 /**
  * Evaluates whether a step-up authentication challenge should be issued for

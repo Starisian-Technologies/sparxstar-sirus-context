@@ -19,7 +19,7 @@ namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 
 use Starisian\Sparxstar\Sirus\core\PulseGenerator;
 use Starisian\Sparxstar\Sirus\core\SirusContext;
-use Starisian\Sparxstar\Sirus\dto\ContextPulse;
+use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
 
 /**
  * Unit tests for PulseGenerator::generate().

@@ -20,7 +20,7 @@ namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 
 use Starisian\Sparxstar\Sirus\core\ResourceSensitivity;
 use Starisian\Sparxstar\Sirus\core\StepUpPolicy;
-use Starisian\Sparxstar\Sirus\dto\ContextPulse;
+use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
 
 /**
  * Unit tests for StepUpPolicy::requiresStepUp() and StepUpPolicy::getRequiredLevel().

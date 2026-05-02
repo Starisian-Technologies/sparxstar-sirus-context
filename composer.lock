@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a1e9d5fb1df78db1591ae07048dc9831",
+    "content-hash": "cea66a6478d09e071e015c644d61d23c",
     "packages": [
         {
             "name": "composer/ca-bundle",
@@ -250,6 +250,39 @@
                 "source": "https://github.com/maxmind/web-service-common-php/tree/v0.11.1"
             },
             "time": "2026-01-13T17:56:03+00:00"
+        },
+        {
+            "name": "starisian/sparxstar-ouroboros-integrity",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "packages/sparxstar-ouroboros-integrity",
+                "reference": "99e49b7304bbb15c639a5e0df96a7da4b4aec511"
+            },
+            "require": {
+                "php": "^8.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Starisian\\Sparxstar\\Infrastructure\\": "src/"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "authors": [
+                {
+                    "name": "Starisian Technologies",
+                    "email": "support@starisian.com",
+                    "homepage": "https://www.starisian.com"
+                }
+            ],
+            "description": "SPARXSTAR Ouroboros Integrity — shared contracts, DTOs, and exceptions for the Sparxstar platform.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
         }
     ],
     "packages-dev": [
