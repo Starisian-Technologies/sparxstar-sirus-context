@@ -43,7 +43,7 @@ final class ContextPulse
         ];
 
         foreach ($required as $key) {
-            if (!array_key_exists($key, $data)) {
+            if (! array_key_exists($key, $data)) {
                 throw new \InvalidArgumentException(
                     "ContextPulse missing required field: {$key}"
                 );
