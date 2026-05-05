@@ -8,6 +8,12 @@
  * The JS client sends raw signals only — it never bundles a device-detection library.
  * Bundling device-detector-js (~576KB) client-side violates the lightweight client rule.
  *
+ * FINGERPRINTING NOTE:
+ * FingerprintJS is enqueued as a separate vendored <script> tag by the PHP plugin
+ * (src/js/vendor/fingerprintjs.min.js). It is NOT bundled via npm. The collector
+ * accesses it via window.FingerprintJS and treats it as optional — if the script
+ * is absent, visitor_id collection is skipped gracefully.
+ *
  * CROSS-DOMAIN CONTEXT HANDOFF (spec §F):
  * When a signed context token arrives via the `?ctx` URL parameter, this bootstrap:
  *   1. Reads the token from the URL.
@@ -16,13 +22,7 @@
  *   3. Calls history.replaceState() to REMOVE the parameter from the URL immediately.
  *      This is a security requirement — the token must never persist in browser history,
  *      server logs, or referrer headers.
-*/
-import FingerprintJS from '@fingerprintjs/fingerprintjs';
-
-// Expose fingerprint globally (used by collectors to send visitor_id to the server).
-window.FingerprintJS = FingerprintJS;
-
-// Initialize SPARXSTAR namespace.
+ */
 window.SPARXSTAR = window.SPARXSTAR || {};
 
 // ── Cross-domain context token handoff ────────────────────────────────────────
@@ -50,7 +50,8 @@ window.SPARXSTAR = window.SPARXSTAR || {};
             // The token must never persist in browser history, server logs, or referrer headers.
             params.delete('ctx');
             const newSearch = params.toString();
-            const newUrl = window.location.pathname +
+            const newUrl =
+                window.location.pathname +
                 (newSearch ? '?' + newSearch : '') +
                 window.location.hash;
             window.history.replaceState(null, document.title, newUrl);
@@ -61,7 +62,7 @@ window.SPARXSTAR = window.SPARXSTAR || {};
             console.warn('[SPARXSTAR] ctx handoff failed', e && e.message ? e.message : e);
         }
     }
-}());
+})();
 
 // ── Import all IIFE modules ───────────────────────────────────────────────────
 import './sparxstar-state.js';
