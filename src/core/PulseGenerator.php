@@ -8,8 +8,11 @@
  *
  * Signing algorithm: HMAC-SHA256 over a deterministic canonical string.
  *
- * Canonical string format (fields joined by '|' in this exact order):
- *   pulse_id|context_id|device_id|session_id|site_id|network_id|trust_score|trust_level|issued_at|expires
+ * Canonical string format (fields joined by '|' in this exact order, PAM-002 14-field):
+ *   pulse_id|context_id|device_id|session_id|site_id|network_id|trust_score_4dp|trust_level|issued_at|expires|
+ *   behavior_flags_csv|geo_zone|network_effective_type|session_duration
+ *
+ * behavior_flags_csv is the sorted flags joined with commas ('' when empty).
  *
  * The signing key is read exclusively from the SIRUS_PULSE_SIGNING_KEY constant.
  * It MUST NOT be read from WordPress options, the database, or user input.
@@ -77,22 +80,32 @@ final class PulseGenerator
             $context->trust_level,
             (string) $issued_at,
             (string) $expires,
+            // PAM-002 fields — populated from SirusContext once PAM-002-P2 lands.
+            // Defaults preserve a deterministic canonical string in the interim.
+            implode(',', []), // behavior_flags_csv: implode(',', []) → ''
+            '',               // geo_zone
+            '',               // network_effective_type
+            '0',              // session_duration
         ]);
 
         $sig = hash_hmac('sha256', $canonical, $key);
 
         return new ContextPulse(
-            pulse_id:    $pulse_id,
-            context_id:  $context->context_id,
-            device_id:   $context->device_id,
-            session_id:  $context->session_id,
-            site_id:     $context->site_id,
-            network_id:  $context->network_id,
-            trust_score: $context->trust_score,
-            trust_level: $context->trust_level,
-            issued_at:   $issued_at,
-            expires:     $expires,
-            sig:         $sig,
+            pulse_id:               $pulse_id,
+            context_id:             $context->context_id,
+            device_id:              $context->device_id,
+            session_id:             $context->session_id,
+            site_id:                $context->site_id,
+            network_id:             $context->network_id,
+            trust_score:            $context->trust_score,
+            trust_level:            $context->trust_level,
+            issued_at:              $issued_at,
+            expires:                $expires,
+            behavior_flags:         [],
+            geo_zone:               '',
+            network_effective_type: '',
+            session_duration:       0,
+            sig:                    $sig,
         );
     }
 

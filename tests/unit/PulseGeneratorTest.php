@@ -253,6 +253,61 @@ final class PulseGeneratorTest extends SirusTestCase
         $this->assertNotSame($pulse1->sig, $pulse2->sig);
     }
 
+    // ── PAM-002 restored fields ───────────────────────────────────────────────
+
+    /**
+     * pulse.behavior_flags is an array (defaults to [] until PAM-002-P2).
+     */
+    public function testPulseBehaviorFlagsIsArray(): void
+    {
+        $pulse = $this->generator->generate($this->makeContext());
+
+        $this->assertIsArray($pulse->behavior_flags);
+    }
+
+    /**
+     * pulse.geo_zone is a string (defaults to '' until PAM-002-P2).
+     */
+    public function testPulseGeoZoneIsString(): void
+    {
+        $pulse = $this->generator->generate($this->makeContext());
+
+        $this->assertIsString($pulse->geo_zone);
+    }
+
+    /**
+     * pulse.network_effective_type is a string (defaults to '' until PAM-002-P2).
+     */
+    public function testPulseNetworkEffectiveTypeIsString(): void
+    {
+        $pulse = $this->generator->generate($this->makeContext());
+
+        $this->assertIsString($pulse->network_effective_type);
+    }
+
+    /**
+     * pulse.session_duration is an int (defaults to 0 until PAM-002-P2).
+     */
+    public function testPulseSessionDurationIsInt(): void
+    {
+        $pulse = $this->generator->generate($this->makeContext());
+
+        $this->assertIsInt($pulse->session_duration);
+    }
+
+    /**
+     * toArray() includes all four PAM-002 restored fields.
+     */
+    public function testToArrayIncludesPam002Fields(): void
+    {
+        $arr = $this->generator->generate($this->makeContext())->toArray();
+
+        $this->assertArrayHasKey('behavior_flags', $arr);
+        $this->assertArrayHasKey('geo_zone', $arr);
+        $this->assertArrayHasKey('network_effective_type', $arr);
+        $this->assertArrayHasKey('session_duration', $arr);
+    }
+
     // ── Canonical string determinism ──────────────────────────────────────────
 
     /**
@@ -260,9 +315,11 @@ final class PulseGeneratorTest extends SirusTestCase
      * must be reproducible. We verify by reconstructing the canonical format
      * and computing the expected signature.
      *
-     * Canonical format (spec):
-     *   pulse_id|context_id|device_id|session_id|site_id|network_id|trust_score|trust_level|issued_at|expires
+     * Canonical format (spec, PAM-002 14-field):
+     *   pulse_id|context_id|device_id|session_id|site_id|network_id|trust_score_4dp|trust_level|issued_at|expires|
+     *   behavior_flags_csv|geo_zone|network_effective_type|session_duration
      * trust_score is formatted with number_format(x, 4, '.', '').
+     * behavior_flags_csv is implode(',', sorted_flags) — empty string when no flags.
      */
     public function testCanonicalStringIsReproducible(): void
     {
@@ -281,6 +338,10 @@ final class PulseGeneratorTest extends SirusTestCase
             $pulse->trust_level,
             (string) $pulse->issued_at,
             (string) $pulse->expires,
+            implode(',', $pulse->behavior_flags),
+            $pulse->geo_zone,
+            $pulse->network_effective_type,
+            (string) $pulse->session_duration,
         ]);
 
         $expected_sig = hash_hmac('sha256', $canonical, self::TEST_SIGNING_KEY);
@@ -309,6 +370,10 @@ final class PulseGeneratorTest extends SirusTestCase
             $pulse->trust_level,
             (string) $pulse->issued_at,
             (string) $pulse->expires,
+            implode(',', $pulse->behavior_flags),
+            $pulse->geo_zone,
+            $pulse->network_effective_type,
+            (string) $pulse->session_duration,
         ]);
 
         // Canonical must contain '0.9000' not '0.9' or '0.9000000001'.
