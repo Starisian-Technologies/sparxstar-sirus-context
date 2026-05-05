@@ -6,8 +6,7 @@
   "autoload": {
     "psr-4": {
       "Starisian\\SparxstarUEC\\": "src/",
-      "Starisian\\Sparxstar\\Sirus\\": "src/",
-      "Starisian\\Sparxstar\\Infrastructure\\": "packages/sparxstar-ouroboros-integrity/src/"
+      "Starisian\\Sparxstar\\Sirus\\": "src/"
     }
   },
   "authors": [
