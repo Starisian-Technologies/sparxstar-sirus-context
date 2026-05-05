@@ -17,6 +17,7 @@ The following files provide the full tech specs for the project:
 - The [Platform Integrity Map](https://github.com/Starisian-Technologies/sparxstar-sirus-context/edit/main/README.md#:~:text=Sparxstar_Platform_Integrity_Map_v1.0)
 - The [SPARXSTAR Platform Overview](https://github.com/Starisian-Technologies/sparxstar-sirus-context/edit/main/README.md#:~:text=Sparxstar_Platform_Overview_v1.0.-,docx,-.pdf)
 - the [Architecture Ammendment](https://github.com/Starisian-Technologies/sparxstar-sirus-context/blob/main/SPARXSTAR_PAM-001_Consolidated.pdf)
+- [PAM-002](https://github.com/Starisian-Technologies/sparxstar-sirus-context/blob/main/PAM-002.md).
 
 
 Production context --- UEC compatibility
