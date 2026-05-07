@@ -99,12 +99,12 @@ final class PulseGenerator
             network_id:             $context->network_id,
             trust_score:            $context->trust_score,
             trust_level:            $context->trust_level,
-            issued_at:              $issued_at,
-            expires:                $expires,
             behavior_flags:         [],
             geo_zone:               '',
             network_effective_type: '',
             session_duration:       0,
+            issued_at:              $issued_at,
+            expires:                $expires,
             sig:                    $sig,
         );
     }
