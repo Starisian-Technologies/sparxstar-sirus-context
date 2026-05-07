@@ -8,11 +8,10 @@
  *
  * Signing algorithm: HMAC-SHA256 over a deterministic canonical string.
  *
- * Canonical string format (fields joined by '|' in this exact order, PAM-002 14-field):
- *   pulse_id|context_id|device_id|session_id|site_id|network_id|trust_score_4dp|trust_level|issued_at|expires|
- *   behavior_flags_csv|geo_zone|network_effective_type|session_duration
- *
- * behavior_flags_csv is the sorted flags joined with commas ('' when empty).
+ * Canonical string construction is delegated entirely to
+ * ContextPulseSigningMaterial::build() (Ouroboros CO-001). Sirus does not
+ * maintain its own copy of the format — see that class for the field order
+ * and encoding rules (PAM-002 14-field, JSON-encoded behavior_flags).
  *
  * The signing key is read exclusively from the SIRUS_PULSE_SIGNING_KEY constant.
  * It MUST NOT be read from WordPress options, the database, or user input.
@@ -29,6 +28,7 @@ if (! defined('ABSPATH')) {
 }
 
 use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
+use Starisian\Sparxstar\Infrastructure\Signing\ContextPulseSigningMaterial;
 
 /**
  * Issues signed ContextPulse instances from a resolved SirusContext.
@@ -69,26 +69,30 @@ final class PulseGenerator
         $issued_at = $now > 0 ? $now : time();
         $expires   = $issued_at + $ttlSeconds;
 
-        $canonical = implode('|', [
-            $pulse_id,
-            $context->context_id,
-            $context->device_id,
-            $context->session_id,
-            $context->site_id,
-            $context->network_id,
-            number_format($context->trust_score, 4, '.', ''),
-            $context->trust_level,
-            (string) $issued_at,
-            (string) $expires,
-            // PAM-002 fields — populated from SirusContext once PAM-002-P2 lands.
-            // Defaults preserve a deterministic canonical string in the interim.
-            implode(',', []), // behavior_flags_csv: implode(',', []) → ''
-            '',               // geo_zone
-            '',               // network_effective_type
-            '0',              // session_duration
-        ]);
+        // Build a provisional pulse (sig is the empty string — excluded from the signing payload).
+        // ContextPulseSigningMaterial::build() is the canonical source for the format;
+        // Sirus must not maintain a local copy of the signing string construction.
+        // PAM-002 fields (behavior_flags, geo_zone, network_effective_type, session_duration)
+        // use deterministic empty defaults until PAM-002-P2 wires them from SirusContext.
+        $provisional = new ContextPulse(
+            pulse_id:               $pulse_id,
+            context_id:             $context->context_id,
+            device_id:              $context->device_id,
+            session_id:             $context->session_id,
+            site_id:                $context->site_id,
+            network_id:             $context->network_id,
+            trust_score:            $context->trust_score,
+            trust_level:            $context->trust_level,
+            behavior_flags:         [],
+            geo_zone:               '',
+            network_effective_type: '',
+            session_duration:       0,
+            issued_at:              $issued_at,
+            expires:                $expires,
+            sig:                    '',
+        );
 
-        $sig = hash_hmac('sha256', $canonical, $key);
+        $sig = hash_hmac('sha256', ContextPulseSigningMaterial::build($provisional), $key);
 
         return new ContextPulse(
             pulse_id:               $pulse_id,

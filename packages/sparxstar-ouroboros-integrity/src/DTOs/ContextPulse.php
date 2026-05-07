@@ -11,10 +11,14 @@ namespace Starisian\Sparxstar\Infrastructure\DTOs;
  * Sirus generates. Helios verifies. Never the other way around.
  *
  * The HMAC-SHA256 signed payload is pipe-delimited (|), with trust_score
- * formatted to 4 decimal places and behavior_flags as a comma-joined string:
+ * formatted to 4 decimal places and behavior_flags sorted then JSON-encoded
+ * (JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR):
  *   {pulse_id}|{context_id}|{device_id}|{session_id}|{site_id}|{network_id}|
  *   {trust_score_4dp}|{trust_level}|{issued_at}|{expires}|
- *   {behavior_flags_csv}|{geo_zone}|{network_effective_type}|{session_duration}
+ *   {behavior_flags_json}|{geo_zone}|{network_effective_type}|{session_duration}
+ *
+ * Canonical string construction: use ContextPulseSigningMaterial::build().
+ * Neither Sirus nor Helios may maintain a local copy of the signing logic.
  *
  * PAM-002 restored fields (absent in PAM-001):
  *   behavior_flags, geo_zone, network_effective_type, session_duration
@@ -38,7 +42,7 @@ final class ContextPulse
      * @param int      $session_duration       PAM-002: seconds elapsed since session start.
      * @param int      $issued_at              Unix timestamp when this pulse was issued.
      * @param int      $expires                Unix timestamp when this pulse expires.
-     * @param string   $sig                    HMAC-SHA256 signature over the 14-field canonical string.
+     * @param string   $sig                    Hex-encoded HMAC-SHA256 signature over the 14-field canonical string.
      */
     public function __construct(
         public readonly string $pulse_id,
