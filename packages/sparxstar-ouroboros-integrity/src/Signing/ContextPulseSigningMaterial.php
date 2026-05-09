@@ -16,8 +16,12 @@ use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
  *
  * Canonical 14-field pipe-delimited format (sig is excluded from the signing payload):
  *   {pulse_id}|{context_id}|{device_id}|{session_id}|{site_id}|{network_id}|
- *   {trust_score_4dp}|{trust_level}|{issued_at}|{expires}|
- *   {behavior_flags_json}|{geo_zone}|{network_effective_type}|{session_duration}
+ *   {trust_score_4dp}|{trust_level}|
+ *   {behavior_flags_json}|{geo_zone}|{network_effective_type}|{session_duration}|
+ *   {issued_at}|{expires}
+ *
+ * PAM-002 fields (behavior_flags_json, geo_zone, network_effective_type, session_duration)
+ * occupy positions 9–12. issued_at and expires are at positions 13–14.
  *
  * Immutable signing rules (do not change without a PAM version bump):
  *   - trust_score is formatted with number_format($score, 4, '.', '') — 4 decimal places, no separator.
@@ -56,12 +60,14 @@ final class ContextPulseSigningMaterial
             $pulse->network_id,
             number_format($pulse->trust_score, 4, '.', ''),
             $pulse->trust_level,
-            (string) $pulse->issued_at,
-            (string) $pulse->expires,
+            // PAM-002 fields at positions 9–12 (before issued_at/expires)
             json_encode($flags, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
             $pulse->geo_zone,
             $pulse->network_effective_type,
             (string) $pulse->session_duration,
+            // Timing fields at positions 13–14
+            (string) $pulse->issued_at,
+            (string) $pulse->expires,
             // sig is intentionally excluded from the signing payload
         ]);
     }

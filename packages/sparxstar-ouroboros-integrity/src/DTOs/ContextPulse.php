@@ -14,8 +14,11 @@ namespace Starisian\Sparxstar\Infrastructure\DTOs;
  * formatted to 4 decimal places and behavior_flags sorted then JSON-encoded
  * (JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR):
  *   {pulse_id}|{context_id}|{device_id}|{session_id}|{site_id}|{network_id}|
- *   {trust_score_4dp}|{trust_level}|{issued_at}|{expires}|
- *   {behavior_flags_json}|{geo_zone}|{network_effective_type}|{session_duration}
+ *   {trust_score_4dp}|{trust_level}|
+ *   {behavior_flags_json}|{geo_zone}|{network_effective_type}|{session_duration}|
+ *   {issued_at}|{expires}
+ *
+ * PAM-002 fields (positions 9–12) precede issued_at/expires (positions 13–14).
  *
  * Canonical string construction: use ContextPulseSigningMaterial::build().
  * Neither Sirus nor Helios may maintain a local copy of the signing logic.
