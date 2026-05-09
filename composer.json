@@ -63,17 +63,8 @@
       "url": "https://wpackagist.org"
     },
     {
-      "_comment": "TODO: Remove once starisian/sparxstar-ouroboros-integrity is on Packagist. Remove packages/ dir, path entry, and Starisian\\Sparxstar\\Infrastructure\\ from autoload.",
       "type": "vcs",
       "url": "https://github.com/Starisian-Technologies/sparxstar-ouroboros-integrity"
-    },
-    {
-      "_comment_dev": "Local stub for sandbox/offline development — mirrors CO-001 API. Must be kept in sync with the real package. Remove once VCS is resolvable in all environments.",
-      "type": "path",
-      "url": "packages/sparxstar-ouroboros-integrity",
-      "options": {
-        "symlink": false
-      }
     }
   ],
   "scripts": {
