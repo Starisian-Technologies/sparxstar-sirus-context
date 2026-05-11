@@ -28,7 +28,7 @@
                 navigator.mediaDevices &&
                 typeof navigator.mediaDevices.getUserMedia === 'function'
             );
-        } catch (_e) {
+        } catch {
             return false;
         }
     }
@@ -181,14 +181,18 @@
         if (typeof window.wp_has_consent === 'function') {
             try {
                 statsConsent = !!window.wp_has_consent('statistics');
-            } catch (e) {}
+            } catch {
+                // ignore — wp_has_consent is optional; absence is handled by the else branch
+            }
         } else if (
             window.wp_consent_api &&
             typeof window.wp_consent_api.get_consent === 'function'
         ) {
             try {
                 statsConsent = !!window.wp_consent_api.get_consent('statistics');
-            } catch (e) {}
+            } catch {
+                // ignore — get_consent is optional; consent remains false
+            }
         }
 
         if (statsConsent) {

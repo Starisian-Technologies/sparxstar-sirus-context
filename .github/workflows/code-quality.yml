@@ -18,6 +18,17 @@ jobs:
         with:
           fetch-depth: 0
       
+      - name: Authenticate git for private org packages
+        env:
+          TOKEN: ${{ secrets.COPILOT_MCP_TOKEN }}
+        run: |
+          if [ -n "${TOKEN}" ]; then
+            git config --global --add url."https://x-access-token:${TOKEN}@github.com/Starisian-Technologies/".insteadOf "https://github.com/Starisian-Technologies/"
+            git config --global --add url."https://x-access-token:${TOKEN}@github.com/Starisian-Technologies/".insteadOf "git@github.com:Starisian-Technologies/"
+          else
+            echo "No COPILOT_MCP_TOKEN provided; skipping git authentication rewrite for Starisian-Technologies."
+          fi
+
       - name: Setup PHP
         uses: shivammathur/setup-php@bf6b4fbd49ca58e4608c9c89fba0b8d90bd2a39f
         with:
