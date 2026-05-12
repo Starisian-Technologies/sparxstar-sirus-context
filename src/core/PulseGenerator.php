@@ -72,8 +72,16 @@ final class PulseGenerator
         // Build a provisional pulse (sig is the empty string — excluded from the signing payload).
         // ContextPulseSigningMaterial::build() is the canonical source for the format;
         // Sirus must not maintain a local copy of the signing string construction.
-        // PAM-002 fields (behavior_flags, geo_zone, network_effective_type, session_duration)
-        // use deterministic empty defaults until PAM-002-P2 wires them from SirusContext.
+        //
+        // TODO(PAM-002-P2): The four PAM-002 canonical fields below use deterministic empty
+        // defaults and MUST be replaced with real Sirus-derived values before this PR is
+        // considered architecturally complete. They are required by Helios and Mēh₁n̥s and
+        // are NOT decorative fields.
+        //   behavior_flags         — derived from SirusContext trust signals
+        //   geo_zone               — derived from EnvironmentResolver / geolocation
+        //   network_effective_type — derived from EnvironmentResolver network data
+        //   session_duration       — derived from session start timestamp vs issued_at
+        // Track in: PAM-002-P2 (wire canonical pulse fields from real SirusContext values).
         $provisional = new ContextPulse(
             pulse_id:               $pulse_id,
             context_id:             $context->context_id,
@@ -83,10 +91,10 @@ final class PulseGenerator
             network_id:             $context->network_id,
             trust_score:            $context->trust_score,
             trust_level:            $context->trust_level,
-            behavior_flags:         [],
-            geo_zone:               '',
-            network_effective_type: '',
-            session_duration:       0,
+            behavior_flags:         [],   // TODO(PAM-002-P2): wire from SirusContext.
+            geo_zone:               '',   // TODO(PAM-002-P2): wire from EnvironmentResolver.
+            network_effective_type: '',   // TODO(PAM-002-P2): wire from EnvironmentResolver.
+            session_duration:       0,    // TODO(PAM-002-P2): wire from session start timestamp.
             issued_at:              $issued_at,
             expires:                $expires,
             sig:                    '',
@@ -94,6 +102,8 @@ final class PulseGenerator
 
         $sig = hash_hmac('sha256', ContextPulseSigningMaterial::build($provisional), $key);
 
+        // Return the final signed pulse. The four PAM-002 fields carry the same empty defaults
+        // as the provisional pulse above — see TODO(PAM-002-P2) block above for the follow-up.
         return new ContextPulse(
             pulse_id:               $pulse_id,
             context_id:             $context->context_id,
@@ -103,10 +113,10 @@ final class PulseGenerator
             network_id:             $context->network_id,
             trust_score:            $context->trust_score,
             trust_level:            $context->trust_level,
-            behavior_flags:         [],
-            geo_zone:               '',
-            network_effective_type: '',
-            session_duration:       0,
+            behavior_flags:         [],   // TODO(PAM-002-P2): wire from SirusContext.
+            geo_zone:               '',   // TODO(PAM-002-P2): wire from EnvironmentResolver.
+            network_effective_type: '',   // TODO(PAM-002-P2): wire from EnvironmentResolver.
+            session_duration:       0,    // TODO(PAM-002-P2): wire from session start timestamp.
             issued_at:              $issued_at,
             expires:                $expires,
             sig:                    $sig,
