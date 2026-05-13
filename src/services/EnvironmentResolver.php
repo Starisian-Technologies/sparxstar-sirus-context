@@ -176,7 +176,12 @@ final class EnvironmentResolver
     private function extractGeoValue(array $geo, array $keys): string
     {
         foreach ($keys as $key) {
-            $value = sanitize_text_field((string) ($geo[$key] ?? ''));
+            $raw = $geo[$key] ?? '';
+            if (! is_string($raw) && ! is_int($raw) && ! is_float($raw)) {
+                continue;
+            }
+
+            $value = sanitize_text_field((string) $raw);
             if ($value !== '') {
                 return $value;
             }
