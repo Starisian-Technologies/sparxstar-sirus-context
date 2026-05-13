@@ -159,6 +159,9 @@ final class EnvironmentResolver
 
     /**
      * Returns the current request IP if present and valid, otherwise ''.
+     *
+     * Uses REMOTE_ADDR intentionally (same anti-spoofing model as Sirus REST
+     * controllers) and does not trust forwarded headers by default.
      */
     private function getRemoteIpAddress(): string
     {

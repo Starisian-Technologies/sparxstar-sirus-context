@@ -46,7 +46,6 @@ final class PulseGenerator
 
     /** Minimum required key length (bytes). */
     private const MIN_KEY_LENGTH = 32;
-    private const LOW_TRUST_SCORE_THRESHOLD = 0.7;
 
     private readonly EnvironmentResolver $environmentResolver;
 
@@ -143,7 +142,7 @@ final class PulseGenerator
             $flags[] = 'trust_level_critical';
         }
 
-        if ($context->trust_score < self::LOW_TRUST_SCORE_THRESHOLD) {
+        if ($context->trust_score < TrustEngine::NORMAL_THRESHOLD) {
             $flags[] = 'low_trust_score';
         }
 
