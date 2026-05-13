@@ -287,13 +287,14 @@ final class PulseGeneratorTest extends SirusTestCase
 
     /**
      * pulse.network_effective_type is populated from EnvironmentResolver network data.
+     * Unit tests run under CLI, so the resolver emits the CLI-specific value.
      */
     public function testPulseNetworkEffectiveTypeIsPopulated(): void
     {
         $pulse = $this->generator->generate($this->makeContext());
 
         $this->assertIsString($pulse->network_effective_type);
-        $this->assertNotSame('', $pulse->network_effective_type);
+        $this->assertSame('cli', $pulse->network_effective_type);
     }
 
     /**
