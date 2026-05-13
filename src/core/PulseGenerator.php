@@ -28,6 +28,27 @@ final class PulseGenerator
     /** Default pulse TTL in seconds. */
     public const PULSE_TTL = InfrastructurePulseGenerator::PULSE_TTL;
 
+    /** Delegated Infrastructure PulseGenerator instance. */
+    private InfrastructurePulseGenerator $generator;
+
+    /**
+     * Initializes the delegated Infrastructure PulseGenerator.
+     *
+     * @throws \RuntimeException If the Infrastructure PulseGenerator is unavailable.
+     */
+    public function __construct()
+    {
+        if (! class_exists(InfrastructurePulseGenerator::class)) {
+            throw new \RuntimeException(
+                '[Sirus] Infrastructure PulseGenerator is unavailable. '
+                . 'Install/update sparxstar-ouroboros-integrity to a version that provides '
+                . InfrastructurePulseGenerator::class . '.'
+            );
+        }
+
+        $this->generator = new InfrastructurePulseGenerator();
+    }
+
     /**
      * Generates a signed ContextPulse from the given SirusContext by delegation.
      *
@@ -39,14 +60,6 @@ final class PulseGenerator
      */
     public function generate(SirusContext $context, int $now = 0, int $ttlSeconds = self::PULSE_TTL): ContextPulse
     {
-        if (! class_exists(InfrastructurePulseGenerator::class)) {
-            throw new \RuntimeException(
-                '[Sirus] Infrastructure PulseGenerator is unavailable. '
-                . 'Install/update sparxstar-ouroboros-integrity to a version that provides '
-                . InfrastructurePulseGenerator::class . '.'
-            );
-        }
-
-        return (new InfrastructurePulseGenerator())->generate($context, $now, $ttlSeconds);
+        return $this->generator->generate($context, $now, $ttlSeconds);
     }
 }
