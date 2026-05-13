@@ -47,9 +47,12 @@ final class PulseGenerator
     /** Minimum required key length (bytes). */
     private const MIN_KEY_LENGTH = 32;
 
+    private readonly EnvironmentResolver $environmentResolver;
+
     public function __construct(
-        private ?EnvironmentResolver $environmentResolver = null
+        ?EnvironmentResolver $environmentResolver = null
     ) {
+        $this->environmentResolver = $environmentResolver ?? new EnvironmentResolver();
     }
 
     /**
@@ -75,7 +78,7 @@ final class PulseGenerator
         $issued_at = $now > 0 ? $now : time();
         $expires   = $issued_at + $ttlSeconds;
         $behavior_flags = $this->deriveBehaviorFlags($context);
-        $environment    = $this->environmentResolver ??= new EnvironmentResolver();
+        $environment    = $this->environmentResolver;
         $geo_zone       = $environment->getGeoZone();
         $network_effective_type = $environment->getNetworkEffectiveType();
         $session_duration = $this->resolveSessionDuration($context->issued_at, $issued_at);

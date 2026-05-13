@@ -156,7 +156,6 @@ final class EnvironmentResolver
      */
     private function getRemoteIpAddress(): string
     {
-        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         $remote_addr = isset($_SERVER['REMOTE_ADDR'])
             ? sanitize_text_field(wp_unslash((string) $_SERVER['REMOTE_ADDR']))
             : '';
