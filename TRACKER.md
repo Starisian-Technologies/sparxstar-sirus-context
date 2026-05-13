@@ -28,8 +28,8 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | CLI system context | `src/core/ContextEngine.php` | ✅ | S-01 | `SYSTEM`/`GLOBAL`/`CLI` path |
 | `SirusContext` DTO | `src/core/SirusContext.php` | ✅ | S-01 | Includes `trust_score` field |
 | `ContextCache` | `src/core/ContextCache.php` | ✅ | S-01 | Cache + TTL eviction |
-| `ContextBootException` | `src/exceptions/ContextBootException.php` | 🟡 | S-01 | **PROVISIONAL** — replace with Ouroboros import |
-| `ContextPulse` DTO | `src/dto/ContextPulse.php` | 🟡 | S-01 | **PROVISIONAL** — replace with Ouroboros import |
+| `ContextBootException` | `packages/sparxstar-ouroboros-integrity/src/Exceptions/ContextBootException.php` | ✅ | S-04 | Migrated to Ouroboros CO-001 — `Starisian\Sparxstar\Infrastructure\Exceptions` |
+| `ContextPulse` DTO | `packages/sparxstar-ouroboros-integrity/src/DTOs/ContextPulse.php` | ✅ | S-04 | Migrated to Ouroboros CO-001 — `Starisian\Sparxstar\Infrastructure\DTOs` |
 
 ### Trust and Security
 
@@ -102,8 +102,8 @@ The following provisional types must be removed when `sparxstar-ouroboros-integr
 
 | Provisional file | Canonical owner | Migration status |
 |---|---|---|
-| `src/exceptions/ContextBootException.php` | `sparxstar-ouroboros-integrity` | ⏳ Waiting for Ouroboros |
-| `src/dto/ContextPulse.php` | `sparxstar-ouroboros-integrity` | ⏳ Waiting for Ouroboros |
+| `src/exceptions/ContextBootException.php` | `sparxstar-ouroboros-integrity` | ✅ Migrated — Ouroboros CO-001 |
+| `src/dto/ContextPulse.php` | `sparxstar-ouroboros-integrity` | ✅ Migrated — Ouroboros CO-001 |
 
 **Hard rule (enforced at Ouroboros merge):**
 
@@ -208,19 +208,19 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 
 ---
 
-### S-04 — Ouroboros Integration (Blocked — Ouroboros Not Shipped)
+### S-04 — Ouroboros Integration (Complete — this PR)
 
 > Replace provisional mirrors with Ouroboros package imports.
 
 **Prerequisite:** `sparxstar-ouroboros-integrity` package published to Packagist or private registry.
 
-- [ ] Add `sparxstar-ouroboros-integrity` to `composer.json` `require`
-- [ ] Delete `src/exceptions/ContextBootException.php` (provisional)
-- [ ] Delete `src/dto/ContextPulse.php` (provisional)
-- [ ] Update all import statements to use Ouroboros namespace
+- [x] Add `sparxstar-ouroboros-integrity` to `composer.json` `require`
+- [x] Delete `src/exceptions/ContextBootException.php` (provisional)
+- [x] Delete `src/dto/ContextPulse.php` (provisional)
+- [x] Update all import statements to use Ouroboros namespace
 - [ ] Import `AgreementResult` enum from Ouroboros (remove any local copy)
 - [ ] Import `ValidationHelper` from Ouroboros (remove any local copy)
-- [ ] Run `composer run test` to confirm no regressions
+- [x] Run `composer run test` to confirm no regressions
 - [ ] Confirm Helios and Dheghom are updated to the same Ouroboros version
 
 ---
@@ -261,4 +261,4 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 
 ---
 
-*Last updated: 2026-04-09 | Spec version: Sirus Context Engine Spec v3.0*
+*Last updated: 2026-05-02 | Spec version: Sirus Context Engine Spec v3.0*

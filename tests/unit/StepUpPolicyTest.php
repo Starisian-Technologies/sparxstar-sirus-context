@@ -20,7 +20,7 @@ namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 
 use Starisian\Sparxstar\Sirus\core\ResourceSensitivity;
 use Starisian\Sparxstar\Sirus\core\StepUpPolicy;
-use Starisian\Sparxstar\Sirus\dto\ContextPulse;
+use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
 
 /**
  * Unit tests for StepUpPolicy::requiresStepUp() and StepUpPolicy::getRequiredLevel().
@@ -259,17 +259,21 @@ final class StepUpPolicyTest extends SirusTestCase
         $now = time();
 
         return new ContextPulse(
-            pulse_id:    'pulse-test-id',
-            context_id:  'ctx-step-up-test',
-            device_id:   'dev-step-up-test',
-            session_id:  'sess-step-up-test',
-            site_id:     '1',
-            network_id:  '1',
-            trust_score: $trust_score,
-            trust_level: $trust_level,
-            issued_at:   $now,
-            expires:     $now + 60,
-            sig:         str_repeat('a', 64),
+            pulse_id:               'pulse-test-id',
+            context_id:             'ctx-step-up-test',
+            device_id:              'dev-step-up-test',
+            session_id:             'sess-step-up-test',
+            site_id:                '1',
+            network_id:             '1',
+            trust_score:            $trust_score,
+            trust_level:            $trust_level,
+            behavior_flags:         [],
+            geo_zone:               '',
+            network_effective_type: '',
+            session_duration:       0,
+            issued_at:              $now,
+            expires:                $now + 60,
+            sig:                    str_repeat('a', 64),
         );
     }
 }

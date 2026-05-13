@@ -8,8 +8,10 @@
  *
  * Signing algorithm: HMAC-SHA256 over a deterministic canonical string.
  *
- * Canonical string format (fields joined by '|' in this exact order):
- *   pulse_id|context_id|device_id|session_id|site_id|network_id|trust_score|trust_level|issued_at|expires
+ * Canonical string construction is delegated entirely to
+ * ContextPulseSigningMaterial::build() (Ouroboros CO-001). Sirus does not
+ * maintain its own copy of the format — see that class for the field order
+ * and encoding rules (PAM-002 14-field, JSON-encoded behavior_flags).
  *
  * The signing key is read exclusively from the SIRUS_PULSE_SIGNING_KEY constant.
  * It MUST NOT be read from WordPress options, the database, or user input.
@@ -25,7 +27,8 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-use Starisian\Sparxstar\Sirus\dto\ContextPulse;
+use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
+use Starisian\Sparxstar\Infrastructure\Signing\ContextPulseSigningMaterial;
 
 /**
  * Issues signed ContextPulse instances from a resolved SirusContext.
@@ -66,33 +69,57 @@ final class PulseGenerator
         $issued_at = $now > 0 ? $now : time();
         $expires   = $issued_at + $ttlSeconds;
 
-        $canonical = implode('|', [
-            $pulse_id,
-            $context->context_id,
-            $context->device_id,
-            $context->session_id,
-            $context->site_id,
-            $context->network_id,
-            number_format($context->trust_score, 4, '.', ''),
-            $context->trust_level,
-            (string) $issued_at,
-            (string) $expires,
-        ]);
+        // Build a provisional pulse (sig is the empty string — excluded from the signing payload).
+        // ContextPulseSigningMaterial::build() is the canonical source for the format;
+        // Sirus must not maintain a local copy of the signing string construction.
+        //
+        // TODO(PAM-002-P2): The four PAM-002 canonical fields below use deterministic empty
+        // defaults and MUST be replaced with real Sirus-derived values before this PR is
+        // considered architecturally complete. They are required by Helios and Mēh₁n̥s and
+        // are NOT decorative fields.
+        //   behavior_flags         — derived from SirusContext trust signals
+        //   geo_zone               — derived from EnvironmentResolver / geolocation
+        //   network_effective_type — derived from EnvironmentResolver network data
+        //   session_duration       — derived from session start timestamp vs issued_at
+        // Track in: PAM-002-P2 (wire canonical pulse fields from real SirusContext values).
+        $provisional = new ContextPulse(
+            pulse_id:               $pulse_id,
+            context_id:             $context->context_id,
+            device_id:              $context->device_id,
+            session_id:             $context->session_id,
+            site_id:                $context->site_id,
+            network_id:             $context->network_id,
+            trust_score:            $context->trust_score,
+            trust_level:            $context->trust_level,
+            behavior_flags:         [],   // TODO(PAM-002-P2): wire from SirusContext.
+            geo_zone:               '',   // TODO(PAM-002-P2): wire from EnvironmentResolver.
+            network_effective_type: '',   // TODO(PAM-002-P2): wire from EnvironmentResolver.
+            session_duration:       0,    // TODO(PAM-002-P2): wire from session start timestamp.
+            issued_at:              $issued_at,
+            expires:                $expires,
+            sig:                    '',
+        );
 
-        $sig = hash_hmac('sha256', $canonical, $key);
+        $sig = hash_hmac('sha256', ContextPulseSigningMaterial::build($provisional), $key);
 
+        // Return the final signed pulse. The four PAM-002 fields carry the same empty defaults
+        // as the provisional pulse above — see TODO(PAM-002-P2) block above for the follow-up.
         return new ContextPulse(
-            pulse_id:    $pulse_id,
-            context_id:  $context->context_id,
-            device_id:   $context->device_id,
-            session_id:  $context->session_id,
-            site_id:     $context->site_id,
-            network_id:  $context->network_id,
-            trust_score: $context->trust_score,
-            trust_level: $context->trust_level,
-            issued_at:   $issued_at,
-            expires:     $expires,
-            sig:         $sig,
+            pulse_id:               $pulse_id,
+            context_id:             $context->context_id,
+            device_id:              $context->device_id,
+            session_id:             $context->session_id,
+            site_id:                $context->site_id,
+            network_id:             $context->network_id,
+            trust_score:            $context->trust_score,
+            trust_level:            $context->trust_level,
+            behavior_flags:         [],   // TODO(PAM-002-P2): wire from SirusContext.
+            geo_zone:               '',   // TODO(PAM-002-P2): wire from EnvironmentResolver.
+            network_effective_type: '',   // TODO(PAM-002-P2): wire from EnvironmentResolver.
+            session_duration:       0,    // TODO(PAM-002-P2): wire from session start timestamp.
+            issued_at:              $issued_at,
+            expires:                $expires,
+            sig:                    $sig,
         );
     }
 

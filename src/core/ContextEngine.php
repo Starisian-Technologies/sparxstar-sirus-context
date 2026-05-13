@@ -20,7 +20,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-use Starisian\Sparxstar\Sirus\exceptions\ContextBootException;
+use Starisian\Sparxstar\Infrastructure\Exceptions\ContextBootException;
 use Starisian\Sparxstar\Sirus\core\TrustEngine;
 
 /**

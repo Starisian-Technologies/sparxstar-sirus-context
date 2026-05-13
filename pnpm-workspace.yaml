@@ -1,3 +1,9 @@
+packages:
+  # Explicitly list only the root package.
+  # This prevents pnpm from scanning vendor/ subdirectories (e.g. vendor/automattic/*)
+  # as workspace members, which avoids lockfile churn on every `composer install`.
+  - '.'
+
 onlyBuiltDependencies:
   - cpu-features
   - esbuild

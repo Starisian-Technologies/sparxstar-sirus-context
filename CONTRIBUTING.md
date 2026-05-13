@@ -110,7 +110,7 @@ Fixes #42
 
 ### JavaScript Style Guide
 
-All JavaScript must adhere to the configuration in our `.eslintrc.js` file.
+All JavaScript must adhere to the configuration in our `eslint.config.js` file.
 - Use ES Modules (`import`/`export`) for all new JavaScript.
 - Avoid global scope pollution.
 - Write clear, self-documenting code. Add JSDoc comments for all public functions and complex logic.

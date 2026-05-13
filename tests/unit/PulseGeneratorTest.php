@@ -19,7 +19,8 @@ namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 
 use Starisian\Sparxstar\Sirus\core\PulseGenerator;
 use Starisian\Sparxstar\Sirus\core\SirusContext;
-use Starisian\Sparxstar\Sirus\dto\ContextPulse;
+use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
+use Starisian\Sparxstar\Infrastructure\Signing\ContextPulseSigningMaterial;
 
 /**
  * Unit tests for PulseGenerator::generate().
@@ -253,36 +254,74 @@ final class PulseGeneratorTest extends SirusTestCase
         $this->assertNotSame($pulse1->sig, $pulse2->sig);
     }
 
+    // ── PAM-002 restored fields ───────────────────────────────────────────────
+
+    /**
+     * pulse.behavior_flags is an array (defaults to [] until PAM-002-P2).
+     */
+    public function testPulseBehaviorFlagsIsArray(): void
+    {
+        $pulse = $this->generator->generate($this->makeContext());
+
+        $this->assertIsArray($pulse->behavior_flags);
+    }
+
+    /**
+     * pulse.geo_zone is a string (defaults to '' until PAM-002-P2).
+     */
+    public function testPulseGeoZoneIsString(): void
+    {
+        $pulse = $this->generator->generate($this->makeContext());
+
+        $this->assertIsString($pulse->geo_zone);
+    }
+
+    /**
+     * pulse.network_effective_type is a string (defaults to '' until PAM-002-P2).
+     */
+    public function testPulseNetworkEffectiveTypeIsString(): void
+    {
+        $pulse = $this->generator->generate($this->makeContext());
+
+        $this->assertIsString($pulse->network_effective_type);
+    }
+
+    /**
+     * pulse.session_duration is an int (defaults to 0 until PAM-002-P2).
+     */
+    public function testPulseSessionDurationIsInt(): void
+    {
+        $pulse = $this->generator->generate($this->makeContext());
+
+        $this->assertIsInt($pulse->session_duration);
+    }
+
+    /**
+     * toArray() includes all four PAM-002 restored fields.
+     */
+    public function testToArrayIncludesPam002Fields(): void
+    {
+        $arr = $this->generator->generate($this->makeContext())->toArray();
+
+        $this->assertArrayHasKey('behavior_flags', $arr);
+        $this->assertArrayHasKey('geo_zone', $arr);
+        $this->assertArrayHasKey('network_effective_type', $arr);
+        $this->assertArrayHasKey('session_duration', $arr);
+    }
+
     // ── Canonical string determinism ──────────────────────────────────────────
 
     /**
      * For a deterministic set of inputs the canonical string (and thus signature)
-     * must be reproducible. We verify by reconstructing the canonical format
-     * and computing the expected signature.
-     *
-     * Canonical format (spec):
-     *   pulse_id|context_id|device_id|session_id|site_id|network_id|trust_score|trust_level|issued_at|expires
-     * trust_score is formatted with number_format(x, 4, '.', '').
+     * must be reproducible. Verification is delegated to ContextPulseSigningMaterial::build()
+     * — the canonical source — rather than reconstructing the format by hand.
      */
     public function testCanonicalStringIsReproducible(): void
     {
         $context = $this->makeContext();
         $pulse   = $this->generator->generate($context);
 
-        // Reconstruct the canonical string using the same fields the generator used.
-        $canonical = implode('|', [
-            $pulse->pulse_id,
-            $pulse->context_id,
-            $pulse->device_id,
-            $pulse->session_id,
-            $pulse->site_id,
-            $pulse->network_id,
-            number_format($pulse->trust_score, 4, '.', ''),
-            $pulse->trust_level,
-            (string) $pulse->issued_at,
-            (string) $pulse->expires,
-        ]);
-
+        $canonical    = ContextPulseSigningMaterial::build($pulse);
         $expected_sig = hash_hmac('sha256', $canonical, self::TEST_SIGNING_KEY);
 
         $this->assertSame($expected_sig, $pulse->sig);
@@ -298,18 +337,7 @@ final class PulseGeneratorTest extends SirusTestCase
         $context = $this->makeContext(trust_score: 0.9);
         $pulse   = $this->generator->generate($context);
 
-        $canonical = implode('|', [
-            $pulse->pulse_id,
-            $pulse->context_id,
-            $pulse->device_id,
-            $pulse->session_id,
-            $pulse->site_id,
-            $pulse->network_id,
-            number_format($pulse->trust_score, 4, '.', ''),
-            $pulse->trust_level,
-            (string) $pulse->issued_at,
-            (string) $pulse->expires,
-        ]);
+        $canonical = ContextPulseSigningMaterial::build($pulse);
 
         // Canonical must contain '0.9000' not '0.9' or '0.9000000001'.
         $this->assertStringContainsString('0.9000', $canonical);
