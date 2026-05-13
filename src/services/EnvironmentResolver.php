@@ -127,13 +127,7 @@ final class EnvironmentResolver
      */
     public function getGeoZone(): string
     {
-        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $remote_addr = isset($_SERVER['REMOTE_ADDR'])
-            ? sanitize_text_field(wp_unslash((string) $_SERVER['REMOTE_ADDR']))
-            : '';
-        $ip = filter_var($remote_addr, FILTER_VALIDATE_IP) !== false ? $remote_addr : '';
-
-        $geo = apply_filters('sparxstar_env_geolocation_lookup', null, $ip);
+        $geo = apply_filters('sparxstar_env_geolocation_lookup', null, $this->getRemoteIpAddress());
         if (! is_array($geo) || $geo === []) {
             return 'unknown';
         }
@@ -155,6 +149,19 @@ final class EnvironmentResolver
         }
 
         return implode('_', $parts);
+    }
+
+    /**
+     * Returns the current request IP if present and valid, otherwise ''.
+     */
+    private function getRemoteIpAddress(): string
+    {
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $remote_addr = isset($_SERVER['REMOTE_ADDR'])
+            ? sanitize_text_field(wp_unslash((string) $_SERVER['REMOTE_ADDR']))
+            : '';
+
+        return filter_var($remote_addr, FILTER_VALIDATE_IP) !== false ? $remote_addr : '';
     }
 
     /**
