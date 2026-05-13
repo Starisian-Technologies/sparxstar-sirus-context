@@ -30,6 +30,12 @@ if (! defined('ABSPATH')) {
  */
 final class EnvironmentResolver
 {
+    /** @var array<int, string> */
+    private const GEO_COUNTRY_KEYS = [ 'country', 'countryCode', 'country_code' ];
+
+    /** @var array<int, string> */
+    private const GEO_REGION_KEYS = [ 'region', 'regionName' ];
+
     /**
      * Resolved environment data, keyed by environment field name.
      *
@@ -120,9 +126,9 @@ final class EnvironmentResolver
      *
      * Derived from geolocation provider data, normalized to lower snake-case:
      *   {country}_{region}
-     * Supported geolocation payload keys:
-     *   - country: country, countryCode, country_code
-     *   - region:  region, regionName
+     * Supported payloads:
+     * - Sirus GeoIP service (`country`, `region`)
+     * - Common provider aliases (`countryCode`, `country_code`, `regionName`)
      * Falls back to 'unknown' when geolocation data is unavailable.
      */
     public function getGeoZone(): string
@@ -132,8 +138,8 @@ final class EnvironmentResolver
             return 'unknown';
         }
 
-        $country = sanitize_text_field((string) ($geo['country'] ?? $geo['countryCode'] ?? $geo['country_code'] ?? ''));
-        $region  = sanitize_text_field((string) ($geo['region'] ?? $geo['regionName'] ?? ''));
+        $country = $this->extractGeoValue($geo, self::GEO_COUNTRY_KEYS);
+        $region  = $this->extractGeoValue($geo, self::GEO_REGION_KEYS);
         $parts   = [];
 
         if ($country !== '') {
@@ -161,6 +167,22 @@ final class EnvironmentResolver
             : '';
 
         return filter_var($remote_addr, FILTER_VALIDATE_IP) !== false ? $remote_addr : '';
+    }
+
+    /**
+     * @param array<string, mixed> $geo
+     * @param array<int, string> $keys
+     */
+    private function extractGeoValue(array $geo, array $keys): string
+    {
+        foreach ($keys as $key) {
+            $value = sanitize_text_field((string) ($geo[$key] ?? ''));
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return '';
     }
 
     /**

@@ -79,9 +79,8 @@ final class PulseGenerator
         $issued_at = $now > 0 ? $now : time();
         $expires   = $issued_at + $ttlSeconds;
         $behavior_flags = $this->deriveBehaviorFlags($context);
-        $environmentResolver = $this->environmentResolver;
-        $geo_zone            = $environmentResolver->getGeoZone();
-        $network_effective_type = $environmentResolver->getNetworkEffectiveType();
+        $geo_zone               = $this->environmentResolver->getGeoZone();
+        $network_effective_type = $this->environmentResolver->getNetworkEffectiveType();
         $session_duration = $this->resolveSessionDuration($context->issued_at, $issued_at);
 
         // Build a provisional pulse (sig is the empty string — excluded from the signing payload).
