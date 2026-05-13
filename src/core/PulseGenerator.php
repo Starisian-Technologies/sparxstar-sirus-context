@@ -31,9 +31,9 @@ final class PulseGenerator
     /** Delegated Infrastructure PulseGenerator instance. */
     private InfrastructurePulseGenerator $generator;
     /** Whether Infrastructure PulseGenerator availability has been checked. */
-    private static bool $isChecked = false;
+    private static bool $infrastructureChecked = false;
     /** Cached Infrastructure PulseGenerator availability result. */
-    private static bool $isAvailable = false;
+    private static bool $infrastructureAvailable = false;
 
     /**
      * Initializes the delegated Infrastructure PulseGenerator.
@@ -42,16 +42,18 @@ final class PulseGenerator
      */
     public function __construct()
     {
-        if (! self::$isChecked) {
-            self::$isAvailable = class_exists(InfrastructurePulseGenerator::class);
-            self::$isChecked   = true;
+        if (! self::$infrastructureChecked) {
+            self::$infrastructureAvailable = class_exists(InfrastructurePulseGenerator::class)
+                && method_exists(InfrastructurePulseGenerator::class, 'generate')
+                && defined(InfrastructurePulseGenerator::class . '::PULSE_TTL');
+            self::$infrastructureChecked = true;
         }
 
-        if (! self::$isAvailable) {
+        if (! self::$infrastructureAvailable) {
             throw new \RuntimeException(
                 '[Sirus] Infrastructure PulseGenerator is unavailable. '
-                . 'Install/update sparxstar-ouroboros-integrity to the release that includes PulseGenerator '
-                . '(this Sirus change is blocked on Ouroboros PR 1).'
+                . 'Install/update sparxstar-ouroboros-integrity to a version that exposes '
+                . 'PulseGenerator::PULSE_TTL and PulseGenerator::generate().'
             );
         }
 
