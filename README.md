@@ -43,7 +43,7 @@ The table below answers whether each component in the Sirus Context Engine Spec 
 | `ContextEngine` — `current()` accessor, CLI system context | `src/core/ContextEngine.php` | ✅ Implemented |
 | `SirusContext` DTO — primary output consumed by all downstream layers | `src/core/SirusContext.php` | ✅ Implemented |
 | `ContextPulse` DTO — signed pulse (never contains identity claims) | `src/dto/ContextPulse.php` | ✅ **Provisional** (see below) |
-| `PulseGenerator` — HMAC-SHA256 pulse signing | `src/core/PulseGenerator.php` | ✅ Implemented + tested |
+| `PulseGenerator` — HMAC-SHA256 pulse signing | `src/core/PulseGenerator.php` | ✅ Consumer facade (delegates to Ouroboros) |
 | `TrustEngine` — frozen trust score algorithm | `src/core/TrustEngine.php` | ✅ Implemented + tested |
 | `TrustResolver` — credential-level base score + drift/session deductions | `src/core/TrustResolver.php` | ✅ Implemented + tested |
 | `DeviceContinuity` — server-issued `device_id`, fingerprint, session recovery | `src/core/DeviceContinuity.php` | ✅ Implemented |
@@ -341,7 +341,7 @@ When the Ouroboros package ships, the following will be imported from it. Do not
 1. Place the plugin in `/wp-content/mu-plugins/` (mu-plugin — cannot be deactivated)
 2. Requires **WordPress 6.8+** and **PHP 8.2+**
 3. Loads automatically — no activation step
-4. Add `SIRUS_PULSE_SIGNING_KEY` to `wp-config.php` (required for `PulseGenerator`)
+4. Add `SIRUS_PULSE_SIGNING_KEY` to `wp-config.php` (required by Ouroboros PulseGenerator, consumed by Sirus)
 
 ---
 
