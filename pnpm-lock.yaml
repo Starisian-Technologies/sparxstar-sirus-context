@@ -14,58 +14,55 @@ overrides:
   serialize-javascript@<=7.0.2: '>=7.0.3'
   ajv@<6.14.0: '>=6.14.0'
 
-importers:
-
-  .:
-    devDependencies:
-      '@rollup/plugin-commonjs':
-        specifier: ^29.0.2
-        version: 29.0.2(rollup@4.60.1)
-      '@rollup/plugin-json':
-        specifier: ^6.1.0
-        version: 6.1.0(rollup@4.60.1)
-      '@rollup/plugin-node-resolve':
-        specifier: ^16.0.3
-        version: 16.0.3(rollup@4.60.1)
-      '@rollup/plugin-terser':
-        specifier: ^1.0.0
-        version: 1.0.0(rollup@4.60.1)
-      cssnano:
-        specifier: ^7.1.4
-        version: 7.1.4(postcss@8.5.10)
-      eslint:
-        specifier: ^9.39.4
-        version: 9.39.4
-      eslint-config-prettier:
-        specifier: ^10.1.8
-        version: 10.1.8(eslint@9.39.4)
-      eslint-plugin-import:
-        specifier: ^2.32.0
-        version: 2.32.0(eslint@9.39.4)
-      eslint-plugin-prettier:
-        specifier: ^5.5.5
-        version: 5.5.5(eslint-config-prettier@10.1.8)(eslint@9.39.4)(prettier@3.8.1)
-      globals:
-        specifier: ^16.5.0
-        version: 16.5.0
-      postcss:
-        specifier: ^8.5.10
-        version: 8.5.10
-      postcss-cli:
-        specifier: ^11.0.1
-        version: 11.0.1(postcss@8.5.10)
-      prettier:
-        specifier: ^3.8.1
-        version: 3.8.1
-      rollup:
-        specifier: ^4.60.1
-        version: 4.60.1
-      stylelint:
-        specifier: ^16.26.1
-        version: 16.26.1
-      stylelint-config-standard:
-        specifier: ^39.0.1
-        version: 39.0.1(stylelint@16.26.1)
+devDependencies:
+  '@rollup/plugin-commonjs':
+    specifier: ^29.0.2
+    version: 29.0.2(rollup@4.60.1)
+  '@rollup/plugin-json':
+    specifier: ^6.1.0
+    version: 6.1.0(rollup@4.60.1)
+  '@rollup/plugin-node-resolve':
+    specifier: ^16.0.3
+    version: 16.0.3(rollup@4.60.1)
+  '@rollup/plugin-terser':
+    specifier: ^1.0.0
+    version: 1.0.0(rollup@4.60.1)
+  cssnano:
+    specifier: ^7.1.4
+    version: 7.1.4(postcss@8.5.10)
+  eslint:
+    specifier: ^9.39.4
+    version: 9.39.4
+  eslint-config-prettier:
+    specifier: ^10.1.8
+    version: 10.1.8(eslint@9.39.4)
+  eslint-plugin-import:
+    specifier: ^2.32.0
+    version: 2.32.0(eslint@9.39.4)
+  eslint-plugin-prettier:
+    specifier: ^5.5.5
+    version: 5.5.5(eslint-config-prettier@10.1.8)(eslint@9.39.4)(prettier@3.8.1)
+  globals:
+    specifier: ^16.5.0
+    version: 16.5.0
+  postcss:
+    specifier: ^8.5.10
+    version: 8.5.10
+  postcss-cli:
+    specifier: ^11.0.1
+    version: 11.0.1(postcss@8.5.10)
+  prettier:
+    specifier: ^3.8.1
+    version: 3.8.1
+  rollup:
+    specifier: ^4.60.1
+    version: 4.60.1
+  stylelint:
+    specifier: ^16.26.1
+    version: 16.26.1
+  stylelint-config-standard:
+    specifier: ^39.0.1
+    version: 39.0.1(stylelint@16.26.1)
 
 packages:
 
