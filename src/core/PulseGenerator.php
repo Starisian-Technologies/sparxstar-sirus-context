@@ -41,8 +41,7 @@ final class PulseGenerator
         if (! class_exists(InfrastructurePulseGenerator::class)) {
             throw new \RuntimeException(
                 '[Sirus] Infrastructure PulseGenerator is unavailable. '
-                . 'Install/update sparxstar-ouroboros-integrity to a version that provides '
-                . InfrastructurePulseGenerator::class . '.'
+                . 'Install/update sparxstar-ouroboros-integrity to a version that provides PulseGenerator.'
             );
         }
 
