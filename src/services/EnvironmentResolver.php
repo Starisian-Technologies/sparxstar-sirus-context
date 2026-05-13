@@ -116,6 +116,44 @@ final class EnvironmentResolver
     }
 
     /**
+     * Returns the geographic trust zone identifier.
+     *
+     * Derived from geolocation provider data, normalized to lower snake-case:
+     *   {country}_{region}
+     * Falls back to 'unknown' when geolocation data is unavailable.
+     */
+    public function getGeoZone(): string
+    {
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $ip = isset($_SERVER['REMOTE_ADDR'])
+            ? sanitize_text_field(wp_unslash((string) $_SERVER['REMOTE_ADDR']))
+            : '';
+
+        $geo = apply_filters('sparxstar_env_geolocation_lookup', null, $ip);
+        if (! is_array($geo) || $geo === []) {
+            return 'unknown';
+        }
+
+        $country = sanitize_text_field((string) ($geo['country'] ?? $geo['countryCode'] ?? $geo['country_code'] ?? ''));
+        $region  = sanitize_text_field((string) ($geo['region'] ?? $geo['regionName'] ?? ''));
+        $parts   = [];
+
+        if ($country !== '') {
+            $parts[] = strtolower(str_replace([' ', '-'], '_', $country));
+        }
+
+        if ($region !== '') {
+            $parts[] = strtolower(str_replace([' ', '-'], '_', $region));
+        }
+
+        if ($parts === []) {
+            return 'unknown';
+        }
+
+        return implode('_', $parts);
+    }
+
+    /**
      * Resolves environment using Matomo DeviceDetector.
      *
      * @param string $ua Raw User-Agent string.
@@ -229,6 +267,10 @@ final class EnvironmentResolver
      */
     private function resolveNetworkType(): string
     {
+        if (PHP_SAPI === 'cli') {
+            return 'cli';
+        }
+
         /**
          * Filter: sparxstar_env_network_effective_type
          * Allow overriding the network type from an external signal or test.

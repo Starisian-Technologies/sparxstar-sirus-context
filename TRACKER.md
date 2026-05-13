@@ -38,7 +38,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | `TrustEngine` | `src/core/TrustEngine.php` | ✅ | S-01/S-02 | Frozen algorithm; 18 unit tests in `TrustEngineTest` |
 | `TrustResolver` | `src/core/TrustResolver.php` | ✅ | S-01/S-02 | Credential-level base + drift/session deductions; 15 unit tests in `TrustResolverTest` |
 | `StepUpPolicy` | `src/core/StepUpPolicy.php` | ✅ | S-01/S-02 | Frozen policy; `requiresStepUp()` + `TRUST_LEVEL_STEP_UP_REQUIRED` pre-flag check; 17 unit tests |
-| `PulseGenerator` | `src/core/PulseGenerator.php` | ✅ | S-01/S-02 | HMAC-SHA256 only; 20 unit tests in `PulseGeneratorTest`; `$now`/`$ttlSeconds` explicit params |
+| `PulseGenerator` | `src/core/PulseGenerator.php` | ✅ | S-01/S-02 | HMAC-SHA256 only; PAM-002-P2 fields wired (`behavior_flags`, `geo_zone`, `network_effective_type`, `session_duration`); 20 unit tests in `PulseGeneratorTest`; `$now`/`$ttlSeconds` explicit params |
 
 ### Device and Identity
 
@@ -261,4 +261,4 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 
 ---
 
-*Last updated: 2026-05-02 | Spec version: Sirus Context Engine Spec v3.0*
+*Last updated: 2026-05-13 | Spec version: Sirus Context Engine Spec v3.0*

@@ -29,6 +29,7 @@ if (! defined('ABSPATH')) {
 
 use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
 use Starisian\Sparxstar\Infrastructure\Signing\ContextPulseSigningMaterial;
+use Starisian\Sparxstar\Sirus\services\EnvironmentResolver;
 
 /**
  * Issues signed ContextPulse instances from a resolved SirusContext.
@@ -68,20 +69,15 @@ final class PulseGenerator
         $pulse_id  = wp_generate_uuid4();
         $issued_at = $now > 0 ? $now : time();
         $expires   = $issued_at + $ttlSeconds;
+        $behavior_flags = $this->deriveBehaviorFlags($context);
+        $environment    = new EnvironmentResolver();
+        $geo_zone       = $environment->getGeoZone();
+        $network_effective_type = $environment->getNetworkEffectiveType();
+        $session_duration = $this->resolveSessionDuration($context->issued_at, $issued_at);
 
         // Build a provisional pulse (sig is the empty string — excluded from the signing payload).
         // ContextPulseSigningMaterial::build() is the canonical source for the format;
         // Sirus must not maintain a local copy of the signing string construction.
-        //
-        // TODO(PAM-002-P2): The four PAM-002 canonical fields below use deterministic empty
-        // defaults and MUST be replaced with real Sirus-derived values before this PR is
-        // considered architecturally complete. They are required by Helios and Mēh₁n̥s and
-        // are NOT decorative fields.
-        //   behavior_flags         — derived from SirusContext trust signals
-        //   geo_zone               — derived from EnvironmentResolver / geolocation
-        //   network_effective_type — derived from EnvironmentResolver network data
-        //   session_duration       — derived from session start timestamp vs issued_at
-        // Track in: PAM-002-P2 (wire canonical pulse fields from real SirusContext values).
         $provisional = new ContextPulse(
             pulse_id:               $pulse_id,
             context_id:             $context->context_id,
@@ -91,10 +87,10 @@ final class PulseGenerator
             network_id:             $context->network_id,
             trust_score:            $context->trust_score,
             trust_level:            $context->trust_level,
-            behavior_flags:         [],   // TODO(PAM-002-P2): wire from SirusContext.
-            geo_zone:               '',   // TODO(PAM-002-P2): wire from EnvironmentResolver.
-            network_effective_type: '',   // TODO(PAM-002-P2): wire from EnvironmentResolver.
-            session_duration:       0,    // TODO(PAM-002-P2): wire from session start timestamp.
+            behavior_flags:         $behavior_flags,
+            geo_zone:               $geo_zone,
+            network_effective_type: $network_effective_type,
+            session_duration:       $session_duration,
             issued_at:              $issued_at,
             expires:                $expires,
             sig:                    '',
@@ -102,8 +98,7 @@ final class PulseGenerator
 
         $sig = hash_hmac('sha256', ContextPulseSigningMaterial::build($provisional), $key);
 
-        // Return the final signed pulse. The four PAM-002 fields carry the same empty defaults
-        // as the provisional pulse above — see TODO(PAM-002-P2) block above for the follow-up.
+        // Return the final signed pulse with the same canonical fields as the provisional pulse.
         return new ContextPulse(
             pulse_id:               $pulse_id,
             context_id:             $context->context_id,
@@ -113,14 +108,50 @@ final class PulseGenerator
             network_id:             $context->network_id,
             trust_score:            $context->trust_score,
             trust_level:            $context->trust_level,
-            behavior_flags:         [],   // TODO(PAM-002-P2): wire from SirusContext.
-            geo_zone:               '',   // TODO(PAM-002-P2): wire from EnvironmentResolver.
-            network_effective_type: '',   // TODO(PAM-002-P2): wire from EnvironmentResolver.
-            session_duration:       0,    // TODO(PAM-002-P2): wire from session start timestamp.
+            behavior_flags:         $behavior_flags,
+            geo_zone:               $geo_zone,
+            network_effective_type: $network_effective_type,
+            session_duration:       $session_duration,
             issued_at:              $issued_at,
             expires:                $expires,
             sig:                    $sig,
         );
+    }
+
+    /**
+     * Derives pulse behavior flags from context trust signals.
+     *
+     * @return array<int, string>
+     */
+    private function deriveBehaviorFlags(SirusContext $context): array
+    {
+        $flags = [];
+
+        if ($context->trust_level === StepUpPolicy::TRUST_LEVEL_STEP_UP_REQUIRED) {
+            $flags[] = 'step_up_required';
+        } elseif ($context->trust_level === TrustEngine::LEVEL_ELEVATED) {
+            $flags[] = 'trust_level_elevated';
+        } elseif ($context->trust_level === TrustEngine::LEVEL_CRITICAL) {
+            $flags[] = 'trust_level_critical';
+        }
+
+        if ($context->trust_score < 0.7) {
+            $flags[] = 'low_trust_score';
+        }
+
+        return array_values(array_unique($flags));
+    }
+
+    /**
+     * Resolves session duration from session start and pulse issue timestamps.
+     */
+    private function resolveSessionDuration(int $session_start, int $issued_at): int
+    {
+        if ($session_start <= 0) {
+            return 0;
+        }
+
+        return max(0, $issued_at - $session_start);
     }
 
     /**
