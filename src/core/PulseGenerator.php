@@ -29,19 +29,37 @@ final class PulseGenerator
     public const PULSE_TTL = InfrastructurePulseGenerator::PULSE_TTL;
 
     /** Delegated Infrastructure PulseGenerator instance. */
-    private InfrastructurePulseGenerator $generator;
+    private ?InfrastructurePulseGenerator $generator = null;
     /** Whether Infrastructure PulseGenerator availability has been checked. */
     private static bool $infrastructureChecked = false;
     /** Cached Infrastructure PulseGenerator availability result. */
     private static bool $infrastructureAvailable = false;
 
     /**
-     * Initializes the delegated Infrastructure PulseGenerator.
+     * Generates a signed ContextPulse from the given SirusContext by delegation.
      *
-     * @throws \RuntimeException If the Infrastructure PulseGenerator is unavailable.
+     * @param SirusContext $context    The fully resolved context to pulse.
+     * @param int          $now        Unix timestamp to use as issued_at. Pass 0 (default) to use time().
+     * @param int          $ttlSeconds Pulse TTL in seconds. Defaults to PULSE_TTL (60).
+     * @return ContextPulse The signed pulse, ready for transmission to Helios.
+     * @throws \RuntimeException If the Infrastructure PulseGenerator is not available.
      */
-    public function __construct()
+    public function generate(SirusContext $context, int $now = 0, int $ttlSeconds = self::PULSE_TTL): ContextPulse
     {
+        return $this->resolveGenerator()->generate($context, $now, $ttlSeconds);
+    }
+
+    /**
+     * Resolves and memoizes the delegated Infrastructure PulseGenerator.
+     *
+     * @throws \RuntimeException If the delegated generator cannot be used.
+     */
+    private function resolveGenerator(): InfrastructurePulseGenerator
+    {
+        if ($this->generator instanceof InfrastructurePulseGenerator) {
+            return $this->generator;
+        }
+
         if (! self::$infrastructureChecked) {
             self::$infrastructureAvailable = class_exists(InfrastructurePulseGenerator::class)
                 && method_exists(InfrastructurePulseGenerator::class, 'generate')
@@ -57,20 +75,17 @@ final class PulseGenerator
             );
         }
 
-        $this->generator = new InfrastructurePulseGenerator();
-    }
+        try {
+            $this->generator = new InfrastructurePulseGenerator();
+        } catch (\Throwable $e) {
+            throw new \RuntimeException(
+                '[Sirus] Failed to initialize delegated Infrastructure PulseGenerator. '
+                . 'Ensure SIRUS_PULSE_SIGNING_KEY is configured and valid.',
+                0,
+                $e
+            );
+        }
 
-    /**
-     * Generates a signed ContextPulse from the given SirusContext by delegation.
-     *
-     * @param SirusContext $context    The fully resolved context to pulse.
-     * @param int          $now        Unix timestamp to use as issued_at. Pass 0 (default) to use time().
-     * @param int          $ttlSeconds Pulse TTL in seconds. Defaults to PULSE_TTL (60).
-     * @return ContextPulse The signed pulse, ready for transmission to Helios.
-     * @throws \RuntimeException If the Infrastructure PulseGenerator is not available.
-     */
-    public function generate(SirusContext $context, int $now = 0, int $ttlSeconds = self::PULSE_TTL): ContextPulse
-    {
-        return $this->generator->generate($context, $now, $ttlSeconds);
+        return $this->generator;
     }
 }
