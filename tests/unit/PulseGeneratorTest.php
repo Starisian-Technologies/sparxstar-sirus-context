@@ -301,6 +301,7 @@ final class PulseGeneratorTest extends SirusTestCase
      */
     public function testPulseSessionDurationIsDerivedFromSessionStart(): void
     {
+        // Fixed timestamp keeps this assertion deterministic across environments.
         $now   = 1_700_000_000;
         $pulse = $this->generator->generate(
             $this->makeContext(issued_at: $now - 30),

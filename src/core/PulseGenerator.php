@@ -46,6 +46,7 @@ final class PulseGenerator
 
     /** Minimum required key length (bytes). */
     private const MIN_KEY_LENGTH = 32;
+    private const LOW_TRUST_SCORE_THRESHOLD = 0.7;
 
     private readonly EnvironmentResolver $environmentResolver;
 
@@ -78,9 +79,9 @@ final class PulseGenerator
         $issued_at = $now > 0 ? $now : time();
         $expires   = $issued_at + $ttlSeconds;
         $behavior_flags = $this->deriveBehaviorFlags($context);
-        $environment    = $this->environmentResolver;
-        $geo_zone       = $environment->getGeoZone();
-        $network_effective_type = $environment->getNetworkEffectiveType();
+        $environmentResolver = $this->environmentResolver;
+        $geo_zone            = $environmentResolver->getGeoZone();
+        $network_effective_type = $environmentResolver->getNetworkEffectiveType();
         $session_duration = $this->resolveSessionDuration($context->issued_at, $issued_at);
 
         // Build a provisional pulse (sig is the empty string — excluded from the signing payload).
@@ -143,7 +144,7 @@ final class PulseGenerator
             $flags[] = 'trust_level_critical';
         }
 
-        if ($context->trust_score < 0.7) {
+        if ($context->trust_score < self::LOW_TRUST_SCORE_THRESHOLD) {
             $flags[] = 'low_trust_score';
         }
 
