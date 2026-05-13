@@ -120,14 +120,18 @@ final class EnvironmentResolver
      *
      * Derived from geolocation provider data, normalized to lower snake-case:
      *   {country}_{region}
+     * Supported geolocation payload keys:
+     *   - country: country, countryCode, country_code
+     *   - region:  region, regionName
      * Falls back to 'unknown' when geolocation data is unavailable.
      */
     public function getGeoZone(): string
     {
         // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $ip = isset($_SERVER['REMOTE_ADDR'])
+        $remote_addr = isset($_SERVER['REMOTE_ADDR'])
             ? sanitize_text_field(wp_unslash((string) $_SERVER['REMOTE_ADDR']))
             : '';
+        $ip = filter_var($remote_addr, FILTER_VALIDATE_IP) !== false ? $remote_addr : '';
 
         $geo = apply_filters('sparxstar_env_geolocation_lookup', null, $ip);
         if (! is_array($geo) || $geo === []) {

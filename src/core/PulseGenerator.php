@@ -47,6 +47,11 @@ final class PulseGenerator
     /** Minimum required key length (bytes). */
     private const MIN_KEY_LENGTH = 32;
 
+    public function __construct(
+        private readonly ?EnvironmentResolver $environmentResolver = null
+    ) {
+    }
+
     /**
      * Generates a signed ContextPulse from the given SirusContext.
      *
@@ -70,7 +75,7 @@ final class PulseGenerator
         $issued_at = $now > 0 ? $now : time();
         $expires   = $issued_at + $ttlSeconds;
         $behavior_flags = $this->deriveBehaviorFlags($context);
-        $environment    = new EnvironmentResolver();
+        $environment    = $this->environmentResolver ?? new EnvironmentResolver();
         $geo_zone       = $environment->getGeoZone();
         $network_effective_type = $environment->getNetworkEffectiveType();
         $session_duration = $this->resolveSessionDuration($context->issued_at, $issued_at);
