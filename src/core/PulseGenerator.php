@@ -26,7 +26,7 @@ use Starisian\Sparxstar\Infrastructure\Signing\PulseGenerator as InfrastructureP
 final class PulseGenerator
 {
     /** Default pulse TTL in seconds. */
-    public const PULSE_TTL = InfrastructurePulseGenerator::PULSE_TTL;
+    public const PULSE_TTL = 60;
 
     /** Delegated Infrastructure PulseGenerator instance. */
     private ?InfrastructurePulseGenerator $generator = null;
