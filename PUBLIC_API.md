@@ -167,9 +167,8 @@ PulseGenerator::generate(SirusContext $context, int $now = 0, int $ttlSeconds = 
 ```
 
 **Requirements:**
-- Sirus delegates generation/signing to `Starisian\Sparxstar\Infrastructure\Signing\PulseGenerator` from `sparxstar-ouroboros-integrity`.
-- PHP constant `SIRUS_PULSE_SIGNING_KEY` must be defined and ≥ 32 bytes (validated by the delegated generator).
-- Signing algorithm: HMAC-SHA256 (implemented in Ouroboros generator).
+- PHP constant `SIRUS_PULSE_SIGNING_KEY` must be defined and ≥ 32 bytes. Throws `\RuntimeException` otherwise.
+- Signing algorithm: HMAC-SHA256.
 - `ContextPulse` NEVER contains `identity_id`.
 - `$now = 0` means use `time()`. Pass an explicit timestamp for deterministic testing.
 - `$ttlSeconds` defaults to `PULSE_TTL` (60). Callers that resolve TTL from governance context (sovereign window, low-connectivity, etc.) must pass the correct value — `PulseGenerator` is policy-agnostic and does not read TTL from SirusContext.
