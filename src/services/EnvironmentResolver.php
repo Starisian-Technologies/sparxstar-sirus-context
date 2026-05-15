@@ -45,6 +45,8 @@ final class EnvironmentResolver
 
     /**
      * Memoized geographic trust zone for the current request.
+     *
+     * @var ?string
      */
     private ?string $geoZone = null;
 
