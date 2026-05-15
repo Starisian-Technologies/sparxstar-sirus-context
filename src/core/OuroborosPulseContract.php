@@ -91,7 +91,9 @@ final class OuroborosPulseContract
         $platform_class = 'Starisian\\Sparxstar\\Infrastructure\\Utils\\Platform';
 
         if (! class_exists($platform_class)) {
-            throw new \RuntimeException('[Sirus] Ouroboros Platform class is unavailable.');
+            throw new \RuntimeException(
+                '[Sirus] Ouroboros Platform class is unavailable: expected ' . $platform_class . '.'
+            );
         }
 
         return $platform_class;
@@ -119,6 +121,10 @@ final class OuroborosPulseContract
             }
         }
 
-        throw new \RuntimeException('[Sirus] Ouroboros TrustLevelPrimitive enum is unavailable.');
+        throw new \RuntimeException(
+            '[Sirus] Ouroboros TrustLevelPrimitive enum is unavailable; tried: '
+            . implode(', ', $candidates)
+            . '.'
+        );
     }
 }
