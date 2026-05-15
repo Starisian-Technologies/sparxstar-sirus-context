@@ -114,7 +114,7 @@ jobs:
               continue-on-error: true
 
             - name: Install Playwright
-              run: pnpm exec playwright install --with-deps chromium || echo "⚠️ Playwright not configured"
+              run: pnpm exec playwright install --with-deps chromium
 
             - name: E2E Tests (Offline & Accessibility)
               run: |
