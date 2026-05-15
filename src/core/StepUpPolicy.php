@@ -130,6 +130,10 @@ final class StepUpPolicy
             return (string) $trust_level->value === self::TRUST_LEVEL_STEP_UP_REQUIRED;
         }
 
-        return (string) $trust_level === self::TRUST_LEVEL_STEP_UP_REQUIRED;
+        if (is_string($trust_level)) {
+            return $trust_level === self::TRUST_LEVEL_STEP_UP_REQUIRED;
+        }
+
+        return false;
     }
 }
