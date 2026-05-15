@@ -317,7 +317,7 @@ final class PulseGeneratorTest extends SirusTestCase
     /**
      * The pulse object includes all four PAM-002 restored fields.
      */
-    public function testToArrayIncludesPam002Fields(): void
+    public function testPulseObjectIncludesPam002Fields(): void
     {
         $arr = get_object_vars($this->generator->generate($this->makeContext()));
 
