@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 
 use Starisian\Sparxstar\Sirus\core\PulseGenerator;
+use Starisian\Sparxstar\Sirus\core\OuroborosPulseContract;
 use Starisian\Sparxstar\Sirus\core\SirusContext;
 use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
 use Starisian\Sparxstar\Infrastructure\Utils\ContextPulseSigningMaterial;
@@ -139,7 +140,7 @@ final class PulseGeneratorTest extends SirusTestCase
         $context = $this->makeContext();
         $pulse   = $this->generator->generate($context);
 
-        $this->assertSame($context->trust_level, self::pulseTrustLevelValue($pulse->trust_level));
+        $this->assertSame($context->trust_level, OuroborosPulseContract::trustLevelValue($pulse->trust_level));
     }
 
     // ── ContextPulse NEVER contains identity claims ───────────────────────────
@@ -448,15 +449,4 @@ final class PulseGeneratorTest extends SirusTestCase
         );
     }
 
-    /**
-     * Extracts the scalar wire value from a pulse trust level primitive.
-     */
-    private static function pulseTrustLevelValue(mixed $trust_level): string
-    {
-        if ($trust_level instanceof \BackedEnum) {
-            return (string) $trust_level->value;
-        }
-
-        return (string) $trust_level;
-    }
 }

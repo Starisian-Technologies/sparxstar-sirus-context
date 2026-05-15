@@ -83,7 +83,7 @@ final class PulseGenerator
         // ContextPulseSigningMaterial::build() is the canonical source for the format;
         // Sirus must not maintain a local copy of the signing string construction.
         $provisional = new ContextPulse(
-            pulse_version:          self::resolvePulseVersion(),
+            pulse_version:          OuroborosPulseContract::resolvePulseVersion(),
             pulse_id:               $pulse_id,
             context_id:             $context->context_id,
             device_id:              $context->device_id,
@@ -91,7 +91,7 @@ final class PulseGenerator
             site_id:                $context->site_id,
             network_id:             $context->network_id,
             trust_score:            $context->trust_score,
-            trust_level:            self::resolvePulseTrustLevel($context->trust_level),
+            trust_level:            OuroborosPulseContract::resolveTrustLevelPrimitive($context->trust_level),
             behavior_flags:         $behavior_flags,
             geo_zone:               $geo_zone,
             network_effective_type: $network_effective_type,
@@ -105,7 +105,7 @@ final class PulseGenerator
 
         // Return the final signed pulse with the same canonical fields as the provisional pulse.
         return new ContextPulse(
-            pulse_version:          self::resolvePulseVersion(),
+            pulse_version:          OuroborosPulseContract::resolvePulseVersion(),
             pulse_id:               $pulse_id,
             context_id:             $context->context_id,
             device_id:              $context->device_id,
@@ -113,7 +113,7 @@ final class PulseGenerator
             site_id:                $context->site_id,
             network_id:             $context->network_id,
             trust_score:            $context->trust_score,
-            trust_level:            self::resolvePulseTrustLevel($context->trust_level),
+            trust_level:            OuroborosPulseContract::resolveTrustLevelPrimitive($context->trust_level),
             behavior_flags:         $behavior_flags,
             geo_zone:               $geo_zone,
             network_effective_type: $network_effective_type,
@@ -158,76 +158,6 @@ final class PulseGenerator
     }
 
     /**
-     * Resolves the current platform pulse version from Ouroboros.
-     *
-     * @return int|string
-     */
-    private static function resolvePulseVersion(): int|string
-    {
-        $platform_class = self::resolvePlatformClass();
-
-        /** @var int|string $pulse_version */
-        $pulse_version = $platform_class::PULSE_VERSION_CURRENT;
-
-        return $pulse_version;
-    }
-
-    /**
-     * Resolves the minimum signing key length from Ouroboros.
-     */
-    private static function resolveMinimumSigningKeyBytes(): int
-    {
-        $platform_class = self::resolvePlatformClass();
-
-        return (int) $platform_class::PULSE_MIN_SIGNING_KEY_BYTES;
-    }
-
-    /**
-     * Resolves the canonical Ouroboros Platform class.
-     *
-     * @return class-string
-     */
-    private static function resolvePlatformClass(): string
-    {
-        $platform_class = 'Starisian\\Sparxstar\\Infrastructure\\Utils\\Platform';
-
-        if (! class_exists($platform_class)) {
-            throw new \RuntimeException('[Sirus] PulseGenerator: Ouroboros Platform class is unavailable.');
-        }
-
-        return $platform_class;
-    }
-
-    /**
-     * Converts a Sirus trust level string to the canonical Ouroboros primitive.
-     */
-    private static function resolvePulseTrustLevel(string $trust_level): \BackedEnum
-    {
-        $candidates = [
-            'Starisian\\Sparxstar\\Infrastructure\\DTOs\\TrustLevelPrimitive',
-            'Starisian\\Sparxstar\\Infrastructure\\Primitives\\TrustLevelPrimitive',
-        ];
-
-        foreach ($candidates as $enum_class) {
-            if (! enum_exists($enum_class) || ! is_subclass_of($enum_class, \BackedEnum::class, true)) {
-                continue;
-            }
-
-            try {
-                /** @var \BackedEnum $primitive */
-                $primitive = $enum_class::from($trust_level);
-                return $primitive;
-            } catch (\ValueError) {
-                continue;
-            }
-        }
-
-        throw new \RuntimeException(
-            '[Sirus] PulseGenerator: Unable to resolve TrustLevelPrimitive for trust level "' . $trust_level . '".'
-        );
-    }
-
-    /**
      * Resolves the HMAC signing key from the SIRUS_PULSE_SIGNING_KEY constant.
      *
      * @return string The signing key.
@@ -244,7 +174,7 @@ final class PulseGenerator
 
         $key = (string) constant('SIRUS_PULSE_SIGNING_KEY');
 
-        $minimum_key_length = self::resolveMinimumSigningKeyBytes();
+        $minimum_key_length = OuroborosPulseContract::resolveMinimumSigningKeyBytes();
 
         if (strlen($key) < $minimum_key_length) {
             throw new \RuntimeException(
