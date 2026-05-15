@@ -22,7 +22,9 @@ final class OuroborosPulseContract
     /**
      * Resolves the current platform pulse version from Ouroboros.
      *
-     * @return int|string
+     * @return int|string Int for current numeric platform versions; string retained for
+     *                    compatibility with any upstream rollout builds that expose a
+     *                    string-backed version constant.
      */
     public static function resolvePulseVersion(): int|string
     {
@@ -104,8 +106,8 @@ final class OuroborosPulseContract
      */
     private static function resolveTrustLevelPrimitiveClass(): string
     {
-        // TODO(PAM-003): Remove the legacy Primitives fallback after all upstream
-        // installs expose TrustLevelPrimitive from Infrastructure\DTOs.
+        // TODO(PAM-003): Remove the legacy Primitives fallback once every supported
+        // environment exposes TrustLevelPrimitive only from Infrastructure\DTOs.
         $candidates = [
             'Starisian\\Sparxstar\\Infrastructure\\DTOs\\TrustLevelPrimitive',
             'Starisian\\Sparxstar\\Infrastructure\\Primitives\\TrustLevelPrimitive',

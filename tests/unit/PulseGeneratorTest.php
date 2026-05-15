@@ -143,6 +143,16 @@ final class PulseGeneratorTest extends SirusTestCase
         $this->assertSame($context->trust_level, OuroborosPulseContract::trustLevelValue($pulse->trust_level));
     }
 
+    /**
+     * Ouroboros trust level conversion round-trips the scalar wire value.
+     */
+    public function testTrustLevelPrimitiveRoundTripsScalarValue(): void
+    {
+        $primitive = OuroborosPulseContract::resolveTrustLevelPrimitive('NORMAL');
+
+        $this->assertSame('NORMAL', OuroborosPulseContract::trustLevelValue($primitive));
+    }
+
     // ── ContextPulse NEVER contains identity claims ───────────────────────────
 
     /**
@@ -423,6 +433,7 @@ final class PulseGeneratorTest extends SirusTestCase
     public function testGenerateThrowsForUnknownTrustLevel(): void
     {
         $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('NOT_A_TRUST_LEVEL');
 
         $this->generator->generate($this->makeContext(trust_level: 'NOT_A_TRUST_LEVEL'));
     }
