@@ -121,13 +121,14 @@ final class StepUpPolicy
      * Returns true when pulse trust_level indicates pre-flagged step-up.
      *
      * Supports both legacy string trust levels and enum-backed trust levels.
+     * Any unexpected non-string, non-enum value fails closed.
      */
     private function isStepUpRequiredTrustLevel(ContextPulse $pulse): bool
     {
         $trust_level = $pulse->trust_level;
 
         if ($trust_level instanceof BackedEnum) {
-            return (string) $trust_level->value === self::TRUST_LEVEL_STEP_UP_REQUIRED;
+            return $trust_level->value === self::TRUST_LEVEL_STEP_UP_REQUIRED;
         }
 
         if (is_string($trust_level)) {
