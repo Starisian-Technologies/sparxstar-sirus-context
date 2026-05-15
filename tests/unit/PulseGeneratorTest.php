@@ -382,17 +382,19 @@ final class PulseGeneratorTest extends SirusTestCase
     // ── Key validation ────────────────────────────────────────────────────────
 
     /**
-     * The signing key minimum length remains 32 bytes via the canonical Ouroboros Platform constant.
-     * This test documents the floor indirectly without reaching into private implementation details.
+     * The signing key must satisfy the current Ouroboros minimum length requirement.
+     * This test documents the contract floor without reaching into private implementation details.
      *
      * Full "too short key throws" and "key not defined throws" tests cannot be exercised
      * once SIRUS_PULSE_SIGNING_KEY is defined. They are verified by code review of the
      * resolveSigningKey() implementation.
      */
-    public function testSigningKeyMinLengthIs32(): void
+    public function testSigningKeyMeetsCurrentOuroborosMinimumLength(): void
     {
-        // The constant is defined at test boot; its length must be >= 32.
-        $this->assertGreaterThanOrEqual(32, strlen(constant('SIRUS_PULSE_SIGNING_KEY')));
+        $this->assertGreaterThanOrEqual(
+            OuroborosPulseContract::resolveMinimumSigningKeyBytes(),
+            strlen(constant('SIRUS_PULSE_SIGNING_KEY'))
+        );
     }
 
     /**

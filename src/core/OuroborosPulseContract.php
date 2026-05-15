@@ -104,7 +104,8 @@ final class OuroborosPulseContract
      */
     private static function resolveTrustLevelPrimitiveClass(): string
     {
-        // TODO(PAM-003): Remove the legacy fallback once all upstream installs expose the DTOs namespace.
+        // TODO(PAM-003): Remove the legacy Primitives fallback after all upstream
+        // installs expose TrustLevelPrimitive from Infrastructure\DTOs.
         $candidates = [
             'Starisian\\Sparxstar\\Infrastructure\\DTOs\\TrustLevelPrimitive',
             'Starisian\\Sparxstar\\Infrastructure\\Primitives\\TrustLevelPrimitive',
