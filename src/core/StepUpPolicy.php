@@ -70,7 +70,7 @@ final class StepUpPolicy
     public function requiresStepUp(ContextPulse $pulse, ResourceSensitivity $level): bool
     {
         // Pre-flagged step-up: pulse trust_level already signals step-up required.
-        if ($pulse->trust_level === self::TRUST_LEVEL_STEP_UP_REQUIRED) {
+        if (self::pulseTrustLevelValue($pulse->trust_level) === self::TRUST_LEVEL_STEP_UP_REQUIRED) {
             return true;
         }
 
@@ -101,7 +101,7 @@ final class StepUpPolicy
     public function getRequiredLevel(ContextPulse $pulse, ResourceSensitivity $level): ?ResourceSensitivity
     {
         // Pre-flagged step-up: enforce a LEVEL_3 challenge level for safety.
-        if ($pulse->trust_level === self::TRUST_LEVEL_STEP_UP_REQUIRED) {
+        if (self::pulseTrustLevelValue($pulse->trust_level) === self::TRUST_LEVEL_STEP_UP_REQUIRED) {
             return ResourceSensitivity::LEVEL_3;
         }
 
@@ -114,5 +114,17 @@ final class StepUpPolicy
         }
 
         return null;
+    }
+
+    /**
+     * Extracts the scalar wire value from the pulse trust level primitive.
+     */
+    private static function pulseTrustLevelValue(mixed $trust_level): string
+    {
+        if ($trust_level instanceof \BackedEnum) {
+            return (string) $trust_level->value;
+        }
+
+        return (string) $trust_level;
     }
 }

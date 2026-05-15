@@ -259,6 +259,7 @@ final class StepUpPolicyTest extends SirusTestCase
         $now = time();
 
         return new ContextPulse(
+            pulse_version:          self::resolvePulseVersion(),
             pulse_id:               'pulse-test-id',
             context_id:             'ctx-step-up-test',
             device_id:              'dev-step-up-test',
@@ -266,7 +267,7 @@ final class StepUpPolicyTest extends SirusTestCase
             site_id:                '1',
             network_id:             '1',
             trust_score:            $trust_score,
-            trust_level:            $trust_level,
+            trust_level:            self::resolveTrustLevelPrimitive($trust_level),
             behavior_flags:         [],
             geo_zone:               '',
             network_effective_type: '',
@@ -274,6 +275,54 @@ final class StepUpPolicyTest extends SirusTestCase
             issued_at:              $now,
             expires:                $now + 60,
             sig:                    str_repeat('a', 64),
+        );
+    }
+
+    /**
+     * Resolves the current platform pulse version from Ouroboros.
+     *
+     * @return int|string
+     */
+    private static function resolvePulseVersion(): int|string
+    {
+        $platform_class = 'Starisian\\Sparxstar\\Infrastructure\\Utils\\Platform';
+
+        if (! class_exists($platform_class)) {
+            throw new \RuntimeException('[Sirus Test] Ouroboros Platform class is unavailable.');
+        }
+
+        /** @var int|string $pulse_version */
+        $pulse_version = $platform_class::PULSE_VERSION_CURRENT;
+
+        return $pulse_version;
+    }
+
+    /**
+     * Resolves a TrustLevelPrimitive instance from its scalar wire value.
+     */
+    private static function resolveTrustLevelPrimitive(string $trust_level): \BackedEnum
+    {
+        $candidates = [
+            'Starisian\\Sparxstar\\Infrastructure\\DTOs\\TrustLevelPrimitive',
+            'Starisian\\Sparxstar\\Infrastructure\\Primitives\\TrustLevelPrimitive',
+        ];
+
+        foreach ($candidates as $enum_class) {
+            if (! enum_exists($enum_class) || ! is_subclass_of($enum_class, \BackedEnum::class, true)) {
+                continue;
+            }
+
+            try {
+                /** @var \BackedEnum $primitive */
+                $primitive = $enum_class::from($trust_level);
+                return $primitive;
+            } catch (\ValueError) {
+                continue;
+            }
+        }
+
+        throw new \RuntimeException(
+            '[Sirus Test] Unable to resolve TrustLevelPrimitive for trust level "' . $trust_level . '".'
         );
     }
 }
