@@ -17,10 +17,11 @@ declare(strict_types=1);
 
 namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 
+use Starisian\Sparxstar\Infrastructure\Constants\Platform;
 use Starisian\Sparxstar\Sirus\core\PulseGenerator;
-use Starisian\Sparxstar\Sirus\core\OuroborosPulseContract;
 use Starisian\Sparxstar\Sirus\core\SirusContext;
 use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
+use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
 use Starisian\Sparxstar\Infrastructure\Utils\ContextPulseSigningMaterial;
 
 /**
@@ -140,7 +141,7 @@ final class PulseGeneratorTest extends SirusTestCase
         $context = $this->makeContext();
         $pulse   = $this->generator->generate($context);
 
-        $this->assertSame($context->trust_level, OuroborosPulseContract::trustLevelValue($pulse->trust_level));
+        $this->assertSame(TrustLevelPrimitive::from($context->trust_level), $pulse->trust_level);
     }
 
     /**
@@ -148,9 +149,9 @@ final class PulseGeneratorTest extends SirusTestCase
      */
     public function testTrustLevelPrimitiveRoundTripsScalarValue(): void
     {
-        $primitive = OuroborosPulseContract::resolveTrustLevelPrimitive('NORMAL');
+        $primitive = TrustLevelPrimitive::from('NORMAL');
 
-        $this->assertSame('NORMAL', OuroborosPulseContract::trustLevelValue($primitive));
+        $this->assertSame('NORMAL', $primitive->value);
     }
 
     // ── ContextPulse NEVER contains identity claims ───────────────────────────
@@ -402,7 +403,7 @@ final class PulseGeneratorTest extends SirusTestCase
     public function testSigningKeyMeetsCurrentOuroborosMinimumLength(): void
     {
         $this->assertGreaterThanOrEqual(
-            OuroborosPulseContract::resolveMinimumSigningKeyBytes(),
+            Platform::PULSE_MIN_SIGNING_KEY_BYTES,
             strlen(constant('SIRUS_PULSE_SIGNING_KEY'))
         );
     }
@@ -428,11 +429,11 @@ final class PulseGeneratorTest extends SirusTestCase
     }
 
     /**
-     * generate() throws RuntimeException when the trust level cannot be mapped to TrustLevelPrimitive.
+     * generate() throws ValueError when the trust level cannot be mapped to TrustLevelPrimitive.
      */
     public function testGenerateThrowsForUnknownTrustLevel(): void
     {
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(\ValueError::class);
         $this->expectExceptionMessage('NOT_A_TRUST_LEVEL');
 
         $this->generator->generate($this->makeContext(trust_level: 'NOT_A_TRUST_LEVEL'));

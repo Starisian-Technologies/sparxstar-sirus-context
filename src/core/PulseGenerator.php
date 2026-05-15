@@ -27,7 +27,9 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
+use Starisian\Sparxstar\Infrastructure\Constants\Platform;
 use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
+use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
 use Starisian\Sparxstar\Infrastructure\Utils\ContextPulseSigningMaterial;
 use Starisian\Sparxstar\Sirus\services\EnvironmentResolver;
 
@@ -83,7 +85,7 @@ final class PulseGenerator
         // ContextPulseSigningMaterial::build() is the canonical source for the format;
         // Sirus must not maintain a local copy of the signing string construction.
         $provisional = new ContextPulse(
-            pulse_version:          OuroborosPulseContract::resolvePulseVersion(),
+            pulse_version:          Platform::PULSE_VERSION_CURRENT,
             pulse_id:               $pulse_id,
             context_id:             $context->context_id,
             device_id:              $context->device_id,
@@ -91,7 +93,7 @@ final class PulseGenerator
             site_id:                $context->site_id,
             network_id:             $context->network_id,
             trust_score:            $context->trust_score,
-            trust_level:            OuroborosPulseContract::resolveTrustLevelPrimitive($context->trust_level),
+            trust_level:            TrustLevelPrimitive::from($context->trust_level),
             behavior_flags:         $behavior_flags,
             geo_zone:               $geo_zone,
             network_effective_type: $network_effective_type,
@@ -105,7 +107,7 @@ final class PulseGenerator
 
         // Return the final signed pulse with the same canonical fields as the provisional pulse.
         return new ContextPulse(
-            pulse_version:          OuroborosPulseContract::resolvePulseVersion(),
+            pulse_version:          Platform::PULSE_VERSION_CURRENT,
             pulse_id:               $pulse_id,
             context_id:             $context->context_id,
             device_id:              $context->device_id,
@@ -113,7 +115,7 @@ final class PulseGenerator
             site_id:                $context->site_id,
             network_id:             $context->network_id,
             trust_score:            $context->trust_score,
-            trust_level:            OuroborosPulseContract::resolveTrustLevelPrimitive($context->trust_level),
+            trust_level:            TrustLevelPrimitive::from($context->trust_level),
             behavior_flags:         $behavior_flags,
             geo_zone:               $geo_zone,
             network_effective_type: $network_effective_type,
@@ -174,7 +176,7 @@ final class PulseGenerator
 
         $key = (string) constant('SIRUS_PULSE_SIGNING_KEY');
 
-        $minimum_key_length = OuroborosPulseContract::resolveMinimumSigningKeyBytes();
+        $minimum_key_length = Platform::PULSE_MIN_SIGNING_KEY_BYTES;
 
         if (strlen($key) < $minimum_key_length) {
             throw new \RuntimeException(
