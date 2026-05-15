@@ -30,12 +30,25 @@ if (! defined('ABSPATH')) {
  */
 final class EnvironmentResolver
 {
+    /** @var array<int, string> */
+    private const GEO_COUNTRY_KEYS = [ 'country', 'countryCode', 'country_code' ];
+
+    /** @var array<int, string> */
+    private const GEO_REGION_KEYS = [ 'region', 'regionName' ];
+
     /**
      * Resolved environment data, keyed by environment field name.
      *
      * @var array<string, string>|null
      */
     private ?array $resolved = null;
+
+    /**
+     * Memoized geographic trust zone for the current request.
+     *
+     * @var ?string
+     */
+    private ?string $geoZone = null;
 
     /**
      * Resolves the full environment record for the current User-Agent.
@@ -113,6 +126,85 @@ final class EnvironmentResolver
     public function getNetworkEffectiveType(): string
     {
         return $this->resolve()['network_effective_type'];
+    }
+
+    /**
+     * Returns the geographic trust zone identifier.
+     *
+     * Derived from geolocation provider data, normalized to lower snake-case:
+     *   {country}_{region}
+     * Supported payloads:
+     * - Sirus GeoIP service (`country`, `region`)
+     * - Common provider aliases (`countryCode`, `country_code`, `regionName`)
+     * Falls back to 'unknown' when geolocation data is unavailable.
+     */
+    public function getGeoZone(): string
+    {
+        if ($this->geoZone !== null) {
+            return $this->geoZone;
+        }
+
+        $geo = apply_filters('sparxstar_env_geolocation_lookup', null, $this->getRemoteIpAddress());
+        if (! is_array($geo) || $geo === []) {
+            $this->geoZone = 'unknown';
+            return $this->geoZone;
+        }
+
+        $country = $this->extractGeoValue($geo, self::GEO_COUNTRY_KEYS);
+        $region  = $this->extractGeoValue($geo, self::GEO_REGION_KEYS);
+        $parts   = [];
+
+        if ($country !== '') {
+            $parts[] = strtolower(str_replace([' ', '-'], '_', $country));
+        }
+
+        if ($region !== '') {
+            $parts[] = strtolower(str_replace([' ', '-'], '_', $region));
+        }
+
+        if ($parts === []) {
+            $this->geoZone = 'unknown';
+            return $this->geoZone;
+        }
+
+        $this->geoZone = implode('_', $parts);
+        return $this->geoZone;
+    }
+
+    /**
+     * Returns the current request IP if present and valid, otherwise ''.
+     *
+     * Uses REMOTE_ADDR intentionally (same anti-spoofing model as Sirus REST
+     * controllers) and does not trust forwarded headers by default.
+     */
+    private function getRemoteIpAddress(): string
+    {
+        $remote_addr = isset($_SERVER['REMOTE_ADDR'])
+            ? sanitize_text_field(wp_unslash((string) $_SERVER['REMOTE_ADDR']))
+            : '';
+
+        return filter_var($remote_addr, FILTER_VALIDATE_IP) !== false ? $remote_addr : '';
+    }
+
+    /**
+     * @param array<string, mixed> $geo
+     * @param array<int, string> $keys
+     */
+    private function extractGeoValue(array $geo, array $keys): string
+    {
+        foreach ($keys as $key) {
+            $raw = $geo[$key] ?? '';
+            if (! is_string($raw) && ! is_int($raw) && ! is_float($raw)) {
+                continue;
+            }
+
+            $value = sanitize_text_field((string) $raw);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return '';
     }
 
     /**
@@ -229,6 +321,10 @@ final class EnvironmentResolver
      */
     private function resolveNetworkType(): string
     {
+        if (PHP_SAPI === 'cli') {
+            return 'cli';
+        }
+
         /**
          * Filter: sparxstar_env_network_effective_type
          * Allow overriding the network type from an external signal or test.

@@ -257,43 +257,60 @@ final class PulseGeneratorTest extends SirusTestCase
     // ── PAM-002 restored fields ───────────────────────────────────────────────
 
     /**
-     * pulse.behavior_flags is an array (defaults to [] until PAM-002-P2).
+     * pulse.behavior_flags is derived from SirusContext trust signals.
      */
-    public function testPulseBehaviorFlagsIsArray(): void
+    public function testPulseBehaviorFlagsIsDerivedFromTrustSignals(): void
     {
-        $pulse = $this->generator->generate($this->makeContext());
+        $pulse = $this->generator->generate(
+            $this->makeContext(
+                trust_score: 0.6,
+                trust_level: 'ELEVATED'
+            )
+        );
 
         $this->assertIsArray($pulse->behavior_flags);
+        $this->assertNotSame([], $pulse->behavior_flags);
+        $this->assertContains('trust_level_elevated', $pulse->behavior_flags);
+        $this->assertContains('low_trust_score', $pulse->behavior_flags);
     }
 
     /**
-     * pulse.geo_zone is a string (defaults to '' until PAM-002-P2).
+     * pulse.geo_zone is populated from EnvironmentResolver geolocation data.
      */
-    public function testPulseGeoZoneIsString(): void
+    public function testPulseGeoZoneIsPopulated(): void
     {
         $pulse = $this->generator->generate($this->makeContext());
 
         $this->assertIsString($pulse->geo_zone);
+        $this->assertNotSame('', $pulse->geo_zone);
     }
 
     /**
-     * pulse.network_effective_type is a string (defaults to '' until PAM-002-P2).
+     * pulse.network_effective_type is populated from EnvironmentResolver network data.
+     * Unit tests run under CLI, so the resolver emits the CLI-specific value.
      */
-    public function testPulseNetworkEffectiveTypeIsString(): void
+    public function testPulseNetworkEffectiveTypeIsPopulated(): void
     {
         $pulse = $this->generator->generate($this->makeContext());
 
         $this->assertIsString($pulse->network_effective_type);
+        $this->assertSame('cli', $pulse->network_effective_type);
     }
 
     /**
-     * pulse.session_duration is an int (defaults to 0 until PAM-002-P2).
+     * pulse.session_duration is derived from session start timestamp and issued_at.
      */
-    public function testPulseSessionDurationIsInt(): void
+    public function testPulseSessionDurationIsDerivedFromSessionStart(): void
     {
-        $pulse = $this->generator->generate($this->makeContext());
+        // Fixed timestamp (2023-11-14T22:13:20Z) keeps this assertion deterministic across environments.
+        $fixed_timestamp = 1_700_000_000;
+        $pulse = $this->generator->generate(
+            $this->makeContext(issued_at: $fixed_timestamp - 30),
+            $fixed_timestamp
+        );
 
         $this->assertIsInt($pulse->session_duration);
+        $this->assertSame(30, $pulse->session_duration);
     }
 
     /**
@@ -407,8 +424,12 @@ final class PulseGeneratorTest extends SirusTestCase
      */
     private function makeContext(
         ?string $identity_id = null,
-        float $trust_score = 1.0
+        float $trust_score = 1.0,
+        string $trust_level = 'NORMAL',
+        ?int $issued_at = null
     ): SirusContext {
+        $context_issued_at = $issued_at ?? (time() - 60);
+
         return new SirusContext(
             context_id:     'ctx-pulse-test',
             environment_id: 'env-test',
@@ -420,10 +441,10 @@ final class PulseGeneratorTest extends SirusTestCase
             authority_id:   null,
             role_set:       [],
             capabilities:   [],
-            trust_level:    'NORMAL',
+            trust_level:    $trust_level,
             trust_score:    $trust_score,
-            issued_at:      time(),
-            expires:        time() + 300,
+            issued_at:      $context_issued_at,
+            expires:        $context_issued_at + 300,
         );
     }
 }
