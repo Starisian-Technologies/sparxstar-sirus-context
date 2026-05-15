@@ -49,8 +49,8 @@ final class TrustEngine
     public const DEDUCTION_RECENT_FAILURES = 0.3;
 
     /**
-     * Trust level returned when trust_score >= 0.7.
-     * Used by StepUpPolicy: Level 2 auth is NOT required at this threshold.
+     * Score threshold at or above which LEVEL_NORMAL is returned.
+     * Used by StepUpPolicy: Level 2 auth is NOT required when trust_score >= this value.
      */
     public const NORMAL_THRESHOLD = 0.7;
 
