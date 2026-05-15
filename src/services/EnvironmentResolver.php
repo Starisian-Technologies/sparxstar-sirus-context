@@ -44,6 +44,11 @@ final class EnvironmentResolver
     private ?array $resolved = null;
 
     /**
+     * Memoized geographic trust zone for the current request.
+     */
+    private ?string $geoZone = null;
+
+    /**
      * Resolves the full environment record for the current User-Agent.
      *
      * Result is memoised within the request; subsequent calls return the
@@ -133,9 +138,14 @@ final class EnvironmentResolver
      */
     public function getGeoZone(): string
     {
+        if ($this->geoZone !== null) {
+            return $this->geoZone;
+        }
+
         $geo = apply_filters('sparxstar_env_geolocation_lookup', null, $this->getRemoteIpAddress());
         if (! is_array($geo) || $geo === []) {
-            return 'unknown';
+            $this->geoZone = 'unknown';
+            return $this->geoZone;
         }
 
         $country = $this->extractGeoValue($geo, self::GEO_COUNTRY_KEYS);
@@ -151,10 +161,12 @@ final class EnvironmentResolver
         }
 
         if ($parts === []) {
-            return 'unknown';
+            $this->geoZone = 'unknown';
+            return $this->geoZone;
         }
 
-        return implode('_', $parts);
+        $this->geoZone = implode('_', $parts);
+        return $this->geoZone;
     }
 
     /**
