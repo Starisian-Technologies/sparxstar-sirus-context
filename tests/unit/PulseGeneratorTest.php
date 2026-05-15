@@ -415,6 +415,16 @@ final class PulseGeneratorTest extends SirusTestCase
         $this->generator->generate($this->makeContext(), 1_700_000_000, -30);
     }
 
+    /**
+     * generate() throws RuntimeException when the trust level cannot be mapped to TrustLevelPrimitive.
+     */
+    public function testGenerateThrowsForUnknownTrustLevel(): void
+    {
+        $this->expectException(\RuntimeException::class);
+
+        $this->generator->generate($this->makeContext(trust_level: 'NOT_A_TRUST_LEVEL'));
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /**

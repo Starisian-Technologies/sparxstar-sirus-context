@@ -46,6 +46,8 @@ final class OuroborosPulseContract
 
     /**
      * Converts a Sirus trust level string to the canonical Ouroboros primitive.
+     *
+     * @return \BackedEnum Canonical Ouroboros TrustLevelPrimitive instance.
      */
     public static function resolveTrustLevelPrimitive(string $trust_level): \BackedEnum
     {
@@ -68,7 +70,7 @@ final class OuroborosPulseContract
     /**
      * Extracts the scalar wire value from a pulse trust level primitive.
      */
-    public static function trustLevelValue(mixed $trust_level): string
+    public static function trustLevelValue(\BackedEnum|string $trust_level): string
     {
         if ($trust_level instanceof \BackedEnum) {
             return (string) $trust_level->value;
@@ -102,6 +104,7 @@ final class OuroborosPulseContract
      */
     private static function resolveTrustLevelPrimitiveClass(): string
     {
+        // TODO(PAM-003): Remove the legacy fallback once all upstream installs expose the DTOs namespace.
         $candidates = [
             'Starisian\\Sparxstar\\Infrastructure\\DTOs\\TrustLevelPrimitive',
             'Starisian\\Sparxstar\\Infrastructure\\Primitives\\TrustLevelPrimitive',
