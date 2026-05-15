@@ -28,7 +28,6 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-use BackedEnum;
 use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
 
 /**
@@ -121,13 +120,13 @@ final class StepUpPolicy
      * Returns true when pulse trust_level indicates pre-flagged step-up.
      *
      * Supports both legacy string trust levels and enum-backed trust levels.
-     * Any unexpected non-string, non-enum value fails closed.
+     * Any unexpected non-string, non-enum value fails closed by requiring step-up.
      */
     private function isStepUpRequiredTrustLevel(ContextPulse $pulse): bool
     {
         $trust_level = $pulse->trust_level;
 
-        if ($trust_level instanceof BackedEnum) {
+        if ($trust_level instanceof \BackedEnum) {
             return $trust_level->value === self::TRUST_LEVEL_STEP_UP_REQUIRED;
         }
 
@@ -135,6 +134,6 @@ final class StepUpPolicy
             return $trust_level === self::TRUST_LEVEL_STEP_UP_REQUIRED;
         }
 
-        return false;
+        return true;
     }
 }
