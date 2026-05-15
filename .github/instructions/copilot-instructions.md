@@ -19,6 +19,12 @@ The following files provide the full tech specs for the project:
 - the [Architecture Ammendment](https://github.com/Starisian-Technologies/sparxstar-sirus-context/blob/main/SPARXSTAR_PAM-001_Consolidated.pdf)
 - [PAM-002](https://github.com/Starisian-Technologies/sparxstar-sirus-context/blob/main/PAM-002.md).
 
+## Ouroboros canonical namespaces
+- Platform constants: Starisian\Sparxstar\Infrastructure\Constants\Platform
+- DTOs: Starisian\Sparxstar\Infrastructure\DTOs\{ContextPulse, TrustLevelPrimitive, ...}
+- Utils: Starisian\Sparxstar\Infrastructure\Utils\{ContextPulseSigningMaterial, PulseGenerator, ...}
+- Never use \Signing\, \Primitives\, or any other namespace — they do not exist
+
 
 Production context --- UEC compatibility
 --------------------------------------
