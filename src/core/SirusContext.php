@@ -14,6 +14,8 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
+use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
+
 /**
  * Immutable value object representing the full context for a single request.
  */
@@ -34,7 +36,7 @@ final readonly class SirusContext
      * @param string|null $authority_id Resolved authority type, or null.
      * @param array $role_set WordPress roles associated with the context.
      * @param array $capabilities Resolved capability strings.
-     * @param string $trust_level Resolved trust level label (NORMAL, ELEVATED, CRITICAL, or anonymous).
+     * @param TrustLevelPrimitive $trust_level Resolved trust level.
      * @param float $trust_score Numerical trust score in [0.0, 1.0] from TrustEngine.
      * @param int $issued_at Unix timestamp when the context was issued.
      * @param int $expires Unix timestamp when the context expires.
@@ -50,7 +52,7 @@ final readonly class SirusContext
         public ?string $authority_id,
         public array $role_set,
         public array $capabilities,
-        public string $trust_level,
+        public TrustLevelPrimitive $trust_level,
         public float $trust_score,
         public int $issued_at,
         public int $expires,
@@ -104,7 +106,7 @@ final readonly class SirusContext
             'auth'  => $this->authority_id,
             'caps'  => $this->capabilities,
             'ts'    => $this->trust_score,
-            'tl'    => $this->trust_level,
+            'tl'    => $this->trust_level->value,
             'iat'   => $this->issued_at,
             'exp'   => $this->expires,
         ];

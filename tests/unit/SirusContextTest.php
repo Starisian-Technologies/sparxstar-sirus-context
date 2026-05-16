@@ -11,6 +11,7 @@ declare(strict_types=1);
 namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
 use Starisian\Sparxstar\Sirus\core\SirusContext;
 
 /**
@@ -39,7 +40,7 @@ final class SirusContextTest extends TestCase
             authority_id:   $authority_id,
             role_set:       $role_set,
             capabilities:   $capabilities,
-            trust_level:    $trust_level,
+            trust_level:    TrustLevelPrimitive::from($trust_level),
             trust_score:    1.0,
             issued_at:      1000,
             expires:        1300,
@@ -66,7 +67,7 @@ final class SirusContextTest extends TestCase
             device_id:      'dev', session_id: 'sess',
             identity_id:    null, authority_id: null,
             role_set:       [], capabilities: [],
-            trust_level:    'anonymous',
+            trust_level:    TrustLevelPrimitive::from('anonymous'),
             trust_score:    1.0,
             issued_at:      time(),
             expires:        time() + 300,
@@ -85,7 +86,7 @@ final class SirusContextTest extends TestCase
             device_id:      'dev', session_id: 'sess',
             identity_id:    null, authority_id: null,
             role_set:       [], capabilities: [],
-            trust_level:    'anonymous',
+            trust_level:    TrustLevelPrimitive::from('anonymous'),
             trust_score:    1.0,
             issued_at:      1000,
             expires:        1001, // well in the past
@@ -104,7 +105,7 @@ final class SirusContextTest extends TestCase
             device_id:      'dev', session_id: 'sess',
             identity_id:    null, authority_id: null,
             role_set:       [], capabilities: [],
-            trust_level:    'anonymous',
+            trust_level:    TrustLevelPrimitive::from('anonymous'),
             trust_score:    1.0,
             issued_at:      1000,
             expires:        0,
@@ -136,7 +137,7 @@ final class SirusContextTest extends TestCase
         $this->assertSame('starisian', $ctx->authority_id);
         $this->assertSame(['editor'], $ctx->role_set);
         $this->assertSame(['read', 'write'], $ctx->capabilities);
-        $this->assertSame('user', $ctx->trust_level);
+        $this->assertSame('user', $ctx->trust_level->value);
         $this->assertSame(1.0, $ctx->trust_score);
         $this->assertSame(1000, $ctx->issued_at);
         $this->assertSame(1300, $ctx->expires);

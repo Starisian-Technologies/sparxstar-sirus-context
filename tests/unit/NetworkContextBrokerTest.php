@@ -11,6 +11,7 @@ declare(strict_types=1);
 namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
 use Starisian\Sparxstar\Sirus\core\NetworkContextBroker;
 use Starisian\Sparxstar\Sirus\core\SirusContext;
 
@@ -42,7 +43,7 @@ final class NetworkContextBrokerTest extends TestCase
             authority_id:   'sparxstar',
             role_set:       [],
             capabilities:   ['read', 'publish'],
-            trust_level:    'user',
+            trust_level:    TrustLevelPrimitive::from('user'),
             trust_score:    1.0,
             issued_at:      time(),
             expires:        time() + 300,
@@ -112,7 +113,7 @@ final class NetworkContextBrokerTest extends TestCase
             authority_id:   null,
             role_set:       [],
             capabilities:   [],
-            trust_level:    'user',
+            trust_level:    TrustLevelPrimitive::from('user'),
             trust_score:    1.0,
             issued_at:      time(),
             expires:        time() + 300,
@@ -337,7 +338,7 @@ final class NetworkContextBrokerTest extends TestCase
         $result = $this->broker->verifyToken($payload_b64 . '.' . $sig_b64, self::TEST_SECRET);
 
         $this->assertNotNull($result);
-        $this->assertSame('anonymous', $result->trust_level);
+        $this->assertSame('anonymous', $result->trust_level->value);
         $this->assertLessThanOrEqual(0.50, $result->trust_score);
     }
 }

@@ -45,7 +45,7 @@ final class CapabilityEngine
      */
     public function resolve(SirusContext $context): array
     {
-        $capabilities = self::BASE_CAPABILITIES[ $context->trust_level ]
+        $capabilities = self::BASE_CAPABILITIES[ $context->trust_level->value ]
             ?? self::BASE_CAPABILITIES['anonymous'];
 
         /** @var list<string> $capabilities */

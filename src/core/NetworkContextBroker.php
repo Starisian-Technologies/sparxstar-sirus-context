@@ -18,6 +18,8 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
+use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
+
 /**
  * Creates and verifies short-lived signed tokens that carry a portable SirusContext
  * payload across network boundaries without exposing the identity_id.
@@ -142,7 +144,7 @@ final class NetworkContextBroker
             capabilities:   isset($data['caps']) && is_array($data['caps'])
                                 ? array_map(strval(...), $data['caps'])
                                 : [],
-            trust_level:    $trust_level,
+            trust_level:    TrustLevelPrimitive::from($trust_level),
             trust_score:    $trust_score,
             issued_at:      (int) ($data['iat'] ?? 0),
             expires:        (int) ($data['exp'] ?? 0),

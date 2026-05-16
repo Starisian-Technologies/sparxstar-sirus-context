@@ -47,7 +47,7 @@ final class AuthorityResolver
      */
     public function resolve(SirusContext $context): ?string
     {
-        if ($context->trust_level !== 'authority') {
+        if ($context->trust_level->value !== 'authority') {
             return null;
         }
 
