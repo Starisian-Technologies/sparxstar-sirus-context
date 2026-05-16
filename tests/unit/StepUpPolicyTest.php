@@ -22,6 +22,12 @@ use Starisian\Sparxstar\Sirus\core\ResourceSensitivity;
 use Starisian\Sparxstar\Sirus\core\StepUpPolicy;
 use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
 
+enum StepUpPolicyTestTrustLevel: string
+{
+    case NORMAL = 'NORMAL';
+    case STEP_UP_REQUIRED = 'STEP_UP_REQUIRED';
+}
+
 /**
  * Unit tests for StepUpPolicy::requiresStepUp() and StepUpPolicy::getRequiredLevel().
  */
@@ -62,6 +68,21 @@ final class StepUpPolicyTest extends SirusTestCase
 
         $this->assertTrue(
             $this->policy->requiresStepUp($pulse, ResourceSensitivity::LEVEL_2)
+        );
+    }
+
+    /**
+     * A pulse with enum-backed STEP_UP_REQUIRED trust level always requires step-up.
+     */
+    public function testEnumBackedStepUpRequiredTrustLevelAlwaysRequiresStepUpAtLevel1(): void
+    {
+        $pulse = $this->makePulse(
+            trust_score: 1.0,
+            trust_level: StepUpPolicyTestTrustLevel::STEP_UP_REQUIRED
+        );
+
+        $this->assertTrue(
+            $this->policy->requiresStepUp($pulse, ResourceSensitivity::LEVEL_1)
         );
     }
 
@@ -251,10 +272,10 @@ final class StepUpPolicyTest extends SirusTestCase
     /**
      * Builds a minimal ContextPulse for use in assertions.
      *
-     * @param float  $trust_score Trust score to use (default 1.0).
-     * @param string $trust_level Trust level string (default 'NORMAL').
+     * @param float              $trust_score Trust score to use (default 1.0).
+     * @param string|\BackedEnum $trust_level Trust level string or backed enum (default 'NORMAL').
      */
-    private function makePulse(float $trust_score = 1.0, string $trust_level = 'NORMAL'): ContextPulse
+    private function makePulse(float $trust_score = 1.0, string|\BackedEnum $trust_level = 'NORMAL'): ContextPulse
     {
         $now = time();
 
