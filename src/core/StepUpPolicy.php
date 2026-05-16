@@ -28,6 +28,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
+use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
 use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
 
 /**
@@ -70,7 +71,7 @@ final class StepUpPolicy
     public function requiresStepUp(ContextPulse $pulse, ResourceSensitivity $level): bool
     {
         // Pre-flagged step-up: pulse trust_level already signals step-up required.
-        if ($pulse->trust_level === self::TRUST_LEVEL_STEP_UP_REQUIRED) {
+        if ($pulse->trust_level === TrustLevelPrimitive::STEP_UP_REQUIRED) {
             return true;
         }
 
@@ -101,7 +102,7 @@ final class StepUpPolicy
     public function getRequiredLevel(ContextPulse $pulse, ResourceSensitivity $level): ?ResourceSensitivity
     {
         // Pre-flagged step-up: enforce a LEVEL_3 challenge level for safety.
-        if ($pulse->trust_level === self::TRUST_LEVEL_STEP_UP_REQUIRED) {
+        if ($pulse->trust_level === TrustLevelPrimitive::STEP_UP_REQUIRED) {
             return ResourceSensitivity::LEVEL_3;
         }
 

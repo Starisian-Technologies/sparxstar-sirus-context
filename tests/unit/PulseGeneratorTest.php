@@ -17,10 +17,12 @@ declare(strict_types=1);
 
 namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 
+use Starisian\Sparxstar\Infrastructure\Constants\Platform;
 use Starisian\Sparxstar\Sirus\core\PulseGenerator;
 use Starisian\Sparxstar\Sirus\core\SirusContext;
 use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
-use Starisian\Sparxstar\Infrastructure\Signing\ContextPulseSigningMaterial;
+use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
+use Starisian\Sparxstar\Infrastructure\Utils\ContextPulseSigningMaterial;
 
 /**
  * Unit tests for PulseGenerator::generate().
@@ -139,7 +141,17 @@ final class PulseGeneratorTest extends SirusTestCase
         $context = $this->makeContext();
         $pulse   = $this->generator->generate($context);
 
-        $this->assertSame($context->trust_level, $pulse->trust_level);
+        $this->assertSame(TrustLevelPrimitive::from($context->trust_level), $pulse->trust_level);
+    }
+
+    /**
+     * Ouroboros trust level conversion round-trips the scalar wire value.
+     */
+    public function testTrustLevelPrimitiveRoundTripsScalarValue(): void
+    {
+        $primitive = TrustLevelPrimitive::from('NORMAL');
+
+        $this->assertSame('NORMAL', $primitive->value);
     }
 
     // ── ContextPulse NEVER contains identity claims ───────────────────────────
@@ -157,8 +169,8 @@ final class PulseGeneratorTest extends SirusTestCase
             'ContextPulse must never have an identity_id property.'
         );
 
-        // Confirm the pulse serialization also has no identity_id.
-        $this->assertArrayNotHasKey('identity_id', $pulse->toArray());
+        // Confirm the pulse object state also has no identity_id.
+        $this->assertArrayNotHasKey('identity_id', get_object_vars($pulse));
     }
 
     // ── TTL / timing ──────────────────────────────────────────────────────────
@@ -314,11 +326,11 @@ final class PulseGeneratorTest extends SirusTestCase
     }
 
     /**
-     * toArray() includes all four PAM-002 restored fields.
+     * The pulse object includes all four PAM-002 restored fields.
      */
-    public function testToArrayIncludesPam002Fields(): void
+    public function testPulseObjectIncludesPam002Fields(): void
     {
-        $arr = $this->generator->generate($this->makeContext())->toArray();
+        $arr = get_object_vars($this->generator->generate($this->makeContext()));
 
         $this->assertArrayHasKey('behavior_flags', $arr);
         $this->assertArrayHasKey('geo_zone', $arr);
@@ -381,17 +393,19 @@ final class PulseGeneratorTest extends SirusTestCase
     // ── Key validation ────────────────────────────────────────────────────────
 
     /**
-     * The signing key minimum length is 32 bytes (PulseGenerator::MIN_KEY_LENGTH via reflection).
-     * This test documents the constant indirectly without needing to call the private method.
+     * The signing key must satisfy the current Ouroboros minimum length requirement.
+     * This test documents the contract floor without reaching into private implementation details.
      *
      * Full "too short key throws" and "key not defined throws" tests cannot be exercised
      * once SIRUS_PULSE_SIGNING_KEY is defined. They are verified by code review of the
      * resolveSigningKey() implementation.
      */
-    public function testSigningKeyMinLengthIs32(): void
+    public function testSigningKeyMeetsCurrentOuroborosMinimumLength(): void
     {
-        // The constant is defined at test boot; its length must be >= 32.
-        $this->assertGreaterThanOrEqual(32, strlen(constant('SIRUS_PULSE_SIGNING_KEY')));
+        $this->assertGreaterThanOrEqual(
+            Platform::PULSE_MIN_SIGNING_KEY_BYTES,
+            strlen(constant('SIRUS_PULSE_SIGNING_KEY'))
+        );
     }
 
     /**
@@ -412,6 +426,17 @@ final class PulseGeneratorTest extends SirusTestCase
         $this->expectException(\InvalidArgumentException::class);
 
         $this->generator->generate($this->makeContext(), 1_700_000_000, -30);
+    }
+
+    /**
+     * generate() throws ValueError when the trust level cannot be mapped to TrustLevelPrimitive.
+     */
+    public function testGenerateThrowsForUnknownTrustLevel(): void
+    {
+        $this->expectException(\ValueError::class);
+        $this->expectExceptionMessage('NOT_A_TRUST_LEVEL');
+
+        $this->generator->generate($this->makeContext(trust_level: 'NOT_A_TRUST_LEVEL'));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -447,4 +472,5 @@ final class PulseGeneratorTest extends SirusTestCase
             expires:        $context_issued_at + 300,
         );
     }
+
 }

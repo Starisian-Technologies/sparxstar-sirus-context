@@ -10,8 +10,8 @@
  *
  * Canonical string construction is delegated entirely to
  * ContextPulseSigningMaterial::build() (Ouroboros CO-001). Sirus does not
- * maintain its own copy of the format — see that class for the field order
- * and encoding rules (PAM-002 14-field, JSON-encoded behavior_flags).
+ * maintain its own copy of the format — see that class for the canonical
+ * field order and encoding rules.
  *
  * The signing key is read exclusively from the SIRUS_PULSE_SIGNING_KEY constant.
  * It MUST NOT be read from WordPress options, the database, or user input.
@@ -27,8 +27,10 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
+use Starisian\Sparxstar\Infrastructure\Constants\Platform;
 use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
-use Starisian\Sparxstar\Infrastructure\Signing\ContextPulseSigningMaterial;
+use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
+use Starisian\Sparxstar\Infrastructure\Utils\ContextPulseSigningMaterial;
 use Starisian\Sparxstar\Sirus\services\EnvironmentResolver;
 
 /**
@@ -43,9 +45,6 @@ final class PulseGenerator
 {
     /** Default pulse TTL in seconds. Used when no $ttlSeconds is supplied. */
     public const PULSE_TTL = 60;
-
-    /** Minimum required key length (bytes). */
-    private const MIN_KEY_LENGTH = 32;
 
     private readonly EnvironmentResolver $environmentResolver;
 
@@ -86,6 +85,7 @@ final class PulseGenerator
         // ContextPulseSigningMaterial::build() is the canonical source for the format;
         // Sirus must not maintain a local copy of the signing string construction.
         $provisional = new ContextPulse(
+            pulse_version:          Platform::PULSE_VERSION_CURRENT,
             pulse_id:               $pulse_id,
             context_id:             $context->context_id,
             device_id:              $context->device_id,
@@ -93,7 +93,7 @@ final class PulseGenerator
             site_id:                $context->site_id,
             network_id:             $context->network_id,
             trust_score:            $context->trust_score,
-            trust_level:            $context->trust_level,
+            trust_level:            TrustLevelPrimitive::from($context->trust_level),
             behavior_flags:         $behavior_flags,
             geo_zone:               $geo_zone,
             network_effective_type: $network_effective_type,
@@ -107,6 +107,7 @@ final class PulseGenerator
 
         // Return the final signed pulse with the same canonical fields as the provisional pulse.
         return new ContextPulse(
+            pulse_version:          Platform::PULSE_VERSION_CURRENT,
             pulse_id:               $pulse_id,
             context_id:             $context->context_id,
             device_id:              $context->device_id,
@@ -114,7 +115,7 @@ final class PulseGenerator
             site_id:                $context->site_id,
             network_id:             $context->network_id,
             trust_score:            $context->trust_score,
-            trust_level:            $context->trust_level,
+            trust_level:            TrustLevelPrimitive::from($context->trust_level),
             behavior_flags:         $behavior_flags,
             geo_zone:               $geo_zone,
             network_effective_type: $network_effective_type,
@@ -175,10 +176,12 @@ final class PulseGenerator
 
         $key = (string) constant('SIRUS_PULSE_SIGNING_KEY');
 
-        if (strlen($key) < self::MIN_KEY_LENGTH) {
+        $minimum_key_length = Platform::PULSE_MIN_SIGNING_KEY_BYTES;
+
+        if (strlen($key) < $minimum_key_length) {
             throw new \RuntimeException(
                 '[Sirus] PulseGenerator: SIRUS_PULSE_SIGNING_KEY must be at least '
-                . self::MIN_KEY_LENGTH . ' bytes.'
+                . $minimum_key_length . ' bytes.'
             );
         }
 
