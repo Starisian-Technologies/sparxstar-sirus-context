@@ -93,7 +93,7 @@ final class PulseGenerator
             site_id:                $context->site_id,
             network_id:             $context->network_id,
             trust_score:            $context->trust_score,
-            trust_level:            TrustLevelPrimitive::from($context->trust_level),
+            trust_level:            $context->trust_level,
             behavior_flags:         $behavior_flags,
             geo_zone:               $geo_zone,
             network_effective_type: $network_effective_type,
@@ -115,7 +115,7 @@ final class PulseGenerator
             site_id:                $context->site_id,
             network_id:             $context->network_id,
             trust_score:            $context->trust_score,
-            trust_level:            TrustLevelPrimitive::from($context->trust_level),
+            trust_level:            $context->trust_level,
             behavior_flags:         $behavior_flags,
             geo_zone:               $geo_zone,
             network_effective_type: $network_effective_type,
@@ -135,11 +135,11 @@ final class PulseGenerator
     {
         $flags = [];
 
-        if ($context->trust_level === StepUpPolicy::TRUST_LEVEL_STEP_UP_REQUIRED) {
+        if ($context->trust_level === TrustLevelPrimitive::STEP_UP_REQUIRED) {
             $flags[] = 'step_up_required';
-        } elseif ($context->trust_level === TrustEngine::LEVEL_ELEVATED) {
+        } elseif ($context->trust_level === TrustLevelPrimitive::ELEVATED) {
             $flags[] = 'trust_level_elevated';
-        } elseif ($context->trust_level === TrustEngine::LEVEL_CRITICAL) {
+        } elseif ($context->trust_level === TrustLevelPrimitive::CRITICAL) {
             $flags[] = 'trust_level_critical';
         }
 

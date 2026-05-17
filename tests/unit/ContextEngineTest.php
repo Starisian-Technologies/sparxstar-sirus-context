@@ -11,6 +11,7 @@ declare(strict_types=1);
 namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
 use Starisian\Sparxstar\Sirus\core\ContextCache;
 use Starisian\Sparxstar\Sirus\core\ContextEngine;
 use Starisian\Sparxstar\Sirus\core\SirusContext;
@@ -85,7 +86,7 @@ final class ContextEngineTest extends TestCase
     {
         $ctx = ContextEngine::build();
 
-        $this->assertSame('NORMAL', $ctx->trust_level);
+        $this->assertSame('NORMAL', $ctx->trust_level->value);
         $this->assertNull($ctx->identity_id);
         $this->assertNull($ctx->authority_id);
     }
@@ -216,7 +217,7 @@ final class ContextEngineTest extends TestCase
         $ctx = ContextEngine::buildFromDevice($record);
 
         // contributor base = 0.90, no drift, not new session → score 0.90 → NORMAL.
-        $this->assertSame('NORMAL', $ctx->trust_level);
+        $this->assertSame('NORMAL', $ctx->trust_level->value);
         $this->assertEqualsWithDelta(0.90, $ctx->trust_score, 0.0001);
     }
 
@@ -239,7 +240,7 @@ final class ContextEngineTest extends TestCase
             authority_id:   null,
             role_set:       [],
             capabilities:   [],
-            trust_level:    'anonymous',
+            trust_level:    TrustLevelPrimitive::from('anonymous'),
             trust_score:    1.0,
             issued_at:      1000,
             expires:        1001, // already expired

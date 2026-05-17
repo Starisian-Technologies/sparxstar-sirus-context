@@ -26,7 +26,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 |---|---|---|---|---|
 | `ContextEngine::current()` | `src/core/ContextEngine.php` | ✅ | S-01 | Throws `ContextBootException`, never null/partial |
 | CLI system context | `src/core/ContextEngine.php` | ✅ | S-01 | `SYSTEM`/`GLOBAL`/`CLI` path |
-| `SirusContext` DTO | `src/core/SirusContext.php` | ✅ | S-01 | Includes `trust_score` field |
+| `SirusContext` DTO | `src/core/SirusContext.php` | ✅ | S-01 | Includes `trust_score`; `trust_level` typed as `TrustLevelPrimitive` enum |
 | `ContextCache` | `src/core/ContextCache.php` | ✅ | S-01 | Cache + TTL eviction |
 | `ContextBootException` | `packages/sparxstar-ouroboros-integrity/src/Exceptions/ContextBootException.php` | ✅ | S-04 | Migrated to Ouroboros CO-001 — `Starisian\Sparxstar\Infrastructure\Exceptions` |
 | `ContextPulse` DTO | `packages/sparxstar-ouroboros-integrity/src/DTOs/ContextPulse.php` | ✅ | S-04 | Migrated to Ouroboros CO-001 — `Starisian\Sparxstar\Infrastructure\DTOs` |
@@ -38,7 +38,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | `TrustEngine` | `src/core/TrustEngine.php` | ✅ | S-01/S-02 | Frozen algorithm; 18 unit tests in `TrustEngineTest` |
 | `TrustResolver` | `src/core/TrustResolver.php` | ✅ | S-01/S-02 | Credential-level base + drift/session deductions; 15 unit tests in `TrustResolverTest` |
 | `StepUpPolicy` | `src/core/StepUpPolicy.php` | ✅ | S-01/S-02 | Frozen policy; `requiresStepUp()` + `TRUST_LEVEL_STEP_UP_REQUIRED` pre-flag check; 17 unit tests |
-| `PulseGenerator` | `src/core/PulseGenerator.php` | ✅ | S-01/S-02 | HMAC-SHA256 only; PAM-002-P2 fields wired (`behavior_flags`, `geo_zone`, `network_effective_type`, `session_duration`); 20 unit tests in `PulseGeneratorTest`; `$now`/`$ttlSeconds` explicit params |
+| `PulseGenerator` | `src/core/PulseGenerator.php` | ✅ | S-01/S-02 | HMAC-SHA256 only; consumes enum-backed `SirusContext::trust_level`; PAM-002-P2 fields wired (`behavior_flags`, `geo_zone`, `network_effective_type`, `session_duration`); 20 unit tests in `PulseGeneratorTest`; `$now`/`$ttlSeconds` explicit params |
 
 ### Device and Identity
 
@@ -261,4 +261,4 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 
 ---
 
-*Last updated: 2026-05-13 | Spec version: Sirus Context Engine Spec v3.0*
+*Last updated: 2026-05-16 | Spec version: Sirus Context Engine Spec v3.0*

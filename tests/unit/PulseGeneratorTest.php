@@ -141,7 +141,7 @@ final class PulseGeneratorTest extends SirusTestCase
         $context = $this->makeContext();
         $pulse   = $this->generator->generate($context);
 
-        $this->assertSame(TrustLevelPrimitive::from($context->trust_level), $pulse->trust_level);
+        $this->assertSame($context->trust_level, $pulse->trust_level);
     }
 
     /**
@@ -429,7 +429,7 @@ final class PulseGeneratorTest extends SirusTestCase
     }
 
     /**
-     * generate() throws ValueError when the trust level cannot be mapped to TrustLevelPrimitive.
+     * makeContext() throws ValueError when trust level cannot be mapped to TrustLevelPrimitive.
      */
     public function testGenerateThrowsForUnknownTrustLevel(): void
     {
@@ -466,7 +466,7 @@ final class PulseGeneratorTest extends SirusTestCase
             authority_id:   null,
             role_set:       [],
             capabilities:   [],
-            trust_level:    $trust_level,
+            trust_level:    TrustLevelPrimitive::from($trust_level),
             trust_score:    $trust_score,
             issued_at:      $context_issued_at,
             expires:        $context_issued_at + 300,

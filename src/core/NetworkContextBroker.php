@@ -18,6 +18,8 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
+use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
+
 /**
  * Creates and verifies short-lived signed tokens that carry a portable SirusContext
  * payload across network boundaries without exposing the identity_id.
@@ -123,10 +125,19 @@ final class NetworkContextBroker
 
         // Least-privilege fallback: when tl/ts are absent (pre-v2 token), default to
         // 'anonymous' rather than reconstructing a higher-trust context from partial data.
-        $trust_level = isset($data['tl']) ? (string) $data['tl'] : 'anonymous';
+        // If tl is present but unmappable, fail closed.
+        if (isset($data['tl'])) {
+            $trust_level = TrustLevelPrimitive::tryFrom((string) $data['tl']);
+            if ($trust_level === null) {
+                return null;
+            }
+        } else {
+            $trust_level = TrustLevelPrimitive::from('anonymous');
+        }
+
         $trust_score = max(0.0, min(1.0, isset($data['ts'])
             ? (float) $data['ts']
-            : self::trustScoreFromLevel($trust_level)
+            : self::trustScoreFromLevel($trust_level->value)
         ));
 
         return new SirusContext(

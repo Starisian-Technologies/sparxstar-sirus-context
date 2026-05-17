@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 
+use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
 use Starisian\Sparxstar\Sirus\core\IdentityResolver;
 use Starisian\Sparxstar\Sirus\core\SirusContext;
 use Starisian\Sparxstar\Sirus\integrations\HeliosClientInterface;
@@ -39,7 +40,7 @@ final class IdentityResolverTest extends SirusTestCase
             authority_id:   null,
             role_set:       [],
             capabilities:   [],
-            trust_level:    'anonymous',
+            trust_level:    TrustLevelPrimitive::from('anonymous'),
             trust_score:    1.0,
             issued_at:      time(),
             expires:        0,
