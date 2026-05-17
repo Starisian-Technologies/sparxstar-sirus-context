@@ -341,4 +341,33 @@ final class NetworkContextBrokerTest extends TestCase
         $this->assertSame('anonymous', $result->trust_level->value);
         $this->assertLessThanOrEqual(0.50, $result->trust_score);
     }
+
+    /**
+     * verifyToken() returns null when tl is present but not a valid TrustLevelPrimitive.
+     */
+    public function testVerifyTokenReturnsNullForInvalidTrustLevelClaim(): void
+    {
+        $payload = [
+            'ctxv' => SirusContext::CONTEXT_VERSION,
+            'ctx'  => 'ctx-invalid-tl',
+            'env'  => 'env',
+            'net'  => '1',
+            'site' => '1',
+            'dev'  => 'dev-uuid',
+            'auth' => null,
+            'caps' => [],
+            'ts'   => 0.85,
+            'tl'   => 'NOT_A_TRUST_LEVEL',
+            'iat'  => time(),
+            'exp'  => time() + 300,
+            'nbf'  => time(),
+        ];
+
+        $json        = (string) json_encode($payload, JSON_THROW_ON_ERROR);
+        $payload_b64 = rtrim(strtr(base64_encode($json), '+/', '-_'), '=');
+        $signature   = hash_hmac('sha256', $payload_b64, self::TEST_SECRET, true);
+        $sig_b64     = rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
+
+        $this->assertNull($this->broker->verifyToken($payload_b64 . '.' . $sig_b64, self::TEST_SECRET));
+    }
 }

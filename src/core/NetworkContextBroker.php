@@ -125,10 +125,19 @@ final class NetworkContextBroker
 
         // Least-privilege fallback: when tl/ts are absent (pre-v2 token), default to
         // 'anonymous' rather than reconstructing a higher-trust context from partial data.
-        $trust_level = isset($data['tl']) ? (string) $data['tl'] : 'anonymous';
+        // If tl is present but unmappable, fail closed.
+        if (isset($data['tl'])) {
+            $trust_level = TrustLevelPrimitive::tryFrom((string) $data['tl']);
+            if ($trust_level === null) {
+                return null;
+            }
+        } else {
+            $trust_level = TrustLevelPrimitive::from('anonymous');
+        }
+
         $trust_score = max(0.0, min(1.0, isset($data['ts'])
             ? (float) $data['ts']
-            : self::trustScoreFromLevel($trust_level)
+            : self::trustScoreFromLevel($trust_level->value)
         ));
 
         return new SirusContext(
@@ -144,7 +153,7 @@ final class NetworkContextBroker
             capabilities:   isset($data['caps']) && is_array($data['caps'])
                                 ? array_map(strval(...), $data['caps'])
                                 : [],
-            trust_level:    TrustLevelPrimitive::from($trust_level),
+            trust_level:    $trust_level,
             trust_score:    $trust_score,
             issued_at:      (int) ($data['iat'] ?? 0),
             expires:        (int) ($data['exp'] ?? 0),
