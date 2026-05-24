@@ -74,7 +74,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 
 ### Pulse Verification Contract (Spec §13)
 
-> **Ownership ruling:** Sirus **generates** pulses; Helios **verifies** them (`copilot-instructions.md`: "Do not put verification logic here"). The canonical six-check contract and `VerificationResult` enum are **shared types owned by Ouroboros** — Sirus must not implement runtime verification. Sirus's only obligation is to prove its generated pulses round-trip against the canonical Ouroboros signing material.
+> **Ownership ruling:** Sirus **generates** pulses; Helios **verifies** them (`.github/instructions/copilot-instructions.md`: "Do not put verification logic here"). The canonical six-check contract and `VerificationResult` enum are **shared types owned by Ouroboros** — Sirus must not implement runtime verification. Sirus's only obligation is to prove its generated pulses round-trip against the canonical Ouroboros signing material.
 
 | Component | Owner | Status | Sprint | Notes |
 |---|---|---|---|---|
