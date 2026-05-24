@@ -7,26 +7,48 @@ Spec Completeness & Helios Integration Readiness
 Read this alongside `copilot-instructions.md` and the Sirus Context Engine Spec v3.0.
 Every task below is grounded in a specific spec section. Do not invent scope.
 
+Authoritative sources (in this order)
+--------------------------------------
+
+Ground every decision in these, not in any automated PR review:
+
+1. `docs/specs/` — Sirus Context Engine Spec v3.0, Platform Integrity Map, Platform Overview.
+2. Root specs — `PAM-002.md`, `SPARXSTAR_PAM-001_Consolidated.pdf`.
+3. `.github/instructions/` — `copilot-instructions.md` (this folder) and `AGENTS.md`.
+
+Two principles from `AGENTS.md` / `.github/instructions.md` govern this sprint and
+override convenience:
+
+- **The client is the authoritative source of truth for environment.** The backend
+  MUST NOT guess OS / browser / device by parsing User-Agent strings. Matomo
+  DeviceDetector is enrichment/fallback only; client-submitted signals are primary.
+- **Isolate responsibilities.** REST routing lives only in the REST controller (no
+  SQL there); DB access in a DB class; external calls in a service class; caching in
+  the cache helper. Sanitize/validate every external input; inject dependencies.
+
 Goal of this sprint
 --------------------
 
 Sirus claims spec v3.0 alignment, but three things in the spec's code-generation
 order (§24) were never built, and several built components have no tests. S-07
 makes Sirus a complete, integration-ready context **producer** for the edge:
-finish the REST surface Helios consumes, prove pulses round-trip, add the
+finish the REST surface Helios consumes (the four missing endpoints are mandated by
+Spec §19 — this is spec completion, not new scope), prove pulses round-trip, add the
 EnvironmentRecord DTO with privacy enforced at construction, and close the
 test debt S-02 left open.
+
 
 Hard ownership rule for this sprint (read first)
 ------------------------------------------------
 
-Sirus **generates** pulses. Helios **verifies** them. Do **NOT** add pulse
-verification runtime to this repository (see `copilot-instructions.md`, "What
-this repository does NOT own"). The canonical six-check `PulseVerifier` and the
-`VerificationResult` enum (Spec §13) are **shared types owned by Ouroboros** —
-import them, never redefine them. Sirus's only verification obligation is a
-**round-trip test** proving its generated pulses validate against the canonical
-Ouroboros signing material.
+Sirus **generates** pulses. Helios **verifies** them. This is settled by **PAM-002
+§10.2 / §3.6**: *"PulseGenerator in Sirus must populate all fields. PulseVerifier in
+Helios must validate all fields."* (PAM-002 §10.1 records Helios PR #18 shipping its
+`PulseVerifier`.) Do **NOT** add pulse verification runtime to this repository. The
+canonical six-check `PulseVerifier` and the `VerificationResult` enum (Spec §13) are
+**owned downstream (Helios) with shared types in Ouroboros** — import, never
+redefine. Sirus's only verification obligation is a **round-trip test** proving its
+generated pulses validate against the canonical signing material.
 
 > Note: `copilot-instructions.md` currently contradicts itself — line ~51 lists
 > `PulseVerifier` under "What this repository owns" while line ~71 says verification
@@ -56,6 +78,12 @@ Constraints:
 - Never expose Helios REST endpoints to client JS (§23).
 - Client telemetry must never be stored in WordPress post meta (§23).
 - The pulse must never carry `identity_id` (§23) — `PulseGenerator` already enforces this; do not add identity to the endpoint payload.
+- **Separation of concerns** (`.github/instructions.md` Principle I): routing and
+  `WP_REST_Request`/`WP_REST_Response` handling stay in `SirusRESTController`. No SQL
+  and no business logic in the controller — delegate to the existing services
+  (`PulseGenerator`, `IdentityResolver`, `ClientTelemetry`, repositories). Sanitize
+  and validate every payload field; use permission callbacks; inject collaborators
+  via the constructor rather than instantiating them inline.
 
 Tests: extend `tests/integration/RestApiTest.php` to cover all six endpoints
 (success + permission-denied + malformed input).
@@ -66,11 +94,15 @@ Task 2 (P0) — Pulse generate↔verify round-trip (Spec §13)
 ---------------------------------------------------------
 
 - Add `tests/unit/PulseRoundTripTest.php`. Sign a pulse through `PulseGenerator`,
-  then assert it verifies against the canonical Ouroboros
-  `ContextPulseSigningMaterial::build()` output (correct HMAC-SHA256), and that
-  tampering, expiry, future-skew, malformed `device_id`, out-of-enum
-  `trust_level`, and out-of-bounds `trust_score` each fail. These six checks
-  mirror Spec §13 but are exercised as a **test**, not Sirus runtime code.
+  then assert it verifies against the canonical signing material
+  `ContextPulseSigningMaterial::build()` (**PAM-002 §3.5**) with correct
+  HMAC-SHA256, and that tampering, expiry, future-skew, malformed `device_id`,
+  out-of-enum `trust_level`, and out-of-bounds `trust_score` each fail. These six
+  checks mirror Spec §13 but are exercised as a **test**, not Sirus runtime code.
+- Assert the pulse carries the full **canonical field set (PAM-002 §3.3)** and that
+  the restored P2 fields validate per PAM-002 §10.2: `behavior_flags` is an array,
+  `geo_zone` is a non-empty string, `network_effective_type` is a valid enum value,
+  `session_duration` is a non-negative int. (`PulseGenerator` already populates these.)
 - Import `VerificationResult` from `Starisian\Sparxstar\Infrastructure\...` when
   Ouroboros exports it. If not yet published, gate that assertion and rely on
   raw HMAC comparison for now. **Never define `VerificationResult` in Sirus.**
@@ -83,6 +115,14 @@ Task 3 (P1) — EnvironmentRecord DTO with privacy at construction (Spec §7, §
 `EnvironmentResolver::resolve()` returns a flat 4-field array. Spec §7 requires a
 rich DTO and §23 requires privacy invariants enforced at the boundary.
 
+**Client-first rule (non-negotiable — `AGENTS.md`, `.github/instructions.md`):** the
+DTO is populated from **client-submitted signals** (the `visitorId`, screen
+resolution, timezone, Network Information API fields, and the client's own
+OS/browser/device reports). The server MUST NOT derive `browser_name`, `os`, or
+`device_type` by parsing the User-Agent. Matomo DeviceDetector is a **fallback/
+enrichment only** when a client signal is absent, never the authority. Server-issued
+values remain authoritative only for `ip_address` (anonymized) and `device_id`.
+
 - Build `src/core/EnvironmentRecord.php` — `final`, `declare(strict_types=1)`,
   readonly constructor with the §7 fields: `environment_id`, `browser_name`,
   `browser_version`, `os`, `os_version`, `device_type`, `device_brand`,
@@ -93,13 +133,16 @@ rich DTO and §23 requires privacy invariants enforced at the boundary.
   - `location` is region-level only (country, region, approx_lat, approx_lng);
     never exact coordinates without an explicit per-session grant.
   - At anonymous / device tiers, no PII captured or inferred.
-- Have `EnvironmentResolver` return an `EnvironmentRecord`. Keep the existing flat
-  string accessors (`getBrowserName()`, etc.) as thin wrappers so nothing breaks.
+- Have `EnvironmentResolver` build the `EnvironmentRecord` from client signals first,
+  Matomo only as fallback. Keep the existing flat string accessors (`getBrowserName()`,
+  etc.) as thin wrappers so nothing breaks.
 - Do **not** change the frozen `StarUserEnv` public signatures (§23).
 
-Tests: `tests/unit/EnvironmentResolverTest.php` (UA parse, fallback regex, network
-filter) and `tests/unit/EnvironmentRecordTest.php` (privacy invariants asserted at
-construction — full IP rejected/zeroed, exact coords stripped).
+Tests:
+- `tests/unit/EnvironmentRecordTest.php` — privacy invariants asserted at
+  construction (full IP rejected/zeroed, exact coords stripped, no PII at lower tiers).
+- `tests/unit/EnvironmentResolverTest.php` — client signals take precedence over
+  the UA-derived fallback; Matomo/regex only fills gaps; network type filtered.
 
 ---
 

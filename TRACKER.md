@@ -112,7 +112,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | `TrustEngineTest.php` | `TrustEngine` | ✅ | **S-02** | 18 |
 | `PulseGeneratorTest.php` | `PulseGenerator` | ✅ | **S-02** | 20 |
 | `TrustResolverTest.php` | `TrustResolver` | ✅ | **S-02** | 15 |
-| `EnvironmentResolverTest.php` | `EnvironmentResolver` | 🔲 | **S-07** | Moved from S-02 — UA parsing, fallback regex, network filter, EnvironmentRecord output |
+| `EnvironmentResolverTest.php` | `EnvironmentResolver` | 🔲 | **S-07** | Moved from S-02 — client signals take precedence; UA/Matomo is fallback only; network filter; EnvironmentRecord output |
 | `DeviceMatcherTest.php` | `DeviceMatcher` | ✅ | **S-02** | 22 |
 | `ConsentManagerTest.php` | `ConsentManager` | ✅ | S-02 | 16 tests — cascade order, privacy-first hard default, anonymous user, invalid meta, multisite isolation, history, purpose consent |
 | `StepUpPolicyTest.php` | `StepUpPolicy` | ✅ | **S-02** | 17 |
@@ -303,8 +303,9 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 **P1 — EnvironmentRecord DTO (Spec §7, §23)**
 
 - [ ] Build `src/core/EnvironmentRecord.php` with all spec fields, privacy enforced at construction (IP last-octet zeroed, region-level location only, no exact coords without grant, `is_bot`, `time_zone`, brand/model/versions, `captured_at`)
+- [ ] **Client-first** (`AGENTS.md`): populate the record from client-submitted signals; never derive browser/OS/device by parsing User-Agent — Matomo is fallback/enrichment only
 - [ ] Have `EnvironmentResolver` return an `EnvironmentRecord`; keep the existing flat accessors as thin wrappers for backward compat
-- [ ] `EnvironmentResolverTest` + `EnvironmentRecordTest` (privacy invariants asserted at construction)
+- [ ] `EnvironmentResolverTest` + `EnvironmentRecordTest` (privacy invariants asserted at construction; client signals take precedence over UA fallback)
 
 **P1 — Close S-02 test debt for built components**
 
