@@ -14,7 +14,7 @@ Ground every decision in these, not in any automated PR review:
 
 1. `docs/specs/` — Sirus Context Engine Spec v3.0, Platform Integrity Map, Platform Overview.
 2. Root specs — `PAM-002.md`, `SPARXSTAR_PAM-001_Consolidated.pdf`.
-3. `.github/instructions/` — `copilot-instructions.md` (this folder) and `AGENTS.md`.
+3. Instruction files — `.github/instructions/copilot-instructions.md` and `AGENTS.md` (repo root).
 
 Two principles from `AGENTS.md` / `.github/instructions.md` govern this sprint and
 override convenience:
