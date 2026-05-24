@@ -167,7 +167,7 @@ Definition of done
 - `composer run test` and `composer run test:unit` pass — no failures, no deprecations.
 - `composer run analyze` clean at the configured PHPStan level (S-05 is mid-migration to Level 6; do not regress).
 - `composer run lint` clean (PHPCS PSR-12).
-- All six Spec §19 endpoints registered, each with integration coverage in
+- All six Spec §18–19 endpoints registered, each with integration coverage in
   `tests/integration/RestApiTest.php` for the success path, permission-denied,
   and malformed input (no endpoint merges without all three).
 - No verification runtime added to Sirus; `VerificationResult`, if used, imported from Ouroboros.

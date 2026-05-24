@@ -317,7 +317,7 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 
 - `composer run test` and `composer run test:unit` pass with no failures or deprecations
 - `composer run analyze` clean at the configured PHPStan level (currently mid-migration to Level 6 per S-05)
-- All six REST endpoints from Spec §19 are registered and integration-tested
+- All six REST endpoints from Spec §18–19 are registered and integration-tested
 - No verification runtime added to Sirus; `VerificationResult` (if used) is imported from Ouroboros
 - `copilot-instructions.md` PulseVerifier ownership contradiction resolved
 
