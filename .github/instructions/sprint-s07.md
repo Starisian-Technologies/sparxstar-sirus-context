@@ -124,10 +124,15 @@ Definition of done
 - `composer run test` and `composer run test:unit` pass — no failures, no deprecations.
 - `composer run analyze` clean at the configured PHPStan level (S-05 is mid-migration to Level 6; do not regress).
 - `composer run lint` clean (PHPCS PSR-12).
-- All six Spec §19 endpoints registered and integration-tested.
+- All six Spec §19 endpoints registered, each with integration coverage in
+  `tests/integration/RestApiTest.php` for the success path, permission-denied,
+  and malformed input (no endpoint merges without all three).
 - No verification runtime added to Sirus; `VerificationResult`, if used, imported from Ouroboros.
 - `EnvironmentRecord` enforces privacy at construction; `StarUserEnv` signatures unchanged.
-- `copilot-instructions.md` PulseVerifier ownership contradiction resolved.
+- `copilot-instructions.md` PulseVerifier ownership contradiction resolved by
+  **removing `PulseVerifier` from the "What this repository owns" list** (line ~51)
+  and keeping the "Helios verifies / do not put verification logic here" rule
+  (line ~71) as the single source of truth.
 - `TRACKER.md` S-07 rows flipped 🔲 → 🟡 → ✅ as work lands.
 
 Non-negotiable guardrails (from §23 and `copilot-instructions.md`)
