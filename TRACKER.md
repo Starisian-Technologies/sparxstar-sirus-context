@@ -55,7 +55,8 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 
 | Component | File | Status | Sprint | Notes |
 |---|---|---|---|---|
-| `EnvironmentResolver` | `src/services/EnvironmentResolver.php` | 🟡 | S-01 | Matomo DeviceDetector; missing unit tests |
+| `EnvironmentResolver` | `src/services/EnvironmentResolver.php` | 🟡 | S-01 | Matomo DeviceDetector; returns flat 4-field array, not the full DTO; missing unit tests |
+| `EnvironmentRecord` DTO | `src/core/EnvironmentRecord.php` | 🔲 | **S-07** | **Spec §7 — not built.** Resolver returns a flat array; privacy rules (§23: IP last-octet, region-only location, `is_bot`, `time_zone`, brand/model/versions, `captured_at`) are not enforced at a construction boundary |
 | `NetworkContextBroker` | `src/core/NetworkContextBroker.php` | ✅ | S-01 | `issueToken(context, secret)` / `verifyToken(token, secret)` — explicit secret; portable |
 
 ### Consent and Compliance
@@ -70,6 +71,30 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 |---|---|---|---|---|
 | `StarUserEnv` facade | `src/StarUserEnv.php` | ✅ | S-00 | **FROZEN** — UEC backward compat; signatures must never change |
 | `UECCompatibilityShim` | `src/integrations/UECCompatibilityShim.php` | ✅ | S-00 | Namespace alias bridge |
+
+### Pulse Verification Contract (Spec §13)
+
+> **Ownership ruling:** Sirus **generates** pulses; Helios **verifies** them (`.github/instructions/copilot-instructions.md`: "Do not put verification logic here"). The canonical six-check contract and `VerificationResult` enum are **shared types owned by Ouroboros** — Sirus must not implement runtime verification. Sirus's only obligation is to prove its generated pulses round-trip against the canonical Ouroboros signing material.
+
+| Component | Owner | Status | Sprint | Notes |
+|---|---|---|---|---|
+| `PulseGenerator` (signing side) | Sirus | ✅ | S-01/S-02 | Signs via Ouroboros `ContextPulseSigningMaterial::build()` |
+| `VerificationResult` enum | Ouroboros | ⏳ | S-07 | Shared type — import from Ouroboros, never redefine in Sirus |
+| `PulseVerifier` six-check | Helios / Ouroboros | ⏳ | S-07 | **Not built in Sirus by design.** S-07 adds a generate↔verify round-trip *test* only |
+
+### API, Capability, and Telemetry
+
+| Component | File | Status | Sprint | Notes |
+|---|---|---|---|---|
+| REST `/device` | `src/api/SirusRESTController.php` | ✅ | S-01 | Registered |
+| REST `/context` | `src/api/SirusRESTController.php` | ✅ | S-01 | Registered |
+| REST `/pulse` | `src/api/SirusRESTController.php` | 🔲 | **S-07** | **Spec §18 — not registered.** Helios server-to-server re-verification path |
+| REST `/identity` | `src/api/SirusRESTController.php` | 🔲 | **S-07** | Spec §19 — not registered |
+| REST `/session` | `src/api/SirusRESTController.php` | 🔲 | **S-07** | Spec §19 — not registered |
+| REST `/client-report` | `src/api/SirusRESTController.php` | 🔲 | **S-07** | Spec §19 — telemetry/error reporting; not registered |
+| `CapabilityEngine` | `src/core/CapabilityEngine.php` | 🟡 | S-01 | `resolve(SirusContext): array`; no unit test |
+| `AuthorityResolver` | `src/core/AuthorityResolver.php` | 🟡 | S-01 | Built; no unit test |
+| `ClientTelemetry` | `src/core/ClientTelemetry.php` | 🟡 | S-01 | Built; no unit test |
 
 ---
 
@@ -87,12 +112,16 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | `TrustEngineTest.php` | `TrustEngine` | ✅ | **S-02** | 18 |
 | `PulseGeneratorTest.php` | `PulseGenerator` | ✅ | **S-02** | 20 |
 | `TrustResolverTest.php` | `TrustResolver` | ✅ | **S-02** | 15 |
-| `EnvironmentResolverTest.php` | `EnvironmentResolver` | 🔲 | S-02 | — |
+| `EnvironmentResolverTest.php` | `EnvironmentResolver` | 🔲 | **S-07** | Moved from S-02 — client signals take precedence; UA/Matomo is fallback only; network filter; EnvironmentRecord output |
 | `DeviceMatcherTest.php` | `DeviceMatcher` | ✅ | **S-02** | 22 |
 | `ConsentManagerTest.php` | `ConsentManager` | ✅ | S-02 | 16 tests — cascade order, privacy-first hard default, anonymous user, invalid meta, multisite isolation, history, purpose consent |
 | `StepUpPolicyTest.php` | `StepUpPolicy` | ✅ | **S-02** | 17 |
-| `ContextBootExceptionTest.php` | `ContextBootException` | 🔲 | S-02 | — |
-| `ContextPulseTest.php` | `ContextPulse` | 🔲 | S-02 | — |
+| `AuthorityResolverTest.php` | `AuthorityResolver` | 🔲 | **S-07** | Multi-authority aggregation, most-restrictive conflict resolution |
+| `CapabilityEngineTest.php` | `CapabilityEngine` | 🔲 | **S-07** | Named capability issuance from context |
+| `ClientTelemetryTest.php` | `ClientTelemetry` | 🔲 | **S-07** | Report/aggregation, pruning; never stored in post meta (§23) |
+| `PulseRoundTripTest.php` | `PulseGenerator` ↔ Ouroboros | 🔲 | **S-07** | Generate→verify against canonical Ouroboros signing material |
+| ~~`ContextBootExceptionTest.php`~~ | `ContextBootException` | 🗑️ | — | **Removed from Sirus scope** — type owned by Ouroboros since S-04 |
+| ~~`ContextPulseTest.php`~~ | `ContextPulse` | 🗑️ | — | **Removed from Sirus scope** — type owned by Ouroboros since S-04 |
 
 ---
 
@@ -182,9 +211,9 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 - [x] `TrustEngineTest` — 18 tests: frozen algorithm, all signal combos, clamping to [0.0, 1.0], level mapping
 - [x] `PulseGeneratorTest` — 20 tests: key validation, pulse fields, no identity_id, TTL = issued_at + default, explicit `$now`/`$ttlSeconds` honoured, sig is 64-char hex
 - [x] `TrustResolverTest` — 15 tests: all credential bases, drift deduction, new-session deduction, combined, clamping
-- [ ] `ContextPulseTest` — DTO immutability, field access, no identity_id field present
-- [ ] `ContextBootExceptionTest` — extends `\RuntimeException`, message passthrough
-- [ ] `EnvironmentResolverTest` — UA parsing (browser/OS/device), fallback regex path, network filter
+- [x] ~~`ContextPulseTest`~~ — **removed from scope**; `ContextPulse` is owned by Ouroboros since S-04
+- [x] ~~`ContextBootExceptionTest`~~ — **removed from scope**; `ContextBootException` is owned by Ouroboros since S-04
+- [ ] `EnvironmentResolverTest` — **moved to S-07** (UA parsing, fallback regex, network filter)
 - [x] `DeviceMatcherTest` — ✅ COMPLETE (22 tests: classify() three-way branching, STRONG/WEAK/NO_MATCH cases, boundary at 0.8 and 0.6, scoreHash, scoreComponents, hardware_concurrency key validation)
 - [x] `ConsentManagerTest` — cascade order (user→site→deny), privacy-first hard default, anonymous user skip, invalid meta fallthrough, multisite isolation, history append-only, purpose consent (16 tests ✅)
 - [ ] `StepUpPolicyTest` — ✅ COMPLETE (17 tests — includes STEP_UP_REQUIRED trust level pre-flag)
@@ -251,6 +280,49 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 
 ---
 
+### S-07 — Spec Completeness and Helios Integration Readiness (Proposed — Next)
+
+> Close the spec components that exist in the codegen order (Spec §24) but were never built, complete the REST surface Helios consumes, and finish the test coverage S-02 left dangling. Theme: make Sirus a complete, integration-ready producer for the edge.
+
+**Prerequisite for the verification items:** Ouroboros must export `VerificationResult` and the canonical `PulseVerifier` contract. If not yet published, item 1 ships the round-trip test against `ContextPulseSigningMaterial` only and the enum import is deferred.
+
+**P0 — REST surface for Helios (Spec §18–19)**
+
+- [ ] Register `POST /sparxstar/v1/pulse` — request a fresh signed `ContextPulse` (HttpOnly cookie + `{ pulse_id, expires_at, trust_level }` body); server-to-server / Helios re-verification only, not browser-facing
+- [ ] Register `GET /sparxstar/v1/identity` — resolve current identity tier
+- [ ] Register `GET /sparxstar/v1/session` — session status
+- [ ] Register `POST /sparxstar/v1/client-report` — telemetry/error reporting (never stored in post meta, §23)
+- [ ] Integration tests in `tests/integration/RestApiTest.php` covering all six endpoints
+
+**P0 — Pulse generate↔verify compatibility (Spec §13)**
+
+- [ ] Add `PulseRoundTripTest` — sign a pulse via `PulseGenerator`, confirm it verifies against the canonical Ouroboros signing material (tamper / expiry / malformed cases)
+- [ ] Import `VerificationResult` from Ouroboros when available — **never redefine in Sirus**
+- [ ] **Do not** add runtime verification logic to Sirus (per `copilot-instructions.md`); reconcile the contradiction in that file (line 51 lists `PulseVerifier` as owned, line 71 says it is not)
+
+**P1 — EnvironmentRecord DTO (Spec §7, §23)**
+
+- [ ] Build `src/core/EnvironmentRecord.php` with all spec fields, privacy enforced at construction (IP last-octet zeroed, region-level location only, no exact coords without grant, `is_bot`, `time_zone`, brand/model/versions, `captured_at`)
+- [ ] **Client-first** (`AGENTS.md`): populate the record from client-submitted signals; never derive browser/OS/device by parsing User-Agent — Matomo is fallback/enrichment only
+- [ ] Have `EnvironmentResolver` return an `EnvironmentRecord`; keep the existing flat accessors as thin wrappers for backward compat
+- [ ] `EnvironmentResolverTest` + `EnvironmentRecordTest` (privacy invariants asserted at construction; client signals take precedence over UA fallback)
+
+**P1 — Close S-02 test debt for built components**
+
+- [ ] `AuthorityResolverTest` — multi-authority aggregation, most-restrictive conflict outcome (§17)
+- [ ] `CapabilityEngineTest` — named capability issuance from context (§23 codegen)
+- [ ] `ClientTelemetryTest` — report/aggregation/pruning, no post-meta storage (§23)
+
+**Acceptance criteria:**
+
+- `composer run test` and `composer run test:unit` pass with no failures or deprecations
+- `composer run analyze` clean at the configured PHPStan level (currently mid-migration to Level 6 per S-05)
+- All six REST endpoints from Spec §18–19 are registered and integration-tested
+- No verification runtime added to Sirus; `VerificationResult` (if used) is imported from Ouroboros
+- `copilot-instructions.md` PulseVerifier ownership contradiction resolved
+
+---
+
 ## How to Use This Tracker
 
 1. **On sprint start** — move items from `🔲` to a named sprint column and assign owners.
@@ -261,4 +333,4 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 
 ---
 
-*Last updated: 2026-05-16 | Spec version: Sirus Context Engine Spec v3.0*
+*Last updated: 2026-05-24 | Spec version: Sirus Context Engine Spec v3.0*
