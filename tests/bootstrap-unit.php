@@ -710,7 +710,7 @@ if (!class_exists('wpdb')) {
          * Stubbed getter for a single scalar result.
          *
          * @param string $query SQL string.
-         * @return int|null     Null for absent rows.
+         * @return mixed        Any scalar returned by the test fixture, or null for absent rows.
          */
         public function get_var(string $query): mixed
         {

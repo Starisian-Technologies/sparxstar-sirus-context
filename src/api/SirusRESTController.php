@@ -23,6 +23,7 @@ use Starisian\Sparxstar\Sirus\core\DeviceContinuity;
 use Starisian\Sparxstar\Sirus\core\IdentityResolver;
 use Starisian\Sparxstar\Sirus\core\PulseGenerator;
 use Starisian\Sparxstar\Sirus\core\ResourceSensitivity;
+use Starisian\Sparxstar\Sirus\core\StepUpPolicy;
 use Starisian\Sparxstar\Sirus\core\NetworkContextBroker;
 use Starisian\Sparxstar\Sirus\helpers\IpAnonymizer;
 use Starisian\Sparxstar\Sirus\services\SirusDeviceParser;
@@ -345,7 +346,8 @@ final class SirusRESTController
             );
         }
 
-        if ($this->parseResourceSensitivity($resource_sensitivity) === null) {
+        $sensitivity = $this->parseResourceSensitivity($resource_sensitivity);
+        if ($sensitivity === null) {
             return new WP_Error(
                 'sirus_pulse_invalid_sensitivity',
                 __('resource_sensitivity is invalid.', 'sparxstar-sirus'),
@@ -362,23 +364,39 @@ final class SirusRESTController
             );
         }
 
-        $pulse    = $this->pulse_generator->generate($context);
-        $payload  = wp_json_encode(get_object_vars($pulse));
-        $response = new WP_REST_Response(
-            [
-                'pulse_id'    => $pulse->pulse_id,
-                'expires_at'  => $pulse->expires,
-                'trust_level' => $pulse->trust_level instanceof \BackedEnum
-                    ? $pulse->trust_level->value
-                    : (string) $pulse->trust_level,
-            ],
-            201
-        );
+        $pulse       = $this->pulse_generator->generate($context);
+        $step_up     = (new StepUpPolicy())->requiresStepUp($pulse, $sensitivity);
 
-        if ($payload !== false) {
+        $trust_level_value = $pulse->trust_level instanceof \BackedEnum
+            ? $pulse->trust_level->value
+            : (string) $pulse->trust_level;
+
+        // Normalize pulse vars to scalars before JSON encoding for the cookie.
+        $pulse_vars = get_object_vars($pulse);
+        if (isset($pulse_vars['trust_level']) && $pulse_vars['trust_level'] instanceof \BackedEnum) {
+            $pulse_vars['trust_level'] = $pulse_vars['trust_level']->value;
+        }
+        $cookie_payload = wp_json_encode($pulse_vars);
+
+        $response_data = [
+            'pulse_id'             => $pulse->pulse_id,
+            'expires_at'           => $pulse->expires,
+            'trust_level'          => $trust_level_value,
+            'request_id'           => $request_id,
+            'resource_sensitivity' => $sensitivity->value,
+            'step_up_required'     => $step_up,
+        ];
+
+        if ($cookie_payload === false) {
+            $response_data['cookie_omitted'] = true;
+        }
+
+        $response = new WP_REST_Response($response_data, 201);
+
+        if ($cookie_payload !== false) {
             $response->header(
                 'Set-Cookie',
-                $this->buildPulseCookie(rawurlencode($payload), $pulse->expires)
+                $this->buildPulseCookie(rawurlencode($cookie_payload), $pulse->expires)
             );
         }
 
