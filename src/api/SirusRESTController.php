@@ -431,15 +431,12 @@ final class SirusRESTController
             return $device_mismatch;
         }
 
-        $active  = session_status() === PHP_SESSION_ACTIVE;
-
         return new WP_REST_Response(
             [
                 'context_id' => $context->context_id,
                 'device_id'  => $context->device_id,
                 'session_id' => $context->session_id,
-                'status'     => $active ? 'active' : 'ephemeral',
-                'is_active'  => $active,
+                'status'     => $context->session_id !== '' ? 'active' : 'ephemeral',
                 'issued_at'  => $context->issued_at,
                 'expires'    => $context->expires,
             ],

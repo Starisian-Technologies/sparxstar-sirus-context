@@ -189,6 +189,8 @@ final class RestApiTest extends SirusTestCase
         );
         $this->assertInstanceOf(\WP_REST_Response::class, $session_response);
         $this->assertSame('CLI', $session_response->get_data()['session_id'] ?? null);
+        $this->assertArrayHasKey('status', $session_response->get_data());
+        $this->assertArrayNotHasKey('is_active', $session_response->get_data());
 
         $client_report_response = $this->controller->handle_client_report(
             $this->makeRequest(
