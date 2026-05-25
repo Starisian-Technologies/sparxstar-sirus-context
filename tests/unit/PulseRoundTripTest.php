@@ -21,6 +21,9 @@ final class PulseRoundTripTest extends SirusTestCase
 {
     private const TEST_SIGNING_KEY = 'sirus-test-signing-key-x32bytes!';
 
+    /** @var list<string>|null */
+    private static ?array $validTrustLevels = null;
+
     private PulseGenerator $generator;
 
     public static function setUpBeforeClass(): void
@@ -171,7 +174,7 @@ final class PulseRoundTripTest extends SirusTestCase
         if (
             ! in_array(
                 $payload['trust_level'],
-                [ 'NORMAL', 'ELEVATED', 'CRITICAL', 'STEP_UP_REQUIRED', 'anonymous', 'device', 'contributor', 'user', 'authority', 'elder' ],
+                self::validTrustLevels(),
                 true
             )
         ) {
@@ -241,5 +244,19 @@ final class PulseRoundTripTest extends SirusTestCase
             issued_at:      1_699_999_970,
             expires:        1_700_000_300,
         );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function validTrustLevels(): array
+    {
+        if (self::$validTrustLevels === null) {
+            /** @var list<string> $values */
+            $values = array_column(TrustLevelPrimitive::cases(), 'value');
+            self::$validTrustLevels = $values;
+        }
+
+        return self::$validTrustLevels;
     }
 }

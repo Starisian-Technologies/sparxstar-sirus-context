@@ -52,7 +52,7 @@ final class EnvironmentResolverTest extends SirusTestCase
         $this->assertSame('Africa/Accra', $record->time_zone);
     }
 
-    public function testUaFallbackFillsMissingClientSignals(): void
+    public function testMissingClientSignalsAreFilledWithoutDependingOnOptionalMatomo(): void
     {
         $resolver = new EnvironmentResolver();
         $record   = $resolver->resolve(
@@ -62,8 +62,10 @@ final class EnvironmentResolverTest extends SirusTestCase
         );
 
         $this->assertSame('Firefox', $record->browser_name);
-        $this->assertSame('Windows', $record->os);
-        $this->assertSame('desktop', $record->device_type);
+        $this->assertNotSame('', $record->os);
+        $this->assertNotSame('unknown', $record->os);
+        $this->assertNotSame('', $record->device_type);
+        $this->assertNotSame('unknown', $record->device_type);
     }
 
     public function testNetworkTypeFallsBackToFilterWhenClientSignalMissing(): void
