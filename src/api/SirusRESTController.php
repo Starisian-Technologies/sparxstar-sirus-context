@@ -3,18 +3,6 @@
 /**
  * SirusRESTController - REST API endpoints for the Sirus Context Engine.
  *
- * Privacy requirements (non-negotiable per spec §H):
- * - IPs are anonymized (last octet zeroed) before any storage or logging.
- * - Rate limiting runs on the raw IP; only the anonymized form is stored.
- *
- * Device fingerprint derivation (spec §A):
- * - fingerprint_hash is computed server-side as sha256(visitor_id + user_agent + ip_subnet).
- *   The client sends raw signals; the server owns the hash computation.
- *
- * Device → Context binding (spec §A, issue #1):
- * - After resolving/registering a device, the context is built FROM that device
- *   via ContextEngine::buildFromDevice() so the two are always in sync.
- *
  * @package Starisian\Sparxstar\Sirus
  */
 
@@ -29,40 +17,42 @@ if (! defined('ABSPATH')) {
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
+use Starisian\Sparxstar\Sirus\core\ClientTelemetry;
 use Starisian\Sparxstar\Sirus\core\ContextEngine;
-use Starisian\Sparxstar\Sirus\helpers\IpAnonymizer;
 use Starisian\Sparxstar\Sirus\core\DeviceContinuity;
+use Starisian\Sparxstar\Sirus\core\IdentityResolver;
+use Starisian\Sparxstar\Sirus\core\PulseGenerator;
+use Starisian\Sparxstar\Sirus\core\ResourceSensitivity;
 use Starisian\Sparxstar\Sirus\core\NetworkContextBroker;
+use Starisian\Sparxstar\Sirus\helpers\IpAnonymizer;
 use Starisian\Sparxstar\Sirus\services\SirusDeviceParser;
 
 /**
- * Registers and handles REST routes for device registration and context retrieval.
- * All input is sanitized before use. Rate limiting is enforced per raw IP;
- * only anonymized IPs are stored.
+ * Registers and handles REST routes for device registration, context retrieval, pulse issuance,
+ * identity resolution, session status, and client telemetry.
  */
 final class SirusRESTController
 {
     private const NAMESPACE = 'sparxstar/v1';
 
+    private const PULSE_COOKIE_NAME = 'spx_context_pulse';
+
     private const RATE_LIMIT_TRANSIENT_PREFIX = 'sirus_rl_';
 
     private const RATE_LIMIT_MAX = 30;
 
-    /**
-     * @param DeviceContinuity $device_continuity The device continuity service.
-     */
     public function __construct(
         private readonly DeviceContinuity $device_continuity,
+        private readonly PulseGenerator $pulse_generator,
+        private readonly IdentityResolver $identity_resolver,
+        private readonly ?ClientTelemetry $client_telemetry,
+        private readonly SirusDeviceParser $device_parser,
+        private readonly NetworkContextBroker $network_context_broker,
     ) {
     }
 
     /**
      * Permission callback to enforce REST nonce validation and mitigate CSRF.
-     *
-     * Expects a valid X-WP-Nonce header created for the 'wp_rest' action.
-     *
-     * @param WP_REST_Request $request The current REST request.
-     * @return bool|WP_Error True if the nonce is valid, otherwise WP_Error.
      */
     public function verify_rest_nonce(WP_REST_Request $request): bool|WP_Error
     {
@@ -100,25 +90,21 @@ final class SirusRESTController
                 'callback'            => [ $this, 'handle_device_register' ],
                 'permission_callback' => [ $this, 'verify_rest_nonce' ],
                 'args'                => [
-                    // visitor_id from FingerprintJS — used SERVER-SIDE to derive fingerprint_hash.
                     'visitor_id' => [
                         'required'          => true,
                         'type'              => 'string',
                         'sanitize_callback' => 'sanitize_text_field',
                     ],
-                    // Stored device_id from localStorage (absent on first visit).
                     'device_id' => [
                         'required'          => false,
                         'type'              => 'string',
                         'sanitize_callback' => 'sanitize_text_field',
                     ],
-                    // Stored device_secret from localStorage — verifies the device_id claim.
                     'device_secret' => [
                         'required'          => false,
                         'type'              => 'string',
                         'sanitize_callback' => 'sanitize_text_field',
                     ],
-                    // Additional environment signals from the client.
                     'environment_data' => [
                         'required' => false,
                         'type'     => 'object',
@@ -135,13 +121,11 @@ final class SirusRESTController
                 'callback'            => [ $this, 'handle_get_context' ],
                 'permission_callback' => [ $this, 'verify_rest_nonce' ],
                 'args'                => [
-                    // Optional: resolve context for a specific device.
                     'device_id' => [
                         'required'          => false,
                         'type'              => 'string',
                         'sanitize_callback' => 'sanitize_text_field',
                     ],
-                    // Optional: restore context from a signed cross-domain token.
                     'ctx_token' => [
                         'required'          => false,
                         'type'              => 'string',
@@ -150,18 +134,102 @@ final class SirusRESTController
                 ],
             ]
         );
+
+        register_rest_route(
+            self::NAMESPACE,
+            '/pulse',
+            [
+                'methods'             => 'POST',
+                'callback'            => [ $this, 'handle_generate_pulse' ],
+                'permission_callback' => [ $this, 'verify_rest_nonce' ],
+                'args'                => [
+                    'device_id' => [
+                        'required'          => true,
+                        'type'              => 'string',
+                        'sanitize_callback' => 'sanitize_text_field',
+                    ],
+                    'resource_sensitivity' => [
+                        'required'          => true,
+                        'type'              => 'string',
+                        'sanitize_callback' => 'sanitize_text_field',
+                    ],
+                    'request_id' => [
+                        'required'          => true,
+                        'type'              => 'string',
+                        'sanitize_callback' => 'sanitize_text_field',
+                    ],
+                ],
+            ]
+        );
+
+        register_rest_route(
+            self::NAMESPACE,
+            '/identity',
+            [
+                'methods'             => 'GET',
+                'callback'            => [ $this, 'handle_get_identity' ],
+                'permission_callback' => [ $this, 'verify_rest_nonce' ],
+                'args'                => [
+                    'device_id' => [
+                        'required'          => false,
+                        'type'              => 'string',
+                        'sanitize_callback' => 'sanitize_text_field',
+                    ],
+                ],
+            ]
+        );
+
+        register_rest_route(
+            self::NAMESPACE,
+            '/session',
+            [
+                'methods'             => 'GET',
+                'callback'            => [ $this, 'handle_get_session' ],
+                'permission_callback' => [ $this, 'verify_rest_nonce' ],
+                'args'                => [
+                    'device_id' => [
+                        'required'          => false,
+                        'type'              => 'string',
+                        'sanitize_callback' => 'sanitize_text_field',
+                    ],
+                ],
+            ]
+        );
+
+        register_rest_route(
+            self::NAMESPACE,
+            '/client-report',
+            [
+                'methods'             => 'POST',
+                'callback'            => [ $this, 'handle_client_report' ],
+                'permission_callback' => [ $this, 'verify_rest_nonce' ],
+                'args'                => [
+                    'error_type' => [
+                        'required'          => true,
+                        'type'              => 'string',
+                        'sanitize_callback' => 'sanitize_text_field',
+                    ],
+                    'error_message' => [
+                        'required'          => true,
+                        'type'              => 'string',
+                        'sanitize_callback' => 'sanitize_text_field',
+                    ],
+                    'device_id' => [
+                        'required'          => false,
+                        'type'              => 'string',
+                        'sanitize_callback' => 'sanitize_text_field',
+                    ],
+                    'context' => [
+                        'required' => false,
+                        'type'     => 'object',
+                    ],
+                ],
+            ]
+        );
     }
 
     /**
      * Handles POST /sparxstar/v1/device.
-     *
-     * Server derives fingerprint_hash from visitor_id + UA + IP subnet.
-     * Resolves or registers device continuity, runs server-side UA parsing,
-     * builds the context from the resolved device (deterministic binding), and
-     * returns a signed context token.
-     *
-     * @param WP_REST_Request $request The incoming REST request.
-     * @return WP_REST_Response|WP_Error
      */
     public function handle_device_register(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
@@ -190,51 +258,23 @@ final class SirusRESTController
         $device_id_param = sanitize_text_field(
             wp_unslash((string) ($request->get_param('device_id') ?? ''))
         );
-
-        // device_secret verifies the device_id claim (drift tolerance model).
-        // Absent on first visit; present on subsequent visits from localStorage.
         $device_secret_param = sanitize_text_field(
             wp_unslash((string) ($request->get_param('device_secret') ?? ''))
         );
 
-        // Server-side fingerprint derivation: sha256(visitorId + userAgent + ipSubnet).
-        // This ensures the fingerprint is under server control and cannot be spoofed.
         $user_agent = sanitize_text_field(
             wp_unslash((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''))
         );
         $ip_subnet        = IpAnonymizer::ipSubnet($raw_ip);
         $fingerprint_hash = hash('sha256', $visitor_id . $user_agent . $ip_subnet);
 
-        // Collect environment data from the request.
         $environment_data = $request->get_param('environment_data');
         $environment_data = is_array($environment_data)
-            ? $this->sanitize_environment_data($environment_data)
+            ? $this->sanitize_payload_object($environment_data)
             : [];
 
-        // Server-side UA parsing — the client never runs a detection library.
-        $parser      = new SirusDeviceParser();
-        $device_info = $parser->parse($user_agent);
+        $environment_data = $this->mergeEnvironmentFallbacks($environment_data, $user_agent, $raw_ip);
 
-        // Merge server-parsed device info into the environment snapshot.
-        // Existing client signals are preserved; server data takes precedence for device keys.
-        $environment_data = array_merge(
-            $environment_data,
-            [
-                'server_ua_browser'         => $device_info['browser'],
-                'server_ua_browser_version' => $device_info['browser_version'],
-                'server_ua_os'              => $device_info['os'],
-                'server_ua_os_version'      => $device_info['os_version'],
-                'server_ua_device_type'     => $device_info['device_type'],
-                'server_ua_brand'           => $device_info['brand'],
-                'server_ua_model'           => $device_info['model'],
-                'server_ua_is_bot'          => $device_info['is_bot'] ? '1' : '0',
-                // Anonymized IP for storage — last octet zeroed, never full IP.
-                'ip_anonymized' => IpAnonymizer::anonymize($raw_ip),
-            ]
-        );
-
-        // 1. Resolve (or register) the device.
-        // Pass both device_id and device_secret — the secret authenticates the device_id claim.
         $device_record = $this->device_continuity->resolveDevice(
             $device_id_param,
             $device_secret_param,
@@ -242,13 +282,8 @@ final class SirusRESTController
             $environment_data
         );
 
-        // 2. Build context FROM the resolved device — ensures device and context always
-        // reference the same device_id. This primes ContextCache so that any subsequent
-        // call to ContextEngine::current() in this request returns the same context.
         $context = ContextEngine::buildFromDevice($device_record);
-
-        $broker = new NetworkContextBroker();
-        $token  = $broker->issueToken($context, wp_salt('auth'));
+        $token   = $this->network_context_broker->issueToken($context, wp_salt('auth'));
 
         return new WP_REST_Response(
             [
@@ -263,18 +298,6 @@ final class SirusRESTController
 
     /**
      * Handles GET /sparxstar/v1/context.
-     *
-     * Resolution priority:
-     * 1. ctx_token — validates the signed cross-domain handoff token and restores context.
-     * 2. Fallback — returns the current request context via ContextEngine::current().
-     *
-     * The ctx_token path implements the inbound side of the cross-domain handoff
-     * defined in spec §F: signature and TTL are verified; an expired or tampered
-     * token returns a 401. Signature verification uses HMAC-SHA256 with the WP auth
-     * salt, so tokens are site-specific.
-     *
-     * @param WP_REST_Request $request The incoming REST request.
-     * @return WP_REST_Response|WP_Error
      */
     public function handle_get_context(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
@@ -283,8 +306,7 @@ final class SirusRESTController
         );
 
         if ($ctx_token !== '') {
-            $broker  = new NetworkContextBroker();
-            $context = $broker->verifyToken($ctx_token, wp_salt('auth'));
+            $context = $this->network_context_broker->verifyToken($ctx_token, wp_salt('auth'));
 
             if ($context === null) {
                 return new WP_Error(
@@ -297,19 +319,179 @@ final class SirusRESTController
             return new WP_REST_Response($context->toPortablePayload(), 200);
         }
 
-        // No token — return the context for the current request.
+        return new WP_REST_Response(ContextEngine::current()->toPortablePayload(), 200);
+    }
+
+    /**
+     * Handles POST /sparxstar/v1/pulse.
+     */
+    public function handle_generate_pulse(WP_REST_Request $request): WP_REST_Response|WP_Error
+    {
+        $device_id = sanitize_text_field(
+            wp_unslash((string) ($request->get_param('device_id') ?? ''))
+        );
+        $request_id = sanitize_text_field(
+            wp_unslash((string) ($request->get_param('request_id') ?? ''))
+        );
+        $resource_sensitivity = sanitize_text_field(
+            wp_unslash((string) ($request->get_param('resource_sensitivity') ?? ''))
+        );
+
+        if ($device_id === '' || $request_id === '' || $resource_sensitivity === '') {
+            return new WP_Error(
+                'sirus_pulse_invalid_request',
+                __('device_id, resource_sensitivity, and request_id are required.', 'sparxstar-sirus'),
+                [ 'status' => 400 ]
+            );
+        }
+
+        if ($this->parseResourceSensitivity($resource_sensitivity) === null) {
+            return new WP_Error(
+                'sirus_pulse_invalid_sensitivity',
+                __('resource_sensitivity is invalid.', 'sparxstar-sirus'),
+                [ 'status' => 400 ]
+            );
+        }
+
         $context = ContextEngine::current();
-        return new WP_REST_Response($context->toPortablePayload(), 200);
+        if ($context->device_id !== $device_id) {
+            return new WP_Error(
+                'sirus_pulse_device_mismatch',
+                __('device_id does not match the current device context.', 'sparxstar-sirus'),
+                [ 'status' => 403 ]
+            );
+        }
+
+        $pulse    = $this->pulse_generator->generate($context);
+        $payload  = wp_json_encode(get_object_vars($pulse));
+        $response = new WP_REST_Response(
+            [
+                'pulse_id'    => $pulse->pulse_id,
+                'expires_at'  => $pulse->expires,
+                'trust_level' => $pulse->trust_level instanceof \BackedEnum
+                    ? $pulse->trust_level->value
+                    : (string) $pulse->trust_level,
+            ],
+            201
+        );
+
+        if ($payload !== false) {
+            $response->header(
+                'Set-Cookie',
+                $this->buildPulseCookie(rawurlencode($payload), $pulse->expires)
+            );
+        }
+
+        return $response;
+    }
+
+    /**
+     * Handles GET /sparxstar/v1/identity.
+     */
+    public function handle_get_identity(WP_REST_Request $request): WP_REST_Response|WP_Error
+    {
+        $context = ContextEngine::current();
+        $device_mismatch = $this->validateRequestedDevice($request, $context->device_id);
+        if ($device_mismatch instanceof WP_Error) {
+            return $device_mismatch;
+        }
+
+        return new WP_REST_Response(
+            $this->identity_resolver->resolve($context),
+            200
+        );
+    }
+
+    /**
+     * Handles GET /sparxstar/v1/session.
+     */
+    public function handle_get_session(WP_REST_Request $request): WP_REST_Response|WP_Error
+    {
+        $context = ContextEngine::current();
+        $device_mismatch = $this->validateRequestedDevice($request, $context->device_id);
+        if ($device_mismatch instanceof WP_Error) {
+            return $device_mismatch;
+        }
+
+        $active  = session_status() === PHP_SESSION_ACTIVE;
+
+        return new WP_REST_Response(
+            [
+                'context_id' => $context->context_id,
+                'device_id'  => $context->device_id,
+                'session_id' => $context->session_id,
+                'status'     => $active ? 'active' : 'ephemeral',
+                'is_active'  => $active,
+                'issued_at'  => $context->issued_at,
+                'expires'    => $context->expires,
+            ],
+            200
+        );
+    }
+
+    /**
+     * Handles POST /sparxstar/v1/client-report.
+     */
+    public function handle_client_report(WP_REST_Request $request): WP_REST_Response|WP_Error
+    {
+        if ($this->client_telemetry === null) {
+            return new WP_Error(
+                'sirus_client_telemetry_unavailable',
+                __('Client telemetry is unavailable.', 'sparxstar-sirus'),
+                [ 'status' => 503 ]
+            );
+        }
+
+        $error_type = sanitize_text_field(
+            wp_unslash((string) ($request->get_param('error_type') ?? ''))
+        );
+        $error_message = sanitize_text_field(
+            wp_unslash((string) ($request->get_param('error_message') ?? ''))
+        );
+        $device_id = sanitize_text_field(
+            wp_unslash((string) ($request->get_param('device_id') ?? ''))
+        );
+
+        if ($error_type === '' || $error_message === '') {
+            return new WP_Error(
+                'sirus_client_report_invalid_request',
+                __('error_type and error_message are required.', 'sparxstar-sirus'),
+                [ 'status' => 400 ]
+            );
+        }
+
+        $context = ContextEngine::current();
+        if ($device_id !== '' && $device_id !== $context->device_id) {
+            return new WP_Error(
+                'sirus_client_report_device_mismatch',
+                __('device_id does not match the current device context.', 'sparxstar-sirus'),
+                [ 'status' => 403 ]
+            );
+        }
+
+        $context_payload = $request->get_param('context');
+        $context_payload = is_array($context_payload)
+            ? $this->sanitize_payload_object($context_payload)
+            : [];
+
+        $this->client_telemetry->record(
+            $error_type,
+            $error_message,
+            $context_payload,
+            $context->device_id
+        );
+
+        return new WP_REST_Response(
+            [
+                'status'    => 'accepted',
+                'device_id' => $context->device_id,
+            ],
+            202
+        );
     }
 
     /**
      * Returns true if the given IP address is within its rate-limit window.
-     *
-     * Uses a pair of transients: one counter and one fixed window expiry to ensure
-     * the window does not slide on each increment. Allows up to RATE_LIMIT_MAX
-     * requests per 60-second fixed window.
-     *
-     * @param string $ip The raw client IP address to check (never stored).
      */
     private function check_rate_limit(string $ip): bool
     {
@@ -325,12 +507,10 @@ final class SirusRESTController
         }
 
         if ($count === 0 || $expiry === 0) {
-            // Start a new fixed 60-second window.
             $window_ttl = 60;
             set_transient($counter_key, 1, $window_ttl);
             set_transient($expiry_key, time() + $window_ttl, $window_ttl);
         } else {
-            // Increment within the existing window; preserve original TTL.
             $remaining = max(1, $expiry - time());
             set_transient($counter_key, $count + 1, $remaining);
         }
@@ -339,35 +519,123 @@ final class SirusRESTController
     }
 
     /**
-     * Sanitizes each scalar value in the environment_data array.
-     *
-     * @param array<mixed> $data Raw environment data from the request.
-     * @return array<string, string>
+     * @param array<string, mixed> $data Raw payload data from the request.
+     * @return array<string, mixed>
      */
-    private function sanitize_environment_data(array $data): array
+    private function sanitize_payload_object(array $data): array
     {
         $sanitized = [];
+
         foreach ($data as $key => $value) {
             $clean_key = sanitize_key((string) $key);
             if ($clean_key === '') {
                 continue;
             }
+
             if (is_array($value)) {
-                // Flatten nested arrays to JSON string.
-                $sanitized[ $clean_key ] = wp_json_encode($value) ?: '';
-            } else {
-                $sanitized[ $clean_key ] = sanitize_text_field(wp_unslash((string) $value));
+                $sanitized[ $clean_key ] = $this->sanitize_payload_object($value);
+                continue;
             }
+
+            if (is_bool($value) || is_int($value) || is_float($value)) {
+                $sanitized[ $clean_key ] = $value;
+                continue;
+            }
+
+            $sanitized[ $clean_key ] = sanitize_text_field(wp_unslash((string) $value));
         }
+
         return $sanitized;
     }
 
     /**
-     * Returns the raw client IP from REMOTE_ADDR only.
-     * Using REMOTE_ADDR (not X-Forwarded-For) prevents rate-limit bypass via spoofed headers.
-     * This value is used only for rate limiting and fingerprint hashing — never stored.
+     * Merges server-side parser data only into keys the client did not supply.
      *
-     * @return string The sanitized raw client IP address.
+     * @param array<string, mixed> $environment_data Client-submitted environment data.
+     * @return array<string, mixed>
+     */
+    private function mergeEnvironmentFallbacks(array $environment_data, string $user_agent, string $raw_ip): array
+    {
+        $device_info = $this->device_parser->parse($user_agent);
+
+        $fallbacks = [
+            'browser_name'   => $device_info['browser'],
+            'browser_version'=> $device_info['browser_version'],
+            'os'             => $device_info['os'],
+            'os_version'     => $device_info['os_version'],
+            'device_type'    => $device_info['device_type'],
+            'device_brand'   => $device_info['brand'],
+            'device_model'   => $device_info['model'],
+            'is_bot'         => $device_info['is_bot'] ? '1' : '0',
+            'ip_address'     => IpAnonymizer::anonymize($raw_ip),
+        ];
+
+        foreach ($fallbacks as $key => $value) {
+            if (! isset($environment_data[$key]) || $environment_data[$key] === '') {
+                $environment_data[$key] = $value;
+            }
+        }
+
+        return $environment_data;
+    }
+
+    /**
+     * Builds the Set-Cookie header value for a pulse.
+     */
+    private function buildPulseCookie(string $encodedPulse, int $expiresAt): string
+    {
+        $parts = [
+            self::PULSE_COOKIE_NAME . '=' . $encodedPulse,
+            'Path=/',
+            'Expires=' . gmdate('D, d M Y H:i:s T', $expiresAt),
+            'HttpOnly',
+            'SameSite=Strict',
+        ];
+
+        if (function_exists('is_ssl') && is_ssl()) {
+            $parts[] = 'Secure';
+        }
+
+        return implode('; ', $parts);
+    }
+
+    /**
+     * Normalizes the declared resource sensitivity.
+     */
+    private function parseResourceSensitivity(string $value): ?ResourceSensitivity
+    {
+        $normalized = strtoupper(str_replace('-', '_', sanitize_text_field($value)));
+
+        return match ($normalized) {
+            '1', 'LEVEL_1' => ResourceSensitivity::LEVEL_1,
+            '2', 'LEVEL_2' => ResourceSensitivity::LEVEL_2,
+            '3', 'LEVEL_3' => ResourceSensitivity::LEVEL_3,
+            default => null,
+        };
+    }
+
+    /**
+     * Validates an optional device_id request parameter against the current device context.
+     */
+    private function validateRequestedDevice(WP_REST_Request $request, string $currentDeviceId): ?WP_Error
+    {
+        $requested_device = sanitize_text_field(
+            wp_unslash((string) ($request->get_param('device_id') ?? ''))
+        );
+
+        if ($requested_device === '' || $requested_device === $currentDeviceId) {
+            return null;
+        }
+
+        return new WP_Error(
+            'sirus_device_context_mismatch',
+            __('device_id does not match the current device context.', 'sparxstar-sirus'),
+            [ 'status' => 400 ]
+        );
+    }
+
+    /**
+     * Returns the raw client IP from REMOTE_ADDR only.
      */
     private function get_raw_request_ip(): string
     {

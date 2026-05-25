@@ -1,14 +1,7 @@
 <?php
 
 /**
- * EnvironmentResolver - Resolves browser, OS, and network environment via Matomo DeviceDetector.
- *
- * This class owns environment detection for the Sirus context engine.
- * It wraps Matomo DeviceDetector when available, and falls back to
- * lightweight server-side heuristics when the library is not installed.
- *
- * StarUserEnv::get_browser_name(), get_os(), get_device_type(), and
- * get_network_effective_type() all route through this resolver.
+ * EnvironmentResolver - Builds a client-first EnvironmentRecord with UA fallback only.
  *
  * @package Starisian\Sparxstar\Sirus
  */
@@ -21,12 +14,10 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
+use Starisian\Sparxstar\Sirus\core\EnvironmentRecord;
+
 /**
- * Resolves the browser, OS, device type, and network effective type for the current request.
- *
- * When Matomo DeviceDetector is available (matomo/device-detector), it is used for
- * accurate UA parsing. Without it, a lightweight regex-based fallback is used.
- * Consumers receive the same output shape regardless of which path is taken.
+ * Resolves the browser, OS, device, network, and privacy-safe location for the current request.
  */
 final class EnvironmentResolver
 {
@@ -36,146 +27,115 @@ final class EnvironmentResolver
     /** @var array<int, string> */
     private const GEO_REGION_KEYS = [ 'region', 'regionName' ];
 
-    /**
-     * Resolved environment data, keyed by environment field name.
-     *
-     * @var array<string, string>|null
-     */
-    private ?array $resolved = null;
+    /** @var array<int, string> */
+    private const GEO_APPROX_LAT_KEYS = [ 'approx_lat', 'approxLat' ];
+
+    /** @var array<int, string> */
+    private const GEO_APPROX_LNG_KEYS = [ 'approx_lng', 'approxLng' ];
+
+    /** @var EnvironmentRecord|null */
+    private ?EnvironmentRecord $resolved = null;
 
     /**
-     * Memoized geographic trust zone for the current request.
+     * Resolves the full environment record.
      *
-     * @var ?string
+     * Client-submitted signals are authoritative. UA parsing is used only to fill gaps.
+     *
+     * @param array<string, mixed> $clientSignals Optional client-submitted environment signals.
      */
-    private ?string $geoZone = null;
-
-    /**
-     * Resolves the full environment record for the current User-Agent.
-     *
-     * Result is memoised within the request; subsequent calls return the
-     * same array without re-parsing. The returned array always contains
-     * all four environment fields.
-     *
-     * @return array{
-     *     browser_name: string,
-     *     os: string,
-     *     device_type: string,
-     *     network_effective_type: string
-     * }
-     */
-    public function resolve(): array
+    public function resolve(array $clientSignals = []): EnvironmentRecord
     {
-        if ($this->resolved !== null) {
+        if ($clientSignals === [] && $this->resolved !== null) {
             return $this->resolved;
         }
 
-        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        $raw_ua = isset($_SERVER['HTTP_USER_AGENT'])
+        $signals = $this->sanitizeClientSignals($clientSignals);
+        $rawUa   = isset($_SERVER['HTTP_USER_AGENT'])
             ? sanitize_text_field(wp_unslash((string) $_SERVER['HTTP_USER_AGENT']))
             : '';
 
-        $this->resolved = class_exists('DeviceDetector\DeviceDetector')
-            ? $this->resolveWithDetector($raw_ua)
-            : $this->resolveWithFallback($raw_ua);
+        $fallback = class_exists('DeviceDetector\DeviceDetector')
+            ? $this->resolveWithDetector($rawUa)
+            : $this->resolveWithFallback($rawUa);
 
-        // Network effective type is not available server-side; set to 'unknown'.
-        // Overridden downstream by client-reported signal via REST event.
-        $this->resolved['network_effective_type'] = $this->resolveNetworkType();
+        $record = new EnvironmentRecord(
+            environment_id:         $this->buildEnvironmentId($signals, $fallback),
+            browser_name:           $this->resolveStringSignal($signals, [ 'browser_name', 'browser', 'client_browser_name' ], $fallback['browser_name']),
+            browser_version:        $this->resolveStringSignal($signals, [ 'browser_version', 'client_browser_version' ], $fallback['browser_version']),
+            os:                     $this->resolveStringSignal($signals, [ 'os', 'client_os' ], $fallback['os']),
+            os_version:             $this->resolveStringSignal($signals, [ 'os_version', 'client_os_version' ], $fallback['os_version']),
+            device_type:            $this->resolveStringSignal($signals, [ 'device_type', 'client_device_type' ], $fallback['device_type']),
+            device_brand:           $this->resolveStringSignal($signals, [ 'device_brand', 'brand', 'client_device_brand' ], $fallback['device_brand']),
+            device_model:           $this->resolveStringSignal($signals, [ 'device_model', 'model', 'client_device_model' ], $fallback['device_model']),
+            network_effective_type: $this->resolveNetworkType($signals),
+            ip_address:             $this->getRemoteIpAddress(),
+            location:               $this->resolveLocation(),
+            time_zone:              $this->resolveStringSignal($signals, [ 'time_zone', 'timezone' ]),
+            is_bot:                 $this->resolveBooleanSignal($signals, [ 'is_bot' ], $fallback['is_bot']),
+            captured_at:            time(),
+        );
 
-        return $this->resolved;
+        if ($clientSignals === []) {
+            $this->resolved = $record;
+        }
+
+        return $record;
     }
 
     /**
      * Returns just the browser name.
-     *
-     * @return string Browser name, e.g. "Chrome", or "unknown".
      */
     public function getBrowserName(): string
     {
-        return $this->resolve()['browser_name'];
+        return $this->resolve()->browser_name;
     }
 
     /**
      * Returns just the OS name.
-     *
-     * @return string OS name, e.g. "Android", or "unknown".
      */
     public function getOs(): string
     {
-        return $this->resolve()['os'];
+        return $this->resolve()->os;
     }
 
     /**
      * Returns just the device type.
-     *
-     * @return string Device type, e.g. "smartphone", "desktop", or "unknown".
      */
     public function getDeviceType(): string
     {
-        return $this->resolve()['device_type'];
+        return $this->resolve()->device_type;
     }
 
     /**
-     * Returns the network effective type.
-     *
-     * Server-side this is always "unknown" unless overridden by a client signal.
-     *
-     * @return string Network type, e.g. "4g", "3g", "2g", "slow-2g", or "unknown".
+     * Returns the effective network type.
      */
     public function getNetworkEffectiveType(): string
     {
-        return $this->resolve()['network_effective_type'];
+        return $this->resolve()->network_effective_type;
     }
 
     /**
      * Returns the geographic trust zone identifier.
-     *
-     * Derived from geolocation provider data, normalized to lower snake-case:
-     *   {country}_{region}
-     * Supported payloads:
-     * - Sirus GeoIP service (`country`, `region`)
-     * - Common provider aliases (`countryCode`, `country_code`, `regionName`)
-     * Falls back to 'unknown' when geolocation data is unavailable.
      */
     public function getGeoZone(): string
     {
-        if ($this->geoZone !== null) {
-            return $this->geoZone;
+        $location = $this->resolve()->location;
+        $parts    = [];
+
+        foreach ([ 'country', 'region' ] as $key) {
+            $value = $location[$key] ?? '';
+            if (! is_string($value) || $value === '') {
+                continue;
+            }
+
+            $parts[] = strtolower(str_replace([ ' ', '-' ], '_', $value));
         }
 
-        $geo = apply_filters('sparxstar_env_geolocation_lookup', null, $this->getRemoteIpAddress());
-        if (! is_array($geo) || $geo === []) {
-            $this->geoZone = 'unknown';
-            return $this->geoZone;
-        }
-
-        $country = $this->extractGeoValue($geo, self::GEO_COUNTRY_KEYS);
-        $region  = $this->extractGeoValue($geo, self::GEO_REGION_KEYS);
-        $parts   = [];
-
-        if ($country !== '') {
-            $parts[] = strtolower(str_replace([' ', '-'], '_', $country));
-        }
-
-        if ($region !== '') {
-            $parts[] = strtolower(str_replace([' ', '-'], '_', $region));
-        }
-
-        if ($parts === []) {
-            $this->geoZone = 'unknown';
-            return $this->geoZone;
-        }
-
-        $this->geoZone = implode('_', $parts);
-        return $this->geoZone;
+        return $parts === [] ? 'unknown' : implode('_', $parts);
     }
 
     /**
      * Returns the current request IP if present and valid, otherwise ''.
-     *
-     * Uses REMOTE_ADDR intentionally (same anti-spoofing model as Sirus REST
-     * controllers) and does not trust forwarded headers by default.
      */
     private function getRemoteIpAddress(): string
     {
@@ -187,14 +147,124 @@ final class EnvironmentResolver
     }
 
     /**
+     * @param array<string, mixed> $signals
+     * @param array<int, string>   $keys
+     */
+    private function resolveStringSignal(array $signals, array $keys, string $fallback = ''): string
+    {
+        foreach ($keys as $key) {
+            $value = $signals[$key] ?? null;
+            if (! is_string($value)) {
+                continue;
+            }
+
+            $sanitized = sanitize_text_field($value);
+            if ($sanitized !== '') {
+                return $sanitized;
+            }
+        }
+
+        return $fallback;
+    }
+
+    /**
+     * @param array<string, mixed> $signals
+     * @param array<int, string>   $keys
+     */
+    private function resolveBooleanSignal(array $signals, array $keys, bool $fallback = false): bool
+    {
+        foreach ($keys as $key) {
+            $value = $signals[$key] ?? null;
+
+            if (is_bool($value)) {
+                return $value;
+            }
+
+            if (is_string($value)) {
+                $normalized = strtolower(sanitize_text_field($value));
+                if (in_array($normalized, [ '1', 'true', 'yes' ], true)) {
+                    return true;
+                }
+
+                if (in_array($normalized, [ '0', 'false', 'no' ], true)) {
+                    return false;
+                }
+            }
+        }
+
+        return $fallback;
+    }
+
+    /**
+     * @param array<string, mixed> $signals
+     */
+    private function resolveNetworkType(array $signals): string
+    {
+        $client_type = $this->resolveStringSignal(
+            $signals,
+            [ 'network_effective_type', 'effective_type', 'network_type' ]
+        );
+
+        if ($client_type !== '') {
+            return $client_type;
+        }
+
+        $filtered = (string) apply_filters('sparxstar_env_network_effective_type', 'unknown');
+        if ($filtered !== 'unknown') {
+            return $filtered;
+        }
+
+        if (PHP_SAPI === 'cli') {
+            return 'cli';
+        }
+
+        return $filtered;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function resolveLocation(): array
+    {
+        $geo = apply_filters('sparxstar_env_geolocation_lookup', null, $this->getRemoteIpAddress());
+        if (! is_array($geo) || $geo === []) {
+            return [];
+        }
+
+        $location = [];
+
+        $country = $this->extractGeoValue($geo, self::GEO_COUNTRY_KEYS);
+        if ($country !== '') {
+            $location['country'] = $country;
+        }
+
+        $region = $this->extractGeoValue($geo, self::GEO_REGION_KEYS);
+        if ($region !== '') {
+            $location['region'] = $region;
+        }
+
+        $approxLat = $this->extractGeoFloat($geo, self::GEO_APPROX_LAT_KEYS);
+        if ($approxLat !== null) {
+            $location['approx_lat'] = $approxLat;
+        }
+
+        $approxLng = $this->extractGeoFloat($geo, self::GEO_APPROX_LNG_KEYS);
+        if ($approxLng !== null) {
+            $location['approx_lng'] = $approxLng;
+        }
+
+        return $location;
+    }
+
+    /**
      * @param array<string, mixed> $geo
-     * @param array<int, string> $keys
+     * @param array<int, string>   $keys
      */
     private function extractGeoValue(array $geo, array $keys): string
     {
         foreach ($keys as $key) {
             $raw = $geo[$key] ?? '';
-            if (! is_string($raw) && ! is_int($raw) && ! is_float($raw)) {
+            if (! is_scalar($raw)) {
                 continue;
             }
 
@@ -208,10 +278,37 @@ final class EnvironmentResolver
     }
 
     /**
-     * Resolves environment using Matomo DeviceDetector.
+     * @param array<string, mixed> $geo
+     * @param array<int, string>   $keys
+     */
+    private function extractGeoFloat(array $geo, array $keys): ?float
+    {
+        foreach ($keys as $key) {
+            $raw = $geo[$key] ?? null;
+            if (! is_numeric($raw)) {
+                continue;
+            }
+
+            return (float) $raw;
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolves environment details using Matomo DeviceDetector.
      *
      * @param string $ua Raw User-Agent string.
-     * @return array{browser_name: string, os: string, device_type: string, network_effective_type: string}
+     * @return array{
+     *     browser_name: string,
+     *     browser_version: string,
+     *     os: string,
+     *     os_version: string,
+     *     device_type: string,
+     *     device_brand: string,
+     *     device_model: string,
+     *     is_bot: bool
+     * }
      */
     private function resolveWithDetector(string $ua): array
     {
@@ -219,30 +316,21 @@ final class EnvironmentResolver
             $dd = new \DeviceDetector\DeviceDetector($ua);
             $dd->parse();
 
-            $browser_info = $dd->getClient();
-            $os_info      = $dd->getOs();
-
-            $browser_name = '';
-            if (is_array($browser_info) && isset($browser_info['name']) && is_string($browser_info['name'])) {
-                $browser_name = $browser_info['name'];
-            }
-
-            $os = '';
-            if (is_array($os_info) && isset($os_info['name']) && is_string($os_info['name'])) {
-                $os = $os_info['name'];
-            }
-
-            $device_type = $dd->isSmartphone() ? 'smartphone'
-                : ($dd->isTablet()    ? 'tablet'
-                : ($dd->isDesktop()   ? 'desktop'
-                : ($dd->isBot()       ? 'bot'
-                : 'unknown')));
+            $browserInfo = $dd->getClient();
+            $osInfo      = $dd->getOs();
 
             return [
-                'browser_name'           => $browser_name !== '' ? $browser_name : 'unknown',
-                'os'                     => $os !== '' ? $os : 'unknown',
-                'device_type'            => $device_type,
-                'network_effective_type' => 'unknown',
+                'browser_name'    => isset($browserInfo['name']) && is_string($browserInfo['name']) ? $browserInfo['name'] : 'unknown',
+                'browser_version' => isset($browserInfo['version']) && is_string($browserInfo['version']) ? $browserInfo['version'] : '',
+                'os'              => isset($osInfo['name']) && is_string($osInfo['name']) ? $osInfo['name'] : 'unknown',
+                'os_version'      => isset($osInfo['version']) && is_string($osInfo['version']) ? $osInfo['version'] : '',
+                'device_type'     => $dd->isSmartphone() ? 'smartphone'
+                    : ($dd->isTablet() ? 'tablet'
+                    : ($dd->isDesktop() ? 'desktop'
+                    : ($dd->isBot() ? 'bot' : 'unknown'))),
+                'device_brand'    => is_string($dd->getBrandName()) ? $dd->getBrandName() : '',
+                'device_model'    => is_string($dd->getModel()) ? $dd->getModel() : '',
+                'is_bot'          => $dd->isBot(),
             ];
         } catch (\Throwable) {
             return $this->resolveWithFallback($ua);
@@ -250,87 +338,146 @@ final class EnvironmentResolver
     }
 
     /**
-     * Lightweight regex-based fallback when Matomo DeviceDetector is not installed.
+     * Lightweight fallback when Matomo DeviceDetector is unavailable.
      *
      * @param string $ua Raw User-Agent string.
-     * @return array{browser_name: string, os: string, device_type: string, network_effective_type: string}
+     * @return array{
+     *     browser_name: string,
+     *     browser_version: string,
+     *     os: string,
+     *     os_version: string,
+     *     device_type: string,
+     *     device_brand: string,
+     *     device_model: string,
+     *     is_bot: bool
+     * }
      */
     private function resolveWithFallback(string $ua): array
     {
-        $browser_name = 'unknown';
-        $os           = 'unknown';
-        $device_type  = 'unknown';
+        $resolved = [
+            'browser_name'    => 'unknown',
+            'browser_version' => '',
+            'os'              => 'unknown',
+            'os_version'      => '',
+            'device_type'     => 'unknown',
+            'device_brand'    => '',
+            'device_model'    => '',
+            'is_bot'          => false,
+        ];
 
         if ($ua === '') {
-            return ['browser_name' => $browser_name, 'os' => $os, 'device_type' => $device_type, 'network_effective_type' => 'unknown'];
+            return $resolved;
         }
 
-        // Browser detection (most-specific first).
-        $browser_patterns = [
-            'Edg'     => 'Microsoft Edge',
-            'OPR'     => 'Opera',
-            'Opera'   => 'Opera',
-            'Chrome'  => 'Chrome',
-            'Firefox' => 'Firefox',
-            'Safari'  => 'Safari',
-            'MSIE'    => 'Internet Explorer',
-            'Trident' => 'Internet Explorer',
-        ];
-        foreach ($browser_patterns as $token => $name) {
+        if (str_contains($ua, 'bot') || str_contains($ua, 'Bot') || str_contains($ua, 'crawler')) {
+            $resolved['is_bot']      = true;
+            $resolved['device_type'] = 'bot';
+        }
+
+        foreach (
+            [
+                'Edg/'     => 'Microsoft Edge',
+                'OPR/'     => 'Opera',
+                'Opera/'   => 'Opera',
+                'Chrome/'  => 'Chrome',
+                'Firefox/' => 'Firefox',
+                'Safari/'  => 'Safari',
+                'MSIE '    => 'Internet Explorer',
+                'Trident/' => 'Internet Explorer',
+            ] as $token => $name
+        ) {
             if (str_contains($ua, $token)) {
-                $browser_name = $name;
+                $resolved['browser_name']    = $name;
+                $resolved['browser_version'] = $this->extractVersionFromUserAgent($ua, rtrim($token, ' /'));
                 break;
             }
         }
 
-        // OS detection.
-        $os_patterns = [
-            'Android'     => 'Android',
-            'iPhone'      => 'iOS',
-            'iPad'        => 'iOS',
-            'Windows NT'  => 'Windows',
-            'Macintosh'   => 'macOS',
-            'Linux'       => 'Linux',
-        ];
-        foreach ($os_patterns as $token => $name) {
+        foreach (
+            [
+                'Android'    => 'Android',
+                'iPhone OS'  => 'iOS',
+                'iPad'       => 'iOS',
+                'Windows NT' => 'Windows',
+                'Mac OS X'   => 'macOS',
+                'Linux'      => 'Linux',
+            ] as $token => $name
+        ) {
             if (str_contains($ua, $token)) {
-                $os = $name;
+                $resolved['os']         = $name;
+                $resolved['os_version'] = $this->extractVersionFromUserAgent($ua, $token);
                 break;
             }
         }
 
-        // Device type.
         if (str_contains($ua, 'Mobile') || str_contains($ua, 'iPhone')) {
-            $device_type = 'smartphone';
+            $resolved['device_type'] = 'smartphone';
         } elseif (str_contains($ua, 'Tablet') || str_contains($ua, 'iPad')) {
-            $device_type = 'tablet';
-        } elseif ($os !== 'unknown') {
-            $device_type = 'desktop';
+            $resolved['device_type'] = 'tablet';
+        } elseif ($resolved['device_type'] !== 'bot' && $resolved['os'] !== 'unknown') {
+            $resolved['device_type'] = 'desktop';
         }
 
-        return ['browser_name' => $browser_name, 'os' => $os, 'device_type' => $device_type, 'network_effective_type' => 'unknown'];
+        return $resolved;
     }
 
     /**
-     * Returns the network effective type.
-     *
-     * Server-side detection is not possible; returns 'unknown'.
-     * Client-reported values are set via the SirusEventController.
-     *
-     * @return string Always 'unknown' server-side.
+     * @param array<string, mixed> $signals
+     * @param array<string, mixed> $fallback
      */
-    private function resolveNetworkType(): string
+    private function buildEnvironmentId(array $signals, array $fallback): string
     {
-        if (PHP_SAPI === 'cli') {
-            return 'cli';
+        $payload = [
+            'browser_name'    => $this->resolveStringSignal($signals, [ 'browser_name', 'browser', 'client_browser_name' ], $fallback['browser_name']),
+            'browser_version' => $this->resolveStringSignal($signals, [ 'browser_version', 'client_browser_version' ], $fallback['browser_version']),
+            'os'              => $this->resolveStringSignal($signals, [ 'os', 'client_os' ], $fallback['os']),
+            'os_version'      => $this->resolveStringSignal($signals, [ 'os_version', 'client_os_version' ], $fallback['os_version']),
+            'device_type'     => $this->resolveStringSignal($signals, [ 'device_type', 'client_device_type' ], $fallback['device_type']),
+            'device_brand'    => $this->resolveStringSignal($signals, [ 'device_brand', 'brand', 'client_device_brand' ], $fallback['device_brand']),
+            'device_model'    => $this->resolveStringSignal($signals, [ 'device_model', 'model', 'client_device_model' ], $fallback['device_model']),
+            'time_zone'       => $this->resolveStringSignal($signals, [ 'time_zone', 'timezone' ]),
+        ];
+
+        return hash('sha256', (string) wp_json_encode($payload));
+    }
+
+    /**
+     * @param array<string, mixed> $signals
+     * @return array<string, mixed>
+     */
+    private function sanitizeClientSignals(array $signals): array
+    {
+        $sanitized = [];
+
+        foreach ($signals as $key => $value) {
+            $cleanKey = sanitize_key((string) $key);
+            if ($cleanKey === '') {
+                continue;
+            }
+
+            if (is_bool($value) || is_int($value) || is_float($value)) {
+                $sanitized[$cleanKey] = $value;
+                continue;
+            }
+
+            if (is_string($value)) {
+                $sanitized[$cleanKey] = sanitize_text_field($value);
+            }
         }
 
-        /**
-         * Filter: sparxstar_env_network_effective_type
-         * Allow overriding the network type from an external signal or test.
-         *
-         * @param string $type Default 'unknown'.
-         */
-        return (string) apply_filters('sparxstar_env_network_effective_type', 'unknown');
+        return $sanitized;
+    }
+
+    /**
+     * Extracts a simple version token after the given UA marker.
+     */
+    private function extractVersionFromUserAgent(string $ua, string $token): string
+    {
+        $pattern = '/' . preg_quote($token, '/') . '[\\s\\/:_]+([0-9A-Za-z._-]+)/';
+        if (preg_match($pattern, $ua, $matches) !== 1) {
+            return '';
+        }
+
+        return sanitize_text_field((string) ($matches[1] ?? ''));
     }
 }
