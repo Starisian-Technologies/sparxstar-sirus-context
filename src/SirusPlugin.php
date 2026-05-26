@@ -19,6 +19,8 @@ use Starisian\Sparxstar\Sirus\core\SirusDatabase;
 use Starisian\Sparxstar\Sirus\core\ClientTelemetry;
 use Starisian\Sparxstar\Sirus\core\DeviceContinuity;
 use Starisian\Sparxstar\Sirus\core\DeviceRepository;
+use Starisian\Sparxstar\Sirus\core\IdentityResolver;
+use Starisian\Sparxstar\Sirus\core\PulseGenerator;
 use Starisian\Sparxstar\Sirus\helpers\SirusRateLimit;
 use Starisian\Sparxstar\Sirus\api\SirusRESTController;
 use Starisian\Sparxstar\Sirus\admin\SirusDashboardPage;
@@ -34,7 +36,9 @@ use Starisian\Sparxstar\Sirus\helpers\SirusSignalEvaluator;
 use Starisian\Sparxstar\Sirus\admin\SirusNetworkSettingsPage;
 use Starisian\Sparxstar\Sirus\helpers\SirusMitigationRuleEngine;
 use Starisian\Sparxstar\Sirus\services\SirusMitigationCoordinator;
+use Starisian\Sparxstar\Sirus\services\SirusDeviceParser;
 use Starisian\Sparxstar\Sirus\core\SirusMitigationActionRepository;
+use Starisian\Sparxstar\Sirus\integrations\HeliosClient;
 
 /**
  * Singleton orchestrator for the Sirus Context Engine plugin.
@@ -129,7 +133,14 @@ final class SirusPlugin
         global $wpdb;
         $device_repo       = new DeviceRepository($wpdb);
         $device_continuity = new DeviceContinuity($device_repo);
-        $controller        = new SirusRESTController($device_continuity);
+        $controller        = new SirusRESTController(
+            $device_continuity,
+            new PulseGenerator(),
+            new IdentityResolver(new HeliosClient()),
+            new ClientTelemetry($wpdb),
+            new SirusDeviceParser(),
+            new NetworkContextBroker()
+        );
         $controller->register_routes();
 
         $event_repo    = new SirusEventRepository($wpdb);

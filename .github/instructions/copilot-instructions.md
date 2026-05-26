@@ -48,7 +48,6 @@ What this repository owns
 -   `ContextEngine` --- `current()` accessor, CLI System Context
 -   `SirusContext` DTO --- primary output consumed by all downstream layers
 -   `ContextPulse` generation and HMAC-SHA256 signing (`PulseGenerator`)
--   `PulseVerifier` --- six-check canonical verification
 -   `TrustEngine` --- trust state and score computation
 -   `DeviceContinuity` --- server-issued `device_id`, fingerprint, session recovery
 -   `DeviceMatcher` --- fingerprint scoring thresholds
@@ -148,5 +147,4 @@ When uncertain
 --------------
 
 If you are making a yes/no decision about whether a request may proceed --- that is Helios, not Sirus. Sirus produces context. Helios decides.
-
 

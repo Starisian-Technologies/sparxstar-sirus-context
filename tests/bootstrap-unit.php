@@ -170,16 +170,37 @@ if (!function_exists('plugin_dir_path')) {
 
 if (!function_exists('apply_filters')) {
     /**
-     * Basic filter shim that returns the provided value unchanged.
+     * Basic filter shim that applies registered callbacks in priority order.
+     *
+     * When no callbacks are registered, the provided value is returned unchanged.
      *
      * @param string $hook_name Hook name.
      * @param mixed  $value     Value to filter.
-     * @return mixed Unaltered value to keep tests predictable.
+     * @param mixed  ...$args   Additional hook arguments.
+     * @return mixed Filtered value.
      */
-    function apply_filters(string $hook_name, mixed $value): mixed
+    function apply_filters(string $hook_name, mixed $value, mixed ...$args): mixed
     {
-        unset($hook_name);
-        return $value;
+        $filters = $GLOBALS['registered_filters'][$hook_name] ?? [];
+
+        if ($filters === []) {
+            return $value;
+        }
+
+        usort(
+            $filters,
+            static fn (array $left, array $right): int => (int) $left['priority'] <=> (int) $right['priority']
+        );
+
+        $filtered = $value;
+
+        foreach ($filters as $filter) {
+            $accepted_args  = max(1, (int) ($filter['args'] ?? 1));
+            $callback_args  = array_merge([ $filtered ], array_slice($args, 0, $accepted_args - 1));
+            $filtered = $filter['callback'](...$callback_args);
+        }
+
+        return $filtered;
     }
 }
 
@@ -372,8 +393,33 @@ if (!function_exists('current_user_can')) {
      */
     function current_user_can(string $capability): bool
     {
-        unset($capability);
+        if (isset($GLOBALS['__current_user_can'][$capability])) {
+            return (bool) $GLOBALS['__current_user_can'][$capability];
+        }
+
         return true;
+    }
+}
+
+if (!function_exists('user_can')) {
+    /**
+     * Capability check shim keyed by user ID and capability.
+     *
+     * @param int    $user_id    User identifier.
+     * @param string $capability Requested capability.
+     * @return bool Whether the capability is granted.
+     */
+    function user_can(int $user_id, string $capability): bool
+    {
+        if (isset($GLOBALS['__user_can_map'][$user_id][$capability])) {
+            return (bool) $GLOBALS['__user_can_map'][$user_id][$capability];
+        }
+
+        if (($GLOBALS['__current_user_id'] ?? 0) === $user_id) {
+            return current_user_can($capability);
+        }
+
+        return false;
     }
 }
 
@@ -411,7 +457,7 @@ if (!function_exists('get_current_user_id')) {
      */
     function get_current_user_id(): int
     {
-        return 0;
+        return (int) ($GLOBALS['__current_user_id'] ?? 0);
     }
 }
 
@@ -586,9 +632,9 @@ if (!class_exists('wpdb')) {
          * @param array<string, mixed> $data  Data payload to store.
          * @return bool                        True on success.
          */
-        public function insert(string $table, array $data): bool
+        public function insert(string $table, array $data, array $format = []): bool
         {
-            $this->queries[] = ['table' => $table, 'data' => $data];
+            $this->queries[] = ['table' => $table, 'data' => $data, 'format' => $format];
             $this->insert_id++;
             return true;
         }
@@ -601,9 +647,20 @@ if (!class_exists('wpdb')) {
          * @param array<string, mixed> $where Where clause.
          * @return bool                        True on success.
          */
-        public function update(string $table, array $data, array $where): bool
-        {
-            $this->queries[] = ['table' => $table, 'data' => $data, 'where' => $where];
+        public function update(
+            string $table,
+            array $data,
+            array $where,
+            array $format = [],
+            array $where_format = []
+        ): bool {
+            $this->queries[] = [
+                'table'        => $table,
+                'data'         => $data,
+                'where'        => $where,
+                'format'       => $format,
+                'where_format' => $where_format,
+            ];
             return true;
         }
 
@@ -653,12 +710,12 @@ if (!class_exists('wpdb')) {
          * Stubbed getter for a single scalar result.
          *
          * @param string $query SQL string.
-         * @return int|null     Null for absent rows.
+         * @return mixed        Any scalar returned by the test fixture, or null for absent rows.
          */
-        public function get_var(string $query): ?int
+        public function get_var(string $query): mixed
         {
             $this->queries[] = ['query' => $query];
-            return null;
+            return $GLOBALS['wpdb_get_var'] ?? null;
         }
 
         /**
@@ -1820,8 +1877,16 @@ if (!function_exists('wp_verify_nonce')) {
      */
     function wp_verify_nonce(string $nonce, string $action = ''): int|false
     {
-        unset($action);
-        return $nonce !== '' ? 1 : false;
+        if ($nonce === '') {
+            return false;
+        }
+
+        $overrides = $GLOBALS['wp_nonce_overrides'][$action] ?? [];
+        if (($overrides[$nonce] ?? false) === true) {
+            return 1;
+        }
+
+        return hash_equals(wp_create_nonce($action), $nonce) ? 1 : false;
     }
 }
 
@@ -1840,6 +1905,9 @@ if (!class_exists('WP_REST_Request')) {
     {
         /** @var array<string, mixed> */
         private array $params = [];
+
+        /** @var array<string, string> */
+        private array $headers = [];
 
         /**
          * @param string               $method HTTP method.
@@ -1875,6 +1943,27 @@ if (!class_exists('WP_REST_Request')) {
         {
             $this->params[$param] = $value;
         }
+
+        /**
+         * Returns a request header value or null.
+         *
+         * @param string $name Header name.
+         */
+        public function get_header(string $name): ?string
+        {
+            return $this->headers[$name] ?? null;
+        }
+
+        /**
+         * Sets a request header value.
+         *
+         * @param string $name  Header name.
+         * @param string $value Header value.
+         */
+        public function set_header(string $name, string $value): void
+        {
+            $this->headers[$name] = $value;
+        }
     }
 }
 
@@ -1884,6 +1973,9 @@ if (!class_exists('WP_REST_Response')) {
      */
     class WP_REST_Response
     {
+        /** @var array<string, string> */
+        private array $headers = [];
+
         /**
          * @param mixed $data   Response data.
          * @param int   $status HTTP status code.
@@ -1911,6 +2003,42 @@ if (!class_exists('WP_REST_Response')) {
         public function get_status(): int
         {
             return $this->status;
+        }
+
+        /**
+         * Sets a response header.
+         *
+         * @param string $name    Header name.
+         * @param string $value   Header value.
+         * @param bool   $replace Whether to replace an existing header.
+         */
+        public function header(string $name, string $value, bool $replace = true): void
+        {
+            if ($replace || ! isset($this->headers[$name])) {
+                $this->headers[$name] = $value;
+            } else {
+                $this->headers[$name] .= ', ' . $value;
+            }
+        }
+
+        /**
+         * Returns the stored response headers.
+         *
+         * @return array<string, string>
+         */
+        public function get_headers(): array
+        {
+            return $this->headers;
+        }
+
+        /**
+         * Returns a single response header value.
+         *
+         * @param string $name Header name.
+         */
+        public function get_header(string $name): ?string
+        {
+            return $this->headers[$name] ?? null;
         }
     }
 }
