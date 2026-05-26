@@ -294,13 +294,13 @@ final class EnvironmentResolverTest extends SirusTestCase
     // ── Network effective type ────────────────────────────────────────────────
 
     /**
-     * Server-side: network_effective_type must always be 'unknown' (overridden by
-     * client-reported signal later via REST event).
+     * In the PHPUnit runtime, EnvironmentResolver executes in CLI mode, so the
+     * network effective type resolves to 'cli' rather than a browser-derived value.
      */
-    public function testNetworkEffectiveTypeIsUnknownServerSide(): void
+    public function testNetworkEffectiveTypeIsCliInCliRuntime(): void
     {
         $ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0';
-        $this->assertSame('unknown', $this->resolverWithUa($ua)->getNetworkEffectiveType());
+        $this->assertSame('cli', $this->resolverWithUa($ua)->getNetworkEffectiveType());
     }
 
     // ── Memoization ───────────────────────────────────────────────────────────
