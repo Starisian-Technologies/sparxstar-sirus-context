@@ -1326,12 +1326,43 @@ if (!function_exists('wp_remote_post')) {
     /**
      * Stub for WordPress' wp_remote_post.
      *
+     * When $GLOBALS['__helios_response'] is set to a non-null value, that value is
+     * returned directly, allowing individual tests to inject a custom HTTP response
+     * or WP_Error without modifying production code.
+     * Falls back to a generic 503 response otherwise.
+     *
      * @param string $url  URL to post to.
      * @param array  $args Request arguments.
      * @return array|\WP_Error
      */
     function wp_remote_post(string $url, array $args = []): array|\WP_Error
     {
+        unset($url, $args);
+        if (isset($GLOBALS['__helios_response']) && $GLOBALS['__helios_response'] !== null) {
+            return $GLOBALS['__helios_response'];
+        }
+        return ['response' => ['code' => 503], 'body' => ''];
+    }
+}
+
+if (!function_exists('wp_remote_get')) {
+    /**
+     * Stub for WordPress' wp_remote_get.
+     *
+     * When $GLOBALS['__wp_remote_get_response'] is set to a non-null value, that value
+     * is returned directly, allowing individual tests to inject a custom HTTP response.
+     * Falls back to a generic 503 response otherwise.
+     *
+     * @param string $url  URL to GET.
+     * @param array  $args Request arguments.
+     * @return array|\WP_Error
+     */
+    function wp_remote_get(string $url, array $args = []): array|\WP_Error
+    {
+        unset($url, $args);
+        if (isset($GLOBALS['__wp_remote_get_response']) && $GLOBALS['__wp_remote_get_response'] !== null) {
+            return $GLOBALS['__wp_remote_get_response'];
+        }
         return ['response' => ['code' => 503], 'body' => ''];
     }
 }
