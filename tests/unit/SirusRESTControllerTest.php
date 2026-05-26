@@ -22,6 +22,10 @@ namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 use Starisian\Sparxstar\Sirus\api\SirusRESTController;
 use Starisian\Sparxstar\Sirus\core\DeviceContinuity;
 use Starisian\Sparxstar\Sirus\core\DeviceRepository;
+use Starisian\Sparxstar\Sirus\core\IdentityResolver;
+use Starisian\Sparxstar\Sirus\core\NetworkContextBroker;
+use Starisian\Sparxstar\Sirus\core\PulseGenerator;
+use Starisian\Sparxstar\Sirus\services\SirusDeviceParser;
 
 /**
  * Extends the WP_REST_Request stub to add header support for nonce verification.
@@ -66,12 +70,20 @@ final class SirusRESTControllerTest extends SirusTestCase
         $GLOBALS['wpdb']                  = new \wpdb();
         $GLOBALS['spx_registered_routes'] = [];
         $GLOBALS['transients']            = [];
+        $GLOBALS['wp_nonce_overrides']    = [];
 
         $wpdb       = $GLOBALS['wpdb'];
         $repository = new DeviceRepository($wpdb);
         $continuity = new DeviceContinuity($repository);
 
-        $this->controller = new SirusRESTController($continuity);
+        $this->controller = new SirusRESTController(
+            $continuity,
+            new PulseGenerator(),
+            new IdentityResolver(),
+            null,
+            new SirusDeviceParser(),
+            new NetworkContextBroker(),
+        );
     }
 
     // ── register_routes() ─────────────────────────────────────────────────────
@@ -179,11 +191,14 @@ final class SirusRESTControllerTest extends SirusTestCase
     /**
      * verify_rest_nonce() must return true when a valid non-empty nonce is present.
      *
-     * The wp_verify_nonce shim returns 1 for any non-empty nonce string, so any
-     * non-empty value satisfies this test.
+     * The wp_verify_nonce shim accepts a nonce that is registered in
+     * $GLOBALS['wp_nonce_overrides']['wp_rest'], so we seed the override before
+     * constructing the request.
      */
     public function testVerifyRestNonceReturnsTrueForValidNonce(): void
     {
+        $GLOBALS['wp_nonce_overrides']['wp_rest']['some-valid-nonce-value'] = true;
+
         $request = new TestWPRESTRequestWithHeaders('POST', '/sparxstar/v1/device', []);
         $request->set_header('X-WP-Nonce', 'some-valid-nonce-value');
 
