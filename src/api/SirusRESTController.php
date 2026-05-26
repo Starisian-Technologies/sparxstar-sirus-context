@@ -655,6 +655,8 @@ final class SirusRESTController
     private function get_raw_request_ip(): string
     {
         // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        return sanitize_text_field(wp_unslash((string) ($_SERVER['REMOTE_ADDR'] ?? '')));
+        $ip = sanitize_text_field(wp_unslash((string) ($_SERVER['REMOTE_ADDR'] ?? '')));
+
+        return filter_var($ip, FILTER_VALIDATE_IP) !== false ? $ip : '';
     }
 }
