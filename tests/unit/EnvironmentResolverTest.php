@@ -165,7 +165,8 @@ final class EnvironmentResolverTest extends SirusTestCase
         $this->assertSame('unknown', $record->browser_name, 'browser_name should be unknown for empty UA.');
         $this->assertSame('unknown', $record->os, 'os should be unknown for empty UA.');
         $this->assertSame('unknown', $record->device_type, 'device_type should be unknown for empty UA.');
-        $this->assertSame('unknown', $record->network_effective_type, 'network_effective_type should be unknown server-side.');
+        // In the PHPUnit CLI runtime, resolveNetworkType() returns 'cli' (not 'unknown').
+        $this->assertSame('cli', $record->network_effective_type, 'network_effective_type is \'cli\' in CLI (PHPUnit) runtime.');
     }
 
     // ── Browser detection ─────────────────────────────────────────────────────

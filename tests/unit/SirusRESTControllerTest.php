@@ -195,19 +195,19 @@ final class SirusRESTControllerTest extends SirusTestCase
     /**
      * verify_rest_nonce() must return WP_Error when wp_verify_nonce returns false.
      *
-     * The wp_verify_nonce shim returns false for an empty nonce. We simulate
-     * an invalid-nonce scenario by overriding globally.
+     * A non-empty nonce that does not match the expected nonce token (wp_create_nonce('wp_rest'))
+     * causes wp_verify_nonce() to return false, which must produce a WP_Error with the
+     * 'sparxstar_sirus_rest_nonce_invalid' error code.
      */
     public function testVerifyRestNonceReturnsForbiddenWhenNonceVerificationFails(): void
     {
-        // The shim returns false for empty nonce; empty is already tested.
-        // Here we test the error code for an explicitly invalid nonce scenario.
-        // Since the shim only rejects empty strings, this test just confirms the
-        // happy path once more with a different nonce format.
         $request = new TestWPRESTRequestWithHeaders('POST', '/sparxstar/v1/device', []);
-        $request->set_header('X-WP-Nonce', 'abc123'); // non-empty → returns 1 from shim
+        // Non-empty but clearly wrong nonce — hash_equals(wp_create_nonce('wp_rest'), ...) returns false.
+        $request->set_header('X-WP-Nonce', 'definitely-invalid-nonce');
 
         $result = $this->controller->verify_rest_nonce($request);
-        $this->assertTrue($result);
+
+        $this->assertInstanceOf(\WP_Error::class, $result);
+        $this->assertSame('sparxstar_sirus_rest_nonce_invalid', $result->get_error_code());
     }
 }

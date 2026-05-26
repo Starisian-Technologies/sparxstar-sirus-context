@@ -143,18 +143,19 @@ final class SparxstarUECGeoIPServiceTest extends SirusTestCase
             'body'     => json_encode([
                 'country' => 'US',
                 'region'  => 'California',
-                'loc'     => '37.386',
+                'loc'     => '37.386,-122.083',
             ]),
         ];
 
         $result = $this->service->lookup('8.8.8.8');
 
         $this->assertIsArray($result);
-        if (isset($result['approx_lat']) && $result['approx_lat'] !== null) {
-            // Should be rounded to 1 decimal place (~11 km precision).
-            $rounded = round((float) $result['approx_lat'], 1);
-            $this->assertEqualsWithDelta($rounded, (float) $result['approx_lat'], 0.00001);
-        }
+        $this->assertArrayHasKey('approx_lat', $result);
+        $this->assertArrayHasKey('approx_lng', $result);
+        // Latitude 37.386 rounds to 37.4 at 1 decimal place.
+        $this->assertEqualsWithDelta(37.4, (float) $result['approx_lat'], 0.00001);
+        // Longitude -122.083 rounds to -122.1 at 1 decimal place.
+        $this->assertEqualsWithDelta(-122.1, (float) $result['approx_lng'], 0.00001);
     }
 
     // ── Caching ───────────────────────────────────────────────────────────────

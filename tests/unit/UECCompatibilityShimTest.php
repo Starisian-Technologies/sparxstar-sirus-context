@@ -52,8 +52,6 @@ final class UECCompatibilityShimTest extends SirusTestCase
 
         // No new classes should have been declared by the shim itself.
         $new_classes = array_diff($after, $before);
-        // Filter out any that might be autoloaded during the method call.
-        // We're really verifying there are no alias-specific side effects.
-        $this->assertTrue(true, 'register() must be side-effect free.');
+        $this->assertEmpty($new_classes, 'register() must not declare new classes or aliases.');
     }
 }
