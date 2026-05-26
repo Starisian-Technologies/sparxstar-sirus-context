@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Tests for EnvironmentResolver – lightweight UA parsing and geo zone resolution.
+ * Tests for EnvironmentResolver – client-first resolution with UA fallback heuristics.
  *
  * The Matomo DeviceDetector library is not available in the unit test environment,
  * so all tests exercise the built-in fallback heuristics (resolveWithFallback).
@@ -22,10 +22,13 @@ final class EnvironmentResolverTest extends SirusTestCase
 {
     protected function setUp(): void
     {
+        parent::setUp();
+
         // Clear any previously set User-Agent and REMOTE_ADDR.
         unset($_SERVER['HTTP_USER_AGENT'], $_SERVER['REMOTE_ADDR']);
-        // Reset apply_filters globals to avoid cross-test contamination.
-        $GLOBALS['wp_options'] = [];
+        // Reset filter globals to avoid cross-test contamination.
+        $GLOBALS['registered_filters'] = [];
+        $GLOBALS['wp_options']         = [];
     }
 
     protected function tearDown(): void
@@ -41,6 +44,114 @@ final class EnvironmentResolverTest extends SirusTestCase
         return new EnvironmentResolver();
     }
 
+    // ── Client signals take precedence ────────────────────────────────────────
+
+    public function testClientSignalsTakePrecedenceOverUaFallback(): void
+    {
+        $_SERVER['HTTP_USER_AGENT'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+            . '(KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36';
+        $_SERVER['REMOTE_ADDR']     = '198.51.100.42';
+
+        $resolver = new EnvironmentResolver();
+        $record   = $resolver->resolve(
+            [
+                'browser_name'           => 'Firefox',
+                'browser_version'        => '126.0',
+                'os'                     => 'Android',
+                'os_version'             => '15',
+                'device_type'            => 'smartphone',
+                'device_brand'           => 'Samsung',
+                'device_model'           => 'S24',
+                'network_effective_type' => '3g',
+                'timezone'               => 'Africa/Accra',
+            ]
+        );
+
+        $this->assertSame('Firefox', $record->browser_name);
+        $this->assertSame('126.0', $record->browser_version);
+        $this->assertSame('Android', $record->os);
+        $this->assertSame('15', $record->os_version);
+        $this->assertSame('smartphone', $record->device_type);
+        $this->assertSame('Samsung', $record->device_brand);
+        $this->assertSame('S24', $record->device_model);
+        $this->assertSame('3g', $record->network_effective_type);
+        $this->assertSame('Africa/Accra', $record->time_zone);
+    }
+
+    public function testMissingClientSignalsAreFilledWithoutDependingOnOptionalMatomo(): void
+    {
+        $_SERVER['HTTP_USER_AGENT'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+            . '(KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36';
+
+        $resolver = new EnvironmentResolver();
+        $record   = $resolver->resolve(
+            [
+                'browser_name' => 'Firefox',
+            ]
+        );
+
+        $this->assertSame('Firefox', $record->browser_name);
+        $this->assertNotSame('', $record->os);
+        $this->assertNotSame('unknown', $record->os);
+        $this->assertNotSame('', $record->device_type);
+        $this->assertNotSame('unknown', $record->device_type);
+    }
+
+    public function testNetworkTypeFallsBackToFilterWhenClientSignalMissing(): void
+    {
+        $_SERVER['HTTP_USER_AGENT'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/123.0.0.0';
+        $_SERVER['REMOTE_ADDR']     = '198.51.100.42';
+
+        add_filter(
+            'sparxstar_env_network_effective_type',
+            static fn (string $type): string => $type === 'unknown' ? 'wifi' : $type
+        );
+
+        $resolver = new EnvironmentResolver();
+        $record   = $resolver->resolve();
+
+        $this->assertSame('wifi', $record->network_effective_type);
+    }
+
+    public function testGeolocationFilterProducesRegionLevelLocation(): void
+    {
+        $_SERVER['HTTP_USER_AGENT'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/123.0.0.0';
+        $_SERVER['REMOTE_ADDR']     = '198.51.100.42';
+
+        add_filter(
+            'sparxstar_env_geolocation_lookup',
+            static function ($value, string $ip): array {
+                unset($value);
+
+                return [
+                    'country'    => 'GH',
+                    'region'     => 'Greater Accra',
+                    'approx_lat' => 5.6037,
+                    'approx_lng' => -0.1870,
+                    'ip'         => $ip,
+                    'lat'        => 5.60371234,
+                    'lng'        => -0.18701234,
+                ];
+            },
+            10,
+            2
+        );
+
+        $resolver = new EnvironmentResolver();
+        $record   = $resolver->resolve();
+
+        $this->assertSame(
+            [
+                'country'    => 'GH',
+                'region'     => 'Greater Accra',
+                'approx_lat' => 5.6,
+                'approx_lng' => -0.19,
+            ],
+            $record->location
+        );
+        $this->assertSame('gh_greater_accra', $resolver->getGeoZone());
+    }
+
     // ── Empty User-Agent ──────────────────────────────────────────────────────
 
     /**
@@ -49,12 +160,12 @@ final class EnvironmentResolverTest extends SirusTestCase
     public function testEmptyUaReturnsAllUnknown(): void
     {
         $resolver = $this->resolverWithUa('');
-        $result   = $resolver->resolve();
+        $record   = $resolver->resolve();
 
-        $this->assertSame('unknown', $result['browser_name'], 'browser_name should be unknown for empty UA.');
-        $this->assertSame('unknown', $result['os'], 'os should be unknown for empty UA.');
-        $this->assertSame('unknown', $result['device_type'], 'device_type should be unknown for empty UA.');
-        $this->assertSame('unknown', $result['network_effective_type'], 'network_effective_type should be unknown server-side.');
+        $this->assertSame('unknown', $record->browser_name, 'browser_name should be unknown for empty UA.');
+        $this->assertSame('unknown', $record->os, 'os should be unknown for empty UA.');
+        $this->assertSame('unknown', $record->device_type, 'device_type should be unknown for empty UA.');
+        $this->assertSame('unknown', $record->network_effective_type, 'network_effective_type should be unknown server-side.');
     }
 
     // ── Browser detection ─────────────────────────────────────────────────────
@@ -195,7 +306,7 @@ final class EnvironmentResolverTest extends SirusTestCase
     // ── Memoization ───────────────────────────────────────────────────────────
 
     /**
-     * resolve() memoizes the result: calling it twice returns the identical array.
+     * resolve() memoizes the result: calling it twice returns the same object.
      */
     public function testResolveMemoizesResult(): void
     {
@@ -214,38 +325,34 @@ final class EnvironmentResolverTest extends SirusTestCase
     {
         $ua       = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36';
         $resolver = $this->resolverWithUa($ua);
-        $result   = $resolver->resolve();
+        $record   = $resolver->resolve();
 
-        $this->assertSame($result['browser_name'], $resolver->getBrowserName());
-        $this->assertSame($result['os'], $resolver->getOs());
-        $this->assertSame($result['device_type'], $resolver->getDeviceType());
-        $this->assertSame($result['network_effective_type'], $resolver->getNetworkEffectiveType());
+        $this->assertSame($record->browser_name, $resolver->getBrowserName());
+        $this->assertSame($record->os, $resolver->getOs());
+        $this->assertSame($record->device_type, $resolver->getDeviceType());
+        $this->assertSame($record->network_effective_type, $resolver->getNetworkEffectiveType());
     }
 
     // ── resolve() return shape ────────────────────────────────────────────────
 
     /**
-     * resolve() must always return all four required keys.
+     * resolve() must always return all required fields.
      */
-    public function testResolveAlwaysContainsAllRequiredKeys(): void
+    public function testResolveAlwaysContainsAllRequiredFields(): void
     {
         $resolver = $this->resolverWithUa('SomeUnknownAgent/1.0');
-        $result   = $resolver->resolve();
+        $record   = $resolver->resolve();
 
-        $this->assertArrayHasKey('browser_name', $result);
-        $this->assertArrayHasKey('os', $result);
-        $this->assertArrayHasKey('device_type', $result);
-        $this->assertArrayHasKey('network_effective_type', $result);
+        $this->assertNotEmpty($record->browser_name);
+        $this->assertNotEmpty($record->os);
+        $this->assertNotEmpty($record->device_type);
+        $this->assertNotEmpty($record->network_effective_type);
     }
 
     // ── getGeoZone – no data ──────────────────────────────────────────────────
 
     /**
      * getGeoZone() returns 'unknown' when the geolocation filter returns null.
-     *
-     * The apply_filters shim returns the first argument unchanged,
-     * so sparxstar_env_geolocation_lookup returns null (its first argument in the
-     * production call is null). This simulates a disabled geo provider.
      */
     public function testGetGeoZoneReturnsUnknownWhenNoGeoData(): void
     {

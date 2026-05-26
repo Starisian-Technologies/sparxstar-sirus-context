@@ -26,7 +26,10 @@ final class CapabilityEngineTest extends SirusTestCase
 
     protected function setUp(): void
     {
-        $this->engine = new CapabilityEngine();
+        parent::setUp();
+
+        $GLOBALS['registered_filters'] = [];
+        $this->engine                  = new CapabilityEngine();
     }
 
     // ── Helper ────────────────────────────────────────────────────────────────
@@ -46,8 +49,8 @@ final class CapabilityEngineTest extends SirusTestCase
             capabilities:   [],
             trust_level:    TrustLevelPrimitive::from($trust_level),
             trust_score:    1.0,
-            issued_at:      time(),
-            expires:        time() + 300,
+            issued_at:      1_700_000_000,
+            expires:        1_700_000_300,
         );
     }
 
@@ -126,6 +129,24 @@ final class CapabilityEngineTest extends SirusTestCase
         $this->assertCount(6, $caps);
     }
 
+    /**
+     * authority context returns the exact expected capability set in order.
+     */
+    public function testAuthorityContextGetsManagementCapabilities(): void
+    {
+        $this->assertSame(
+            [
+                'read_context',
+                'submit_environment',
+                'submit_content',
+                'read_profile',
+                'manage_context',
+                'resolve_authority',
+            ],
+            $this->engine->resolve($this->makeContext('authority'))
+        );
+    }
+
     // ── capability set is a superset of the level below ───────────────────────
 
     /**
@@ -140,7 +161,6 @@ final class CapabilityEngineTest extends SirusTestCase
         $user        = $this->engine->resolve($this->makeContext('user'));
         $authority   = $this->engine->resolve($this->makeContext('authority'));
 
-        // Each level contains all capabilities of the level below.
         foreach ($anon as $cap) {
             $this->assertContains($cap, $device);
         }
@@ -183,5 +203,28 @@ final class CapabilityEngineTest extends SirusTestCase
                 "Expected 'read_context' in capabilities for trust level '{$level}'."
             );
         }
+    }
+
+    // ── Filter augmentation ───────────────────────────────────────────────────
+
+    /**
+     * The sparxstar_sirus_capabilities filter can augment the resolved set.
+     */
+    public function testCapabilitiesFilterCanAugmentResolvedSet(): void
+    {
+        add_filter(
+            'sparxstar_sirus_capabilities',
+            static function (array $capabilities): array {
+                $capabilities[] = 'custom_capability';
+                return $capabilities;
+            }
+        );
+
+        $engine = new CapabilityEngine();
+
+        $this->assertContains(
+            'custom_capability',
+            $engine->resolve($this->makeContext('user'))
+        );
     }
 }

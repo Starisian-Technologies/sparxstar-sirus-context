@@ -29,11 +29,14 @@ final class ClientTelemetryTest extends SirusTestCase
 
     protected function setUp(): void
     {
-        $GLOBALS['wpdb']          = new \wpdb();
-        $GLOBALS['scheduled_hooks'] = [];
-        $GLOBALS['dbDelta_queries'] = [];
-        $this->wpdb               = $GLOBALS['wpdb'];
-        $this->telemetry          = new ClientTelemetry($this->wpdb);
+        parent::setUp();
+
+        $GLOBALS['wpdb']             = new \wpdb();
+        $GLOBALS['wpdb_get_var']     = null;
+        $GLOBALS['scheduled_hooks']  = [];
+        $GLOBALS['dbDelta_queries']  = [];
+        $this->wpdb                  = $GLOBALS['wpdb'];
+        $this->telemetry             = new ClientTelemetry($this->wpdb);
     }
 
     // ── ensure_schema ─────────────────────────────────────────────────────────
@@ -54,6 +57,19 @@ final class ClientTelemetryTest extends SirusTestCase
     }
 
     // ── record() — first occurrence (stats row does not exist) ───────────────
+
+    /**
+     * record() must insert rows into both the raw reports and stats tables.
+     */
+    public function testRecordInsertsRawReportAndStats(): void
+    {
+        $this->telemetry->record('js_error', 'Something broke', ['component' => 'collector'], 'dev-1');
+
+        $this->assertCount(2, $this->wpdb->queries);
+        $this->assertSame('wp_sparxstar_client_reports', $this->wpdb->queries[0]['table']);
+        $this->assertSame('wp_sparxstar_client_error_stats', $this->wpdb->queries[1]['table']);
+        $this->assertSame('dev-1', $this->wpdb->queries[0]['data']['device_id']);
+    }
 
     /**
      * record() must insert a row into the raw reports table.
@@ -93,7 +109,6 @@ final class ClientTelemetryTest extends SirusTestCase
     {
         $this->telemetry->record('<script>alert("x")</script>', 'Some message', []);
 
-        // The inserted row data should not contain a raw script tag.
         $inserts = array_filter($this->wpdb->queries, fn ($q) => isset($q['data']));
         foreach ($inserts as $insert) {
             foreach ($insert['data'] as $value) {
@@ -176,6 +191,21 @@ final class ClientTelemetryTest extends SirusTestCase
         );
     }
 
+    // ── record() — subsequent occurrence (stats row already exists) ───────────
+
+    /**
+     * When get_var returns a non-null count, record() must update (not insert) the stats row.
+     */
+    public function testRecordUpdatesExistingAggregateWhenHashAlreadyExists(): void
+    {
+        $GLOBALS['wpdb_get_var'] = 3;
+
+        $this->telemetry->record('js_error', 'Something broke', [], 'dev-2');
+
+        $this->assertSame('wp_sparxstar_client_error_stats', $this->wpdb->queries[2]['table']);
+        $this->assertSame(4, $this->wpdb->queries[2]['data']['count']);
+    }
+
     // ── prune() ───────────────────────────────────────────────────────────────
 
     /**
@@ -200,13 +230,25 @@ final class ClientTelemetryTest extends SirusTestCase
     }
 
     /**
+     * prune() must only touch the raw reports table, not stats or other tables.
+     */
+    public function testPruneDeletesOnlyFromRawReportsTable(): void
+    {
+        $this->telemetry->prune();
+
+        $query = $this->wpdb->queries[0]['query'] ?? '';
+        $this->assertStringContainsString('wp_sparxstar_client_reports', $query);
+        $this->assertStringNotContainsString('postmeta', $query);
+    }
+
+    /**
      * prune() must use a 60-day interval in the DELETE statement.
      */
     public function testPruneUsesRetentionPeriodOf60Days(): void
     {
         $this->telemetry->prune();
 
-        $queries = array_column($this->wpdb->queries, 'query');
+        $queries  = array_column($this->wpdb->queries, 'query');
         $combined = implode(' ', array_filter($queries, is_string(...)));
 
         $this->assertStringContainsString('60', $combined);
