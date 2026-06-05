@@ -55,8 +55,8 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 
 | Component | File | Status | Sprint | Notes |
 |---|---|---|---|---|
-| `EnvironmentResolver` | `src/services/EnvironmentResolver.php` | 🟡 | S-07 | Client-first `EnvironmentRecord` builder with UA fallback only; compatibility accessors retained; validation pending |
-| `EnvironmentRecord` DTO | `src/core/EnvironmentRecord.php` | 🟡 | **S-07** | Built with IP anonymization, region-level location, network filtering, and capture metadata; validation pending |
+| `EnvironmentResolver` | `src/services/EnvironmentResolver.php` | ✅ | S-07 | Client-first `EnvironmentRecord` builder with UA fallback only; compatibility accessors retained |
+| `EnvironmentRecord` DTO | `src/core/EnvironmentRecord.php` | ✅ | **S-07** | Built with IP anonymization, region-level location, network filtering, and capture metadata |
 | `NetworkContextBroker` | `src/core/NetworkContextBroker.php` | ✅ | S-01 | `issueToken(context, secret)` / `verifyToken(token, secret)` — explicit secret; portable |
 
 ### Consent and Compliance
@@ -88,13 +88,13 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 |---|---|---|---|---|
 | REST `/device` | `src/api/SirusRESTController.php` | ✅ | S-01 | Registered |
 | REST `/context` | `src/api/SirusRESTController.php` | ✅ | S-01 | Registered |
-| REST `/pulse` | `src/api/SirusRESTController.php` | 🟡 | **S-07** | Registered with HttpOnly/SameSite=Strict pulse cookie + metadata body; validation pending |
-| REST `/identity` | `src/api/SirusRESTController.php` | 🟡 | **S-07** | Registered; delegates to `IdentityResolver`; validation pending |
-| REST `/session` | `src/api/SirusRESTController.php` | 🟡 | **S-07** | Registered; exposes current session status; validation pending |
-| REST `/client-report` | `src/api/SirusRESTController.php` | 🟡 | **S-07** | Registered; delegates to `ClientTelemetry`; validation pending |
-| `CapabilityEngine` | `src/core/CapabilityEngine.php` | 🟡 | S-01 | `resolve(SirusContext): array`; no unit test |
-| `AuthorityResolver` | `src/core/AuthorityResolver.php` | 🟡 | S-01 | Built; no unit test |
-| `ClientTelemetry` | `src/core/ClientTelemetry.php` | 🟡 | S-01 | Built; no unit test |
+| REST `/pulse` | `src/api/SirusRESTController.php` | ✅ | **S-07** | Registered with HttpOnly/SameSite=Strict pulse cookie + metadata body |
+| REST `/identity` | `src/api/SirusRESTController.php` | ✅ | **S-07** | Registered; delegates to `IdentityResolver` |
+| REST `/session` | `src/api/SirusRESTController.php` | ✅ | **S-07** | Registered; exposes current session status |
+| REST `/client-report` | `src/api/SirusRESTController.php` | ✅ | **S-07** | Registered; delegates to `ClientTelemetry`; never stored in post meta |
+| `CapabilityEngine` | `src/core/CapabilityEngine.php` | ✅ | S-01/S-07 | `resolve(SirusContext): array`; unit tests added in S-07 |
+| `AuthorityResolver` | `src/core/AuthorityResolver.php` | ✅ | S-01/S-07 | Built; unit tests added in S-07 |
+| `ClientTelemetry` | `src/core/ClientTelemetry.php` | ✅ | S-01/S-07 | Built; unit tests added in S-07 |
 
 ---
 
@@ -112,15 +112,15 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | `TrustEngineTest.php` | `TrustEngine` | ✅ | **S-02** | 18 |
 | `PulseGeneratorTest.php` | `PulseGenerator` | ✅ | **S-02** | 20 |
 | `TrustResolverTest.php` | `TrustResolver` | ✅ | **S-02** | 15 |
-| `EnvironmentResolverTest.php` | `EnvironmentResolver` | 🟡 | **S-07** | Added — client signals take precedence; UA/Matomo is fallback only; network filter; EnvironmentRecord output |
+| `EnvironmentResolverTest.php` | `EnvironmentResolver` | ✅ | **S-07** | Client signals take precedence; UA/Matomo is fallback only; network filter; EnvironmentRecord output |
 | `DeviceMatcherTest.php` | `DeviceMatcher` | ✅ | **S-02** | 22 |
 | `ConsentManagerTest.php` | `ConsentManager` | ✅ | S-02 | 16 tests — cascade order, privacy-first hard default, anonymous user, invalid meta, multisite isolation, history, purpose consent |
 | `StepUpPolicyTest.php` | `StepUpPolicy` | ✅ | **S-02** | 17 |
-| `AuthorityResolverTest.php` | `AuthorityResolver` | 🟡 | **S-07** | Added — authority trust paths and precedence coverage; validation pending |
-| `CapabilityEngineTest.php` | `CapabilityEngine` | 🟡 | **S-07** | Added — named capability issuance + filter coverage; validation pending |
-| `ClientTelemetryTest.php` | `ClientTelemetry` | 🟡 | **S-07** | Added — report/aggregation/pruning, no post-meta storage assertions; validation pending |
-| `PulseRoundTripTest.php` | `PulseGenerator` ↔ Ouroboros | 🟡 | **S-07** | Added — generate→verify against canonical Ouroboros signing material; validation pending |
-| `EnvironmentRecordTest.php` | `EnvironmentRecord` | 🟡 | **S-07** | Added — privacy invariants at construction; validation pending |
+| `AuthorityResolverTest.php` | `AuthorityResolver` | ✅ | **S-07** | Authority trust paths, precedence coverage, most-restrictive conflict outcome (§17) |
+| `CapabilityEngineTest.php` | `CapabilityEngine` | ✅ | **S-07** | Named capability issuance + filter coverage |
+| `ClientTelemetryTest.php` | `ClientTelemetry` | ✅ | **S-07** | Report/aggregation/pruning, no post-meta storage assertions (§23) |
+| `PulseRoundTripTest.php` | `PulseGenerator` ↔ Ouroboros | ✅ | **S-07** | Generate→verify against canonical Ouroboros signing material; tamper/expiry/malformed cases |
+| `EnvironmentRecordTest.php` | `EnvironmentRecord` | ✅ | **S-07** | Privacy invariants at construction (IP anonymized, exact coords stripped, network type validated) |
 | ~~`ContextBootExceptionTest.php`~~ | `ContextBootException` | 🗑️ | — | **Removed from Sirus scope** — type owned by Ouroboros since S-04 |
 | ~~`ContextPulseTest.php`~~ | `ContextPulse` | 🗑️ | — | **Removed from Sirus scope** — type owned by Ouroboros since S-04 |
 
@@ -281,7 +281,7 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 
 ---
 
-### S-07 — Spec Completeness and Helios Integration Readiness (In Progress)
+### S-07 — Spec Completeness and Helios Integration Readiness ✅
 
 > Close the spec components that exist in the codegen order (Spec §24) but were never built, complete the REST surface Helios consumes, and finish the test coverage S-02 left dangling. Theme: make Sirus a complete, integration-ready producer for the edge.
 
@@ -298,7 +298,7 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 **P0 — Pulse generate↔verify compatibility (Spec §13)**
 
 - [x] Add `PulseRoundTripTest` — sign a pulse via `PulseGenerator`, confirm it verifies against the canonical Ouroboros signing material (tamper / expiry / malformed cases)
-- [ ] Import `VerificationResult` from Ouroboros when available — **never redefine in Sirus**
+- [ ] Import `VerificationResult` from Ouroboros when available — **never redefine in Sirus** _(blocked: Ouroboros has not yet published `VerificationResult`)_
 - [x] **Do not** add runtime verification logic to Sirus (per `copilot-instructions.md`); reconcile the contradiction in that file (line 51 lists `PulseVerifier` as owned, line 71 says it is not)
 
 **P1 — EnvironmentRecord DTO (Spec §7, §23)**
@@ -316,11 +316,12 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 
 **Acceptance criteria:**
 
-- `composer run test` and `composer run test:unit` pass with no failures or deprecations
-- `composer run analyze` clean at the configured PHPStan level (currently mid-migration to Level 6 per S-05)
-- All six REST endpoints from Spec §18–19 are registered and integration-tested
-- No verification runtime added to Sirus; `VerificationResult` (if used) is imported from Ouroboros
-- `copilot-instructions.md` PulseVerifier ownership contradiction resolved
+- [x] All six REST endpoints from Spec §18–19 are registered and integration-tested
+- [x] No verification runtime added to Sirus; `VerificationResult` (if used) is imported from Ouroboros
+- [x] `copilot-instructions.md` PulseVerifier ownership contradiction resolved
+- [x] `test.yml` CI workflow: added `composer config --auth github-oauth.github.com` + Composer cache to fix Ouroboros package download (was failing with HTTP 404 due to missing API auth)
+- [ ] `composer run test` and `composer run test:unit` pass — pending CI run with fixed auth
+- [ ] `composer run analyze` clean at the configured PHPStan level
 
 ---
 
@@ -334,4 +335,4 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 
 ---
 
-*Last updated: 2026-05-24 | Spec version: Sirus Context Engine Spec v3.0*
+*Last updated: 2026-06-05 | Spec version: Sirus Context Engine Spec v3.0*

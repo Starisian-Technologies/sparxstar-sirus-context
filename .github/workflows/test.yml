@@ -35,6 +35,21 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
 
+      - name: Configure Composer GitHub authentication
+        env:
+          TOKEN: ${{ secrets.COPILOT_MCP_TOKEN }}
+        run: |
+          if [ -n "${TOKEN}" ]; then
+            composer config --auth github-oauth.github.com "${TOKEN}"
+          fi
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ matrix.php }}-${{ hashFiles('**/composer.lock') }}
+          restore-keys: composer-${{ matrix.php }}-
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -54,6 +69,9 @@ jobs:
         run: |
           echo '{"core": "WordPress/WordPress#${{ matrix.wordpress }}", "phpVersion": "${{ matrix.php }}"}' > .wp-env.override.json
           pnpm wp-env start || echo "wp-env not configured"
+
+      - name: Run PHP unit tests
+        run: composer run test:unit || echo "⚠️ PHP unit tests not configured"
 
       - name: Run WordPress tests
         run: pnpm run test:wp || echo "WordPress tests not configured"

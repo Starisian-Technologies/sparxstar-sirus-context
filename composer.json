@@ -21,7 +21,7 @@
     "starisian/sparxstar-ouroboros-integrity": "^1.0"
   },
   "suggest": {
-    "matomo/device-detector": "^6.4 \u2014 Required for server-side UA parsing. Install via: composer require matomo/device-detector. Without this package, SirusDeviceParser returns empty device metadata."
+    "matomo/device-detector": "^6.4 — Required for server-side UA parsing. Install via: composer require matomo/device-detector. Without this package, SirusDeviceParser returns empty device metadata."
   },
   "require-dev": {
     "php-stubs/wordpress-stubs": "^6.8",
@@ -62,6 +62,10 @@
       "name": "ouroboros",
       "type": "vcs",
       "url": "https://github.com/Starisian-Technologies/sparxstar-ouroboros-integrity"
+    },
+    {
+      "type": "composer",
+      "url": "https://wpackagist.org"
     },
     {
       "type": "vcs",
