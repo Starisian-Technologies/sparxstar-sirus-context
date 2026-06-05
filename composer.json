@@ -59,17 +59,12 @@
   },
   "repositories": [
     {
-      "name": "ouroboros",
       "type": "vcs",
       "url": "https://github.com/Starisian-Technologies/sparxstar-ouroboros-integrity"
     },
     {
       "type": "composer",
       "url": "https://wpackagist.org"
-    },
-    {
-      "type": "vcs",
-      "url": "https://github.com/Starisian-Technologies/sparxstar-ouroboros-integrity"
     }
   ],
   "scripts": {
