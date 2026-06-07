@@ -140,7 +140,7 @@ These consume Ouroboros DTOs/utils (`ContextPulse`, `TrustLevelPrimitive`,
 
 | Test | Couples to | Note |
 |---|---|---|
-| `PulseRoundTripTest` | `PulseGenerator` + Ouroboros `ContextPulse`/`SigningMaterial`/`TrustLevelPrimitive` | **Highest priority.** Round-trip issuance↔verify; directly exercises the PulseGenerator migration (see §C.4). Must assert against v2.0.0 vectors. |
+| `PulseRoundTripTest` | `PulseGenerator` + Ouroboros `ContextPulse`/`ContextPulseSigningMaterial`/`TrustLevelPrimitive` | **Highest priority.** Round-trip issuance↔verify; directly exercises the PulseGenerator migration (see §C.4). Must assert against v2.0.0 vectors. |
 | `PulseGeneratorTest` | `PulseGenerator::generate()`, `Platform::PULSE_VERSION_CURRENT` | Asserts local issuance shape; if issuance delegates to Ouroboros, this is **outdated→rewrite**. |
 | `SirusContextTest` | Ouroboros DTOs | Pulse/trust fields → vector-driven. |
 | `AuthorityResolverTest`, `CapabilityEngineTest`, `StepUpPolicyTest`, `TrustResolverTest` | trust-level primitives / `token_version` | Trust model is PAM-003 territory. |
@@ -181,8 +181,11 @@ SessionManager/InstallerMultisite), `StarUserEnv*Test`, `UECCompatibilityShimTes
   (`composer run test` short-circuits), so any type/contract drift between Sirus's local
   generator and Ouroboros's `PulseGenerator::generate()` does **not** currently surface.
 - **Semantic duplication (the real item).** Canonical pulse *issuance* moved into Ouroboros
-  (`PulseGenerator::generate()`), yet Sirus still issues locally via `new PulseGenerator()`
-  at `src/SirusPlugin.php:138` and `src/api/SirusRESTController.php:47` (+ 4 test files).
+  (`PulseGenerator::generate()`), yet Sirus still issues locally. The generator is
+  instantiated once at the composition root (`src/SirusPlugin.php:138`, `new PulseGenerator()`)
+  and **constructor-injected** into consumers — e.g. `SirusRESTController`
+  (`src/api/SirusRESTController.php:47`, `private readonly PulseGenerator $pulse_generator`),
+  which receives it via DI rather than instantiating it. (Test setups instantiate it directly.)
   Signing-material *format* already delegates to Ouroboros
   (`ContextPulseSigningMaterial::build()`, CO-001, per the class docblock) — issuance is the
   un-migrated half.
