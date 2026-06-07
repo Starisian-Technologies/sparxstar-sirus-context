@@ -10,6 +10,11 @@ intentionally left for this audit to characterise.
 (PAM-002, PAM-003, Ouroboros v2.0.0 `shared-test-vectors.json`) — **never against the
 current code**.
 
+**Authority:** naming/convention recommendations in §A.2 are governed by
+**SPARXSTAR-Engineering-Standards-v1.0 §6.2** — PascalCase classes, `Sparxstar` prefix for
+platform classes, file name matches class name (i.e. PSR-4-style). This is the same standard
+that authorises the S-03 naming migration.
+
 **Blocked inputs (cannot be resolved from this container):**
 
 | Input | Status | Impact |
@@ -83,6 +88,8 @@ file/naming conventions. The specific collisions:
    `NotHyphenatedLowercase`/`InvalidClassFileName` parts; **`phpcs.xml` does not relax it at
    all** → every src class file trips it under `composer phpcs`. **Recommend: exclude
    `WordPress.Files.FileName` entirely** in the canonical ruleset (incompatible with PSR-4).
+   Per **Engineering Standards §6.2** the PSR-4 convention (PascalCase, file matches class) is
+   the mandated standard, so this sniff is excluded by policy, not merely by preference.
 2. **`WordPress.NamingConventions.ValidVariableName` (snake_case).** Confirmed in CI logs
    (`$actionKey → $action_key`). Modern typed code commonly uses camelCase locals; WPCS
    mandates snake_case. **REVIEW — pick one convention and apply repo-wide;** if camelCase is
