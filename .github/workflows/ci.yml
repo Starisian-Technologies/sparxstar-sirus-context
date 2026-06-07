@@ -18,22 +18,22 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v4
 
-            - name: Authenticate git for private org packages
-              env:
-                  TOKEN: ${{ secrets.COPILOT_MCP_TOKEN }}
-              run: |
-                  if [ -n "${TOKEN}" ]; then
-                    git config --global --add url."https://x-access-token:${TOKEN}@github.com/Starisian-Technologies/".insteadOf "https://github.com/Starisian-Technologies/"
-                    git config --global --add url."https://x-access-token:${TOKEN}@github.com/Starisian-Technologies/".insteadOf "git@github.com:Starisian-Technologies/"
-                  else
-                    echo "No COPILOT_MCP_TOKEN provided; skipping git authentication rewrite for Starisian-Technologies."
-                  fi
-
             - name: Setup PHP
               uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f
               # uses: shivammathur/setup-php@v2
               with:
                   php-version: '8.3'
+                  # Composer >= 2.9.8 closes CVE-2026-45793 (GitHub App token leak to logs)
+                  tools: composer:2.9.8
+
+            - name: Mint Composer resolver token
+              id: composer-token
+              uses: actions/create-github-app-token@v3
+              with:
+                  client-id: ${{ vars.COMPOSER_RESOLVER_CLIENT_ID }}
+                  private-key: ${{ secrets.COMPOSER_RESOLVER_PRIVATE_KEY }}
+                  owner: Starisian-Technologies
+                  repositories: sparxstar-ouroboros-integrity
 
             - name: Cache Composer packages
               uses: actions/cache@v4
@@ -43,6 +43,8 @@ jobs:
                   restore-keys: composer-
 
             - name: Install PHP dependencies
+              env:
+                  COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ steps.composer-token.outputs.token }}"}}'
               run: composer install --no-interaction
 
             - name: Setup pnpm
@@ -76,7 +78,6 @@ jobs:
                   echo "📊 Checking for remaining linting issues..."
                   pnpm run lint:js || echo "⚠️ JS manual fixes needed"
                   pnpm run lint:css || echo "⚠️ CSS manual fixes needed"
-                  composer run analyze || echo "⚠️ PHPStan manual fixes needed"
                   echo "✅ Static analysis complete"
 
             - name: Check for auto-fixable changes
@@ -104,9 +105,8 @@ jobs:
               run: pnpm wp-env start || echo "⚠️ wp-env not configured, skipping WordPress tests"
               continue-on-error: true
 
-            - name: WordPress Integration Tests
-              run: composer run test:unit || echo "⚠️ PHP unit tests not configured"
-              continue-on-error: true
+            - name: Run PHP test suite (lint + PHPStan + unit)
+              run: composer run test
 
             - name: Stop WordPress test environment
               run: pnpm wp-env stop || echo "⚠️ wp-env not configured"
