@@ -16,7 +16,7 @@ jobs:
 
       - name: Enforce Composer floor
         # Composer >= 2.9.8 closes CVE-2026-45793 (GitHub App token leak to logs)
-        run: composer self-update --2 && composer --version
+        run: composer self-update 2.9.8 && composer --version
 
       - name: Mint Composer resolver token
         id: composer-token
