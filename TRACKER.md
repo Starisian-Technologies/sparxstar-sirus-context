@@ -285,6 +285,8 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 
 > Close the spec components that exist in the codegen order (Spec §24) but were never built, complete the REST surface Helios consumes, and finish the test coverage S-02 left dangling. Theme: make Sirus a complete, integration-ready producer for the edge.
 
+> **Status (post PR #88):** implementation merged in `main`. Every S-07 item is 🟡 ("validation pending"). Test, PHPCS, and PHPStan verification is blocked on the CI gate consolidation in **S-08** (see `GATE-AUDIT-PAM003.md`). The 10 Ouroboros-coupled tests additionally need v2.0 `shared-test-vectors.json` and PAM-003 acceptance — those flips wait for **S-09**.
+
 **Prerequisite for the verification items:** Ouroboros must export `VerificationResult` and the canonical `PulseVerifier` contract. If not yet published, item 1 ships the round-trip test against `ContextPulseSigningMaterial` only and the enum import is deferred.
 
 **P0 — REST surface for Helios (Spec §18–19)**
@@ -324,6 +326,96 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 
 ---
 
+### S-08 — Make CI Trustworthy (Proposed — Next)
+
+> Consolidate the three divergent quality gates so PHPCS / PHPStan / tests actually report verified state. Until this lands, S-07's 🟡 items cannot be flipped to ✅, and the tracker cannot be honestly refreshed. Scope is governed by `GATE-AUDIT-PAM003.md` §A/§B "Actionable now" and the in-repo Engineering Standards file.
+
+**Prerequisite:** none — this is the unblocker for everything downstream.
+
+**Adopted conventions (decided at sprint open):**
+
+- **Class files:** PSR-4 PascalCase (filename matches FQCN), as already enforced by the Composer autoloader. Exclude `WordPress.Files.FileName` from the canonical ruleset.
+- **Local variables:** camelCase. Exclude `WordPress.NamingConventions.ValidVariableName` from the canonical ruleset.
+- This codifies the convention the autoloader already requires; the rest of the 386/310 PHPCS noise is convention collision, not latent bugs.
+
+**P0 — PHPCS gate consolidation (audit §A)**
+
+- [ ] Consolidate to one canonical PHPCS ruleset. Recommendation: keep `phpcs.xml.dist` as the committed baseline; either gitignore `phpcs.xml` (true local override per the existing `.dist` `<description>`) or delete it.
+- [ ] Unify `testVersion` to `8.2-` across the surviving ruleset and `composer.json` platform (currently `phpcs.xml=8.1-8.4`, `phpcs.xml.dist=8.2-`).
+- [ ] Exclude `WordPress.Files.FileName` (PSR-4 incompatible — by policy, not preference).
+- [ ] Exclude `WordPress.NamingConventions.ValidVariableName` (camelCase locals adopted).
+- [ ] Drop `<arg name="ignore-annotations"/>` so reviewed `phpcs:ignore` waivers work in-line.
+- [ ] Resolve `phpcs.xml.dist` self-contradiction: its `<description>` says *"To override locally, create a `phpcs.xml` file (gitignored)"* but `phpcs.xml` is committed and is what `composer phpcs` runs.
+- [ ] Run `composer lint:fix` once across the tree to clear the whitespace/format residue; commit.
+- [ ] Confirm `composer phpcs` and `composer lint` no longer disagree (the 386 vs 310 discrepancy from PR #88).
+
+**P0 — Pre-commit gate (audit §B)**
+
+- [ ] Add `lint-staged` + `husky` (or `simple-git-hooks`) running `phpcbf` then `phpcs` on staged PHP.
+- [ ] Apply the **exit-code-1 guard** on `phpcbf` — PHPCBF returns `1` when it successfully fixed violations; the hook must treat that as success: `phpcbf || [ $? -eq 1 ]`. (Only exit code `2` is a real failure.)
+- [ ] Document the hook in `CONTRIBUTING.md`.
+
+**P0 — Un-mask PHPStan**
+
+- [ ] Run PHPStan as an independent CI job, not after the PHPCS hard-fail, so type drift surfaces. (The audit notes PHPStan is currently invisible because `composer run test` short-circuits on PHPCS.)
+- [ ] Fix or baseline residual findings at the level configured in `phpstan.neon` (currently moving from 5 → 6 per S-05).
+
+**P1 — Validate S-07 (non-Ouroboros-coupled items only)**
+
+With the gate trustworthy, run the suite and flip 🟡 → ✅ in this tracker for items not coupled to the Ouroboros v2.0 vectors:
+
+- [ ] `EnvironmentRecord` DTO, `EnvironmentResolver` client-first behavior (`EnvironmentRecordTest`, `EnvironmentResolverTest`)
+- [ ] REST `/pulse`, `/identity`, `/session`, `/client-report` (integration test asserts success + permission-denied + malformed)
+- [ ] `AuthorityResolverTest`, `CapabilityEngineTest`, `ClientTelemetryTest`
+- [ ] `copilot-instructions.md` PulseVerifier ownership contradiction resolved (remove `PulseVerifier` from the "What this repository owns" list)
+- [ ] Reconcile the `GATE-AUDIT` citation of "Engineering Standards §6.2" — the in-repo file `.github/instructions/sparxstar-coding-standards-v1 (2).md` §6.2 is "GraphQL Resolver Rules", not PSR-4 naming. Either correct the audit reference or supply the actual Engineering-Standards-v1.0 document.
+
+**Out of scope (moved to S-09):**
+
+- PulseGenerator delegation to Ouroboros's canonical `PulseGenerator::generate()` (audit §C.4).
+- Import `VerificationResult`, `AgreementResult`, `ValidationHelper` from Ouroboros.
+- Rewrite the 10 Ouroboros-coupled tests against `shared-test-vectors.json`.
+- Lock `geo_zone` format (PAM-002-O3).
+
+**Acceptance criteria:**
+
+- One PHPCS ruleset is canonical; `composer phpcs` and `composer lint` agree on the count.
+- `composer run test`, `composer run lint`, `composer run analyze` all run independently and report verified status; none is masked by an upstream short-circuit.
+- A staged PHP file with a fixable violation is corrected by the pre-commit hook and the commit succeeds; an unfixable violation blocks the commit.
+- S-07 non-Ouroboros-coupled items are flipped to ✅ in this tracker, with test counts recorded.
+- `copilot-instructions.md` no longer contradicts itself on PulseVerifier ownership.
+
+---
+
+### S-09 — Ouroboros v2.0 Alignment (Planned — After S-08)
+
+> Finish the cross-repo migration that the gate audit blocks on. Theme: align Sirus with the canonical Ouroboros v2.0 contracts and PAM-003 acceptance, then flip the 10 Ouroboros-coupled S-07 tests to ✅.
+
+**Prerequisites:**
+
+- S-08 merged (CI trustworthy).
+- Ouroboros v2.0.0 `shared-test-vectors.json` accessible to this repo's CI (currently the private repo proxy returns `repository not authorized` per `GATE-AUDIT-PAM003.md`).
+- PAM-003 acceptance criteria supplied as a file in this repo (currently referenced by PAM-002, TRACKER, copilot-instructions, and `src/core/*` but not present).
+
+**Planned scope (full sequencing to be confirmed at sprint open):**
+
+- [ ] Migrate Sirus's local pulse issuance to Ouroboros's canonical `PulseGenerator::generate()` (audit §C.4). Signing-material delegation (`ContextPulseSigningMaterial::build()`) is already done; issuance is the un-migrated half. The composition root is `src/SirusPlugin.php:138`; consumers receive `PulseGenerator` via constructor injection (e.g., `SirusRESTController`).
+- [ ] Import `VerificationResult` enum from Ouroboros (S-07 leftover).
+- [ ] Import `AgreementResult` enum from Ouroboros (S-04 leftover).
+- [ ] Import `ValidationHelper` from Ouroboros (S-04 leftover).
+- [ ] Rewrite the 10 Ouroboros-coupled tests against `shared-test-vectors.json` — assertions derived from the spec vectors, never from current code (audit §C.1): `PulseRoundTripTest`, `PulseGeneratorTest`, `SirusContextTest`, `AuthorityResolverTest`, `CapabilityEngineTest`, `StepUpPolicyTest`, `TrustResolverTest`, `ContextEngineTest`, `ContextCacheTest`, `IdentityResolverTest`, `NetworkContextBrokerTest`.
+- [ ] Lock `geo_zone` format (PAM-002-O3) — required before PAM-002-P3 ships.
+- [ ] Confirm Sirus's pulse field set still matches PAM-002 §3.3 canonical (15 fields including the four PAM-002-P2 restored fields).
+- [ ] Confirm Helios and Dheghom are pinned to the same Ouroboros version.
+
+**Acceptance criteria (preview):**
+
+- All 10 Ouroboros-coupled tests flipped to ✅ against v2.0 vectors.
+- `PulseGenerator` issuance routes through Ouroboros; Sirus retains the composition wiring only.
+- Tracker fully refreshed; S-04 leftover items closed.
+
+---
+
 ## How to Use This Tracker
 
 1. **On sprint start** — move items from `🔲` to a named sprint column and assign owners.
@@ -334,4 +426,4 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 
 ---
 
-*Last updated: 2026-05-24 | Spec version: Sirus Context Engine Spec v3.0*
+*Last updated: 2026-06-09 | Spec version: Sirus Context Engine Spec v3.0 + PAM-002*
