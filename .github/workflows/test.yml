@@ -9,12 +9,11 @@ on:
     - cron: "0 2 * * *" # Daily at 2 AM
 
 jobs:
-  wordpress-tests:
+  php-tests:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         php: ["8.2", "8.3"]
-        wordpress: ["6.4", "latest"]
 
     steps:
       - uses: actions/checkout@v4
@@ -30,52 +29,18 @@ jobs:
         id: composer-token
         uses: actions/create-github-app-token@v3
         with:
-          client-id: ${{ vars.COMPOSER_RESOLVER_CLIENT_ID }}
+          app-id: ${{ vars.COMPOSER_RESOLVER_APP_ID }}
           private-key: ${{ secrets.COMPOSER_RESOLVER_PRIVATE_KEY }}
           owner: Starisian-Technologies
           repositories: sparxstar-ouroboros-integrity
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061
-        with:
-          version: 8.6.0
-
-      - name: Install dependencies
+      - name: Install PHP dependencies
         env:
           COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ steps.composer-token.outputs.token }}"}}'
-        run: |
-          pnpm install --frozen-lockfile
-          composer install --no-interaction
+        run: composer install --no-interaction
 
-      - name: Start WordPress ${{ matrix.wordpress }}
-        run: |
-          echo '{"core": "WordPress/WordPress#${{ matrix.wordpress }}", "phpVersion": "${{ matrix.php }}"}' > .wp-env.override.json
-          pnpm wp-env start || echo "wp-env not configured"
+      - name: Run API contract smoke test
+        run: composer run smoke:api-contract
 
-      - name: Run WordPress tests
-        run: pnpm run test:wp || echo "WordPress tests not configured"
-
-      - name: Run E2E tests
-        run: |
-          npx playwright install --with-deps chromium || echo "Playwright not configured"
-          pnpm run test:e2e || echo "E2E tests not configured"
-
-      - name: Stop WordPress
-        run: pnpm wp-env stop || echo "wp-env not configured"
-        if: always()
-
-  security-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run security audit
-        run: |
-          pnpm audit --audit-level=moderate
-          composer audit
-        continue-on-error: true
+      - name: Run PHPUnit tests
+        run: composer run test:unit

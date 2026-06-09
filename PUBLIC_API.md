@@ -346,6 +346,9 @@ Returns: `{identity_id: string|null, verification_status: string, authority_memb
 
 ## REST API Endpoints
 
+Machine-readable downstream contract: [`docs/contracts/sirus-api-contract.v1.json`](docs/contracts/sirus-api-contract.v1.json). Seed requests for Helios/Sky/Dheghom smoke wiring: [`docs/contracts/sirus-api-seed.v1.json`](docs/contracts/sirus-api-seed.v1.json).
+
+
 ### `sirus/v1` namespace
 
 | Method | Route | Controller | Auth |

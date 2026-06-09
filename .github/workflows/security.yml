@@ -22,13 +22,13 @@ jobs:
         id: composer-token
         uses: actions/create-github-app-token@v3
         with:
-          client-id: ${{ vars.COMPOSER_RESOLVER_CLIENT_ID }}
+          app-id: ${{ vars.COMPOSER_RESOLVER_APP_ID }}
           private-key: ${{ secrets.COMPOSER_RESOLVER_PRIVATE_KEY }}
           owner: Starisian-Technologies
           repositories: sparxstar-ouroboros-integrity
 
       - name: Cache Composer packages
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: vendor
           key: composer-${{ hashFiles('composer.lock') }}
@@ -43,7 +43,7 @@ jobs:
         run: composer audit || echo "Composer audit found vulnerabilities"
 
       - name: Cache pnpm packages
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.pnpm-store
           key: pnpm-${{ hashFiles('pnpm-lock.yaml') }}

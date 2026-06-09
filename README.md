@@ -12,6 +12,7 @@ Technical specifications:
 - [Platform Integrity Map](docs/specs/Sparxstar_Platform_Integrity_Map_v1.0.docx%20(3).pdf)
 - [SPARXSTAR Platform Overview](docs/specs/Sparxstar_Platform_Overview_v1.0.docx.pdf)
 - [Public API Surface](PUBLIC_API.md) — all hooks, filters, REST endpoints, and classes consumed by other repos
+- [Sirus API Contract](docs/contracts/sirus-api-contract.v1.json) and [seed fixture](docs/contracts/sirus-api-seed.v1.json) — machine-readable REST contract for downstream repos
 - [Implementation Tracker](TRACKER.md) — sprint scoreboard and remaining work
 
 ---
@@ -86,7 +87,7 @@ Remaining imports to reconcile when available in Ouroboros: `AgreementResult`, `
 
 ## Build-Out Plan
 
-1. **Dependency gate** — restore installability of `sparxstar-ouroboros-integrity` from the configured registry or VCS source, then rerun `composer install`, `composer run test`, and `composer run analyze` in CI.
+1. **Dependency gate** — restore installability of `sparxstar-ouroboros-integrity` from the configured registry or VCS source, then rerun `composer install`, `composer run smoke:api-contract`, `composer run test`, and `composer run analyze` in CI.
 2. **S-07 validation closeout** — convert remaining tracker rows marked validation-pending to complete only after the full PHPUnit suite passes against installed dependencies.
 3. **PHPStan level migration** — finish S-05 by raising the configured analysis level one step at a time, with no new baseline entries for Sirus-owned code.
 4. **UEC stabilization exit** — after the 30-day production window, execute S-03: audit live `Starisian\SparxstarUEC\` call sites, then remove legacy UEC classes and compatibility exclusions without changing `StarUserEnv` signatures.

@@ -92,6 +92,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | REST `/identity` | `src/api/SirusRESTController.php` | 🟡 | **S-07** | Registered; delegates to `IdentityResolver`; full validation pending dependency install |
 | REST `/session` | `src/api/SirusRESTController.php` | 🟡 | **S-07** | Registered; exposes current session status; full validation pending dependency install |
 | REST `/client-report` | `src/api/SirusRESTController.php` | 🟡 | **S-07** | Registered; delegates to `ClientTelemetry`; full validation pending dependency install |
+| API contract + seed | `docs/contracts/sirus-api-contract.v1.json`, `docs/contracts/sirus-api-seed.v1.json` | ✅ | **S-07** | Machine-readable OpenAPI contract and seed payloads for downstream repos; smoke-tested without WordPress |
 | `CapabilityEngine` | `src/core/CapabilityEngine.php` | 🟡 | S-01 | `resolve(SirusContext): array`; no unit test |
 | `AuthorityResolver` | `src/core/AuthorityResolver.php` | 🟡 | S-01 | Built; no unit test |
 | `ClientTelemetry` | `src/core/ClientTelemetry.php` | 🟡 | S-01 | Built; no unit test |
@@ -135,7 +136,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 
 ## Finish-Build Plan
 
-1. Restore authenticated/package access for `starisian/sparxstar-ouroboros-integrity` and make `composer install --no-interaction --prefer-dist` reproducible.
+1. Restore authenticated/package access for `starisian/sparxstar-ouroboros-integrity` and make `composer install --no-interaction --prefer-dist` reproducible; keep `composer run smoke:api-contract` as the no-dependency preflight.
 2. Run `composer run test`, `composer run test:unit`, and `composer run analyze`; flip S-07 validation rows from 🟡 to ✅ only after those commands pass without deprecations or failures.
 3. Complete S-05 by raising PHPStan toward Level 7 in small, no-baseline increments.
 4. After the UEC stabilization window closes, execute S-03 legacy removal while preserving `StarUserEnv` method signatures.
