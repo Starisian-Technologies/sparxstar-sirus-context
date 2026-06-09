@@ -352,7 +352,7 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 **P0 — Pre-commit gate (audit §B)**
 
 - [ ] Add `lint-staged` + `husky` (or `simple-git-hooks`) running `phpcbf` then `phpcs` on staged PHP.
-- [ ] Apply the **exit-code-1 guard** on `phpcbf` — PHPCBF returns `1` when it successfully fixed violations; the hook must treat that as success: `phpcbf || [ $? -eq 1 ]`. (Only exit code `2` is a real failure.)
+- [ ] Apply the **exit-code-1 guard** on `phpcbf` — PHPCBF returns `1` when it successfully fixed violations; the hook must treat exit code `1` as success and only fail on exit code `2`. Use a **cross-platform** wrapper (e.g., a small `bin/phpcbf-fix.php` script invoked via a Composer script, or a Node wrapper invoked by `lint-staged`) rather than a bash-only `$?`-style guard, which breaks on Windows `cmd.exe` / PowerShell.
 - [ ] Document the hook in `CONTRIBUTING.md`.
 
 **P0 — Un-mask PHPStan**
@@ -368,7 +368,7 @@ With the gate trustworthy, run the suite and flip 🟡 → ✅ in this tracker f
 - [ ] REST `/pulse`, `/identity`, `/session`, `/client-report` (integration test asserts success + permission-denied + malformed)
 - [ ] `AuthorityResolverTest`, `CapabilityEngineTest`, `ClientTelemetryTest`
 - [ ] `copilot-instructions.md` PulseVerifier ownership contradiction resolved (remove `PulseVerifier` from the "What this repository owns" list)
-- [ ] Reconcile the `GATE-AUDIT` citation of "Engineering Standards §6.2" — the in-repo file `.github/instructions/sparxstar-coding-standards-v1 (2).md` §6.2 is "GraphQL Resolver Rules", not PSR-4 naming. Either correct the audit reference or supply the actual Engineering-Standards-v1.0 document.
+- [ ] Reconcile the `GATE-AUDIT` citation of "Engineering Standards §6.2" — the in-repo file `.github/instructions/sparxstar-coding-standards-v1.md` (renamed from `sparxstar-coding-standards-v1 (2).md` in this PR) §6.2 is "GraphQL Resolver Rules", not PSR-4 naming. Either correct the audit reference or supply the actual Engineering-Standards-v1.0 document.
 
 **Out of scope (moved to S-09):**
 
