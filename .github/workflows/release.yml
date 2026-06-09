@@ -55,10 +55,22 @@ jobs:
         uses: shivammathur/setup-php@ec406be512d7077f68eed36e63f4d91bc006edc4
         with:
           php-version: "8.2"
-          tools: composer:v2
+          # Composer >= 2.9.8 closes CVE-2026-45793 (GitHub App token leak to logs)
+          tools: composer:2.9.8
           coverage: none
 
+      - name: Mint Composer resolver token
+        id: composer-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.COMPOSER_RESOLVER_APP_ID }}
+          private-key: ${{ secrets.COMPOSER_RESOLVER_PRIVATE_KEY }}
+          owner: Starisian-Technologies
+          repositories: sparxstar-ouroboros-integrity
+
       - name: Install PHP dependencies (no-dev)
+        env:
+          COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ steps.composer-token.outputs.token }}"}}'
         run: composer install --no-dev --prefer-dist --no-progress --no-interaction --optimize-autoloader
 
       - name: Set up Node.js
