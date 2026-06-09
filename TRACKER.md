@@ -93,7 +93,7 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | REST `/session` | `src/api/SirusRESTController.php` | ✅ | **S-07** | Registered; Sirus-native session check (not `session_status()`); integration-tested |
 | REST `/client-report` | `src/api/SirusRESTController.php` | ✅ | **S-07** | Registered; delegates to `ClientTelemetry`; integration-tested |
 | `CapabilityEngine` | `src/core/CapabilityEngine.php` | ✅ | S-07 | `resolve(SirusContext): array`; `CapabilityEngineTest` added |
-| `AuthorityResolver` | `src/core/AuthorityResolver.php` | ✅ | S-07 | `AuthorityResolverTest` added |
+| `AuthorityResolver` | `src/core/AuthorityResolver.php` | ✅ | S-01/S-07 | Built in S-01; `AuthorityResolverTest` added in S-07 |
 | `ClientTelemetry` | `src/core/ClientTelemetry.php` | ✅ | S-07 | `ClientTelemetryTest` added |
 
 ### Event / Mitigation / Signal Subsystem (Observability — Spec §6)
