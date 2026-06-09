@@ -34,14 +34,29 @@ use Starisian\Sparxstar\Sirus\services\SirusDeviceParser;
  */
 final class SirusRESTController
 {
+    /**
+     * REST namespace that exposes the Sirus context producer surface.
+     */
     private const NAMESPACE = 'sparxstar/v1';
 
+    /**
+     * Cookie name used to transmit signed context pulses to origin-side consumers.
+     */
     private const PULSE_COOKIE_NAME = 'spx_context_pulse';
 
+    /**
+     * Prefix for anonymous per-IP REST registration rate-limit transients.
+     */
     private const RATE_LIMIT_TRANSIENT_PREFIX = 'sirus_rl_';
 
+    /**
+     * Maximum device registration attempts per IP subnet window.
+     */
     private const RATE_LIMIT_MAX = 30;
 
+    /**
+     * Injects REST collaborators; the controller keeps routing logic only.
+     */
     public function __construct(
         private readonly DeviceContinuity $device_continuity,
         private readonly PulseGenerator $pulse_generator,
@@ -317,10 +332,21 @@ final class SirusRESTController
                 );
             }
 
+            $device_mismatch = $this->validateRequestedDevice($request, $context->device_id);
+            if ($device_mismatch instanceof WP_Error) {
+                return $device_mismatch;
+            }
+
             return new WP_REST_Response($context->toPortablePayload(), 200);
         }
 
-        return new WP_REST_Response(ContextEngine::current()->toPortablePayload(), 200);
+        $context = ContextEngine::current();
+        $device_mismatch = $this->validateRequestedDevice($request, $context->device_id);
+        if ($device_mismatch instanceof WP_Error) {
+            return $device_mismatch;
+        }
+
+        return new WP_REST_Response($context->toPortablePayload(), 200);
     }
 
     /**

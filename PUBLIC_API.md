@@ -354,12 +354,18 @@ Returns: `{identity_id: string|null, verification_status: string, authority_memb
 | `GET` | `/wp-json/sirus/v1/directives` | `SirusDirectiveController` | WP nonce required |
 | `GET` | `/wp-json/sirus/v1/directives/{device_id}` | `SirusDirectiveController` | WP nonce required |
 
-### `sparxstar/v1` namespace (legacy UEC compat)
+### `sparxstar/v1` namespace (Sirus context producer + UEC compat)
 
 | Method | Route | Controller | Auth |
 |---|---|---|---|
-| `POST` | `/wp-json/sparxstar/v1/context` | `SirusRESTController` | WP nonce required |
+| `POST` | `/wp-json/sparxstar/v1/device` | `SirusRESTController` | WP nonce required |
 | `GET` | `/wp-json/sparxstar/v1/context` | `SirusRESTController` | WP nonce required |
+| `POST` | `/wp-json/sparxstar/v1/pulse` | `SirusRESTController` | WP nonce required; returns HttpOnly/SameSite=Strict pulse cookie |
+| `GET` | `/wp-json/sparxstar/v1/identity` | `SirusRESTController` | WP nonce required |
+| `GET` | `/wp-json/sparxstar/v1/session` | `SirusRESTController` | WP nonce required |
+| `POST` | `/wp-json/sparxstar/v1/client-report` | `SirusRESTController` | WP nonce required; telemetry is never stored in post meta |
+
+`device_id`, when supplied to `/context`, `/identity`, or `/session`, must match the current or token-derived Sirus device context; mismatches are rejected instead of returning another context shape.
 
 ---
 
@@ -387,12 +393,13 @@ All stable filters. Do not remove.
 
 ---
 
-## Provisional Types (temporary — replace with Ouroboros imports)
+## Ouroboros-Owned Types
 
-| Class | Location | Notes |
+| Class | Canonical namespace | Notes |
 |---|---|---|
-| `ContextBootException` | `src/exceptions/ContextBootException.php` | Mirror of Ouroboros type. Remove when Ouroboros ships. |
-| `ContextPulse` | `src/dto/ContextPulse.php` | Mirror of Ouroboros type. Remove when Ouroboros ships. |
+| `ContextBootException` | `Starisian\Sparxstar\Infrastructure\Exceptions` | Imported by Sirus; never redefine locally. |
+| `ContextPulse` | `Starisian\Sparxstar\Infrastructure\DTOs` | Imported by Sirus; generated here, verified by Helios. |
+| `ContextPulseSigningMaterial` | `Starisian\Sparxstar\Infrastructure\Utils` | Canonical HMAC signing material builder. |
 
 ---
 
@@ -423,4 +430,4 @@ Do not expect these from this repository:
 
 ---
 
-*Last updated: 2026-04-09 | Spec version: Sirus Context Engine Spec v3.0*
+*Last updated: 2026-06-09 | Spec version: Sirus Context Engine Spec v3.0*
