@@ -8,10 +8,11 @@
 
 Technical specifications:
 
-- [Sirus Context Engine Spec v3.0](Sirus_Context_Engine_Spec_v3.0.docx.pdf)
-- [Platform Integrity Map](Sparxstar_Platform_Integrity_Map_v1.0.docx%20(3).pdf)
-- [SPARXSTAR Platform Overview](Sparxstar_Platform_Overview_v1.0.docx.pdf)
+- [Sirus Context Engine Spec v3.0](docs/specs/Sirus_Context_Engine_Spec_v3.0.docx.pdf)
+- [Platform Integrity Map](docs/specs/Sparxstar_Platform_Integrity_Map_v1.0.docx%20(3).pdf)
+- [SPARXSTAR Platform Overview](docs/specs/Sparxstar_Platform_Overview_v1.0.docx.pdf)
 - [Public API Surface](PUBLIC_API.md) — all hooks, filters, REST endpoints, and classes consumed by other repos
+- [Sirus API Contract](docs/contracts/sirus-api-contract.v1.json) and [seed fixture](docs/contracts/sirus-api-seed.v1.json) — machine-readable REST contract for downstream repos
 - [Implementation Tracker](TRACKER.md) — sprint scoreboard and remaining work
 
 ---
@@ -42,19 +43,19 @@ The table below answers whether each component in the Sirus Context Engine Spec 
 |---|---|---|
 | `ContextEngine` — `current()` accessor, CLI system context | `src/core/ContextEngine.php` | ✅ Implemented |
 | `SirusContext` DTO — primary output consumed by all downstream layers | `src/core/SirusContext.php` | ✅ Implemented |
-| `ContextPulse` DTO — signed pulse (never contains identity claims) | `src/dto/ContextPulse.php` | ✅ **Provisional** (see below) |
+| `ContextPulse` DTO — signed pulse (never contains identity claims) | `Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse` | ✅ Imported from Ouroboros |
 | `PulseGenerator` — HMAC-SHA256 pulse signing | `src/core/PulseGenerator.php` | ✅ Implemented + tested |
 | `TrustEngine` — frozen trust score algorithm | `src/core/TrustEngine.php` | ✅ Implemented + tested |
 | `TrustResolver` — credential-level base score + drift/session deductions | `src/core/TrustResolver.php` | ✅ Implemented + tested |
 | `DeviceContinuity` — server-issued `device_id`, fingerprint, session recovery | `src/core/DeviceContinuity.php` | ✅ Implemented |
 | `DeviceMatcher` — fingerprint scoring thresholds | `src/core/DeviceMatcher.php` | ✅ Implemented |
-| `EnvironmentResolver` — browser, OS, network via Matomo DeviceDetector | `src/services/EnvironmentResolver.php` | ✅ Implemented |
+| `EnvironmentResolver` / `EnvironmentRecord` — client-first environment record with Matomo fallback only | `src/services/EnvironmentResolver.php`, `src/core/EnvironmentRecord.php` | ✅ Implemented + tested |
 | `IdentityResolver` — five-tier resolution via Helios | `src/core/IdentityResolver.php` | ✅ Implemented |
 | `AuthorityResolver` — governance scope, multi-authority aggregation | `src/core/AuthorityResolver.php` | ✅ Implemented |
 | `ConsentManager` — cascade: user meta → site authority default → deny | `src/core/ConsentManager.php` | ✅ Implemented |
 | `StepUpPolicy` — Level 3 always; Level 2 when `trust_score < 0.7` | `src/core/StepUpPolicy.php` | ✅ Implemented |
 | `NetworkContextBroker` — cross-domain handoff with `tl`/`ts` payload | `src/core/NetworkContextBroker.php` | ✅ Implemented |
-| `ContextBootException` — boot failure signal | `src/exceptions/ContextBootException.php` | ✅ **Provisional** (see below) |
+| `ContextBootException` — boot failure signal | `Starisian\Sparxstar\Infrastructure\Exceptions\ContextBootException` | ✅ Imported from Ouroboros |
 | `StarUserEnv` — frozen public facade (UEC compatibility) | `src/StarUserEnv.php` | ✅ Implemented — signatures frozen |
 
 ### What this repository does NOT own
@@ -70,22 +71,27 @@ The table below answers whether each component in the Sirus Context Engine Spec 
 
 ---
 
-## Provisional Types and the Ouroboros Dependency
+## Ouroboros Dependency Status
 
-Two types in this repository are **provisional mirrors** of canonical definitions owned by `sparxstar-ouroboros-integrity`:
+Sirus now imports canonical shared contracts from `sparxstar-ouroboros-integrity`; it no longer carries provisional mirrors for `ContextPulse` or `ContextBootException`.
 
-| Provisional file | Canonical owner |
-|---|---|
-| `src/exceptions/ContextBootException.php` | `sparxstar-ouroboros-integrity` |
-| `src/dto/ContextPulse.php` | `sparxstar-ouroboros-integrity` |
+| Shared contract | Canonical namespace | Sirus responsibility |
+|---|---|---|
+| `ContextPulse` | `Starisian\Sparxstar\Infrastructure\DTOs` | Generate and sign only; never verify at runtime |
+| `ContextBootException` | `Starisian\Sparxstar\Infrastructure\Exceptions` | Throw/rethrow on context boot failure; never swallow |
+| `ContextPulseSigningMaterial` | `Starisian\Sparxstar\Infrastructure\Utils` | Build canonical signing material for generated pulses |
 
-Both files carry a `PROVISIONAL` header comment. They exist here because the Ouroboros package has not yet shipped.
+Remaining imports to reconcile when available in Ouroboros: `AgreementResult`, `ValidationHelper`, and `VerificationResult`.
 
-**Hard rule once Ouroboros ships:**
+---
 
-> Remove both provisional files. Import the Ouroboros-owned types directly. Do not maintain two copies.
+## Build-Out Plan
 
-Until then, Sirus, Helios, and Dheghom each carry mirrored contracts. This is a known schema drift risk. It is explicitly acknowledged, cleanly isolated, and documented for replacement.
+1. **Dependency gate** — restore installability of `sparxstar-ouroboros-integrity` from the configured registry or VCS source, then rerun `composer install`, `composer run smoke:api-contract`, `composer run test`, and `composer run analyze` in CI.
+2. **S-07 validation closeout** — convert remaining tracker rows marked validation-pending to complete only after the full PHPUnit suite passes against installed dependencies.
+3. **PHPStan level migration** — finish S-05 by raising the configured analysis level one step at a time, with no new baseline entries for Sirus-owned code.
+4. **UEC stabilization exit** — after the 30-day production window, execute S-03: audit live `Starisian\SparxstarUEC\` call sites, then remove legacy UEC classes and compatibility exclusions without changing `StarUserEnv` signatures.
+5. **Cross-repo handoff checks** — confirm Helios and Dheghom consume the same Ouroboros version and that Helios remains the only runtime pulse verifier.
 
 ---
 
@@ -99,7 +105,7 @@ Until then, Sirus, Helios, and Dheghom each carry mirrored contracts. This is a 
 | `ContextBootException` MUST NEVER be caught and swallowed | Enforced by convention — no silent catch blocks |
 | `device_id` is ALWAYS server-issued — never JS fingerprint alone | Enforced in `DeviceContinuity` |
 | IP addresses stored with last octet zeroed: `192.168.1.0` | Enforced in `IpAnonymizer` |
-| `ContextPulse` NEVER contains identity claims | Enforced in `ContextPulse` DTO and `PulseGenerator` |
+| `ContextPulse` NEVER contains identity claims | Enforced by Ouroboros DTO shape and `PulseGenerator` |
 | MUST NEVER call `wp_set_auth_cookie()` or issue JWTs | Enforced by review |
 | MUST NEVER query Dheghom or any external plugin directly | Enforced by review |
 | `StarUserEnv` signatures are FROZEN — must never change | Enforced by review |
@@ -297,12 +303,14 @@ composer run test:unit  # PHPUnit only
 
 ### Dependencies from sparxstar-ouroboros-integrity
 
-When the Ouroboros package ships, the following will be imported from it. Do not redefine them:
+The following are imported from, or reserved for, Ouroboros. Do not redefine them in Sirus:
 
 - `ContextBootException`
 - `ContextPulse` DTO
-- `AgreementResult` enum
-- `ValidationHelper`
+- `ContextPulseSigningMaterial`
+- `AgreementResult` enum (pending local usage)
+- `ValidationHelper` (pending local usage)
+- `VerificationResult` enum (Helios verification path only)
 
 ---
 
