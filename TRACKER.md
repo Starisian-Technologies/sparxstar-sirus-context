@@ -323,7 +323,7 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 
 - [x] Add `PulseRoundTripTest` — sign a pulse via `PulseGenerator`, confirm it verifies against the canonical Ouroboros signing material (tamper / expiry / malformed cases)
 - [ ] Import `VerificationResult` from Ouroboros when available — **never redefine in Sirus**
-- [x] **Do not** add runtime verification logic to Sirus (per `copilot-instructions.md`); contradiction **resolved** — `PulseVerifier` ownership claim removed from that file; it now reads only "Sirus generates, Helios verifies"
+- [x] **Do not** add runtime verification logic to Sirus (per `.github/instructions/copilot-instructions.md`); contradiction **resolved** — `PulseVerifier` ownership claim removed from that file; it now reads only "Sirus generates, Helios verifies"
 
 **P1 — EnvironmentRecord DTO (Spec §7, §23)**
 
