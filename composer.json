@@ -95,7 +95,8 @@
       "@phpcbf",
       "@phpfix",
       "@comments:fix"
-    ]
+    ],
+    "smoke:api-contract": "php tests/smoke/sirus-api-contract-smoke.php"
   },
   "extra": {
     "installer-paths": {

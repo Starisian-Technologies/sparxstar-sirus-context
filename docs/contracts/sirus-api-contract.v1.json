@@ -1,0 +1,704 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SPARXSTAR Sirus Context Producer API",
+    "version": "1.0.0",
+    "description": "Contract for Sirus-owned sparxstar/v1 endpoints consumed by Helios, Dheghom, Sky, and compatibility callers. Sirus produces context and signed pulses; Helios verifies and enforces."
+  },
+  "servers": [
+    {
+      "url": "/wp-json/sparxstar/v1"
+    }
+  ],
+  "security": [
+    {
+      "wpRestNonce": []
+    }
+  ],
+  "x-sirus-contract": {
+    "owner": "Starisian\\Sparxstar\\Sirus",
+    "stability": "s07-integration-ready",
+    "sourceOfTruth": "docs/specs/Sirus_Context_Engine_Spec_v3.0.docx.pdf",
+    "clientEnvironmentRule": "Client-submitted environment signals are primary. User-Agent parsing is fallback/enrichment only.",
+    "pulseVerificationOwner": "Helios",
+    "identityInPulse": false,
+    "deviceIdRule": "device_id is server-issued and must match the current or token-derived Sirus context when supplied."
+  },
+  "paths": {
+    "/device": {
+      "post": {
+        "operationId": "registerDevice",
+        "summary": "Resolve or register the server-issued device identity for a client environment.",
+        "x-sirus-owner": "SirusRESTController::handle_device_register",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceRegistrationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resolved device record and portable context handoff token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceRegistrationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/context": {
+      "get": {
+        "operationId": "getContext",
+        "summary": "Return the current or token-derived portable Sirus context.",
+        "x-sirus-owner": "SirusRESTController::handle_get_context",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DeviceIdQuery"
+          },
+          {
+            "name": "ctx_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Portable NetworkContextBroker handoff token issued by /device."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Portable Sirus context payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortableContext"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DeviceMismatch"
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidContextToken"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/pulse": {
+      "post": {
+        "operationId": "issuePulse",
+        "summary": "Issue a fresh signed ContextPulse for Helios origin-side verification.",
+        "x-sirus-owner": "SirusRESTController::handle_generate_pulse",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PulseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pulse metadata. The full signed pulse is returned as an HttpOnly SameSite=Strict cookie named spx_context_pulse.",
+            "headers": {
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "spx_context_pulse=<url-encoded ContextPulse JSON>; Path=/; Expires=<rfc1123>; HttpOnly; SameSite=Strict; Secure when SSL"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PulseResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/DeviceMismatch"
+          }
+        }
+      }
+    },
+    "/identity": {
+      "get": {
+        "operationId": "getIdentity",
+        "summary": "Resolve the identity tier for the current Sirus context.",
+        "x-sirus-owner": "SirusRESTController::handle_get_identity",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DeviceIdQuery"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Identity resolution payload from IdentityResolver.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DeviceMismatch"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/session": {
+      "get": {
+        "operationId": "getSession",
+        "summary": "Return current Sirus context session status.",
+        "x-sirus-owner": "SirusRESTController::handle_get_session",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DeviceIdQuery"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session state for the current context.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DeviceMismatch"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/client-report": {
+      "post": {
+        "operationId": "recordClientReport",
+        "summary": "Record sanitized client telemetry without WordPress post-meta storage.",
+        "x-sirus-owner": "SirusRESTController::handle_client_report",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientReportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Telemetry accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/DeviceMismatch"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "wpRestNonce": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-WP-Nonce",
+        "description": "WordPress REST nonce for wp_rest."
+      }
+    },
+    "parameters": {
+      "DeviceIdQuery": {
+        "name": "device_id",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/DeviceId"
+        },
+        "description": "Optional assertion that must match the current or token-derived Sirus device_id."
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Malformed or missing request data.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Missing or invalid WordPress REST nonce.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "DeviceMismatch": {
+        "description": "Supplied device_id does not match the active Sirus context.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "InvalidContextToken": {
+        "description": "Context handoff token is invalid or expired.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Device registration rate limit exceeded.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Unavailable": {
+        "description": "Optional telemetry dependency is unavailable.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "DeviceId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 191,
+        "pattern": "^[A-Za-z0-9._:-]+$"
+      },
+      "TrustLevel": {
+        "type": "string",
+        "enum": [
+          "NORMAL",
+          "ELEVATED",
+          "CRITICAL",
+          "STEP_UP_REQUIRED"
+        ]
+      },
+      "ResourceSensitivity": {
+        "type": "string",
+        "enum": [
+          "LEVEL_1",
+          "LEVEL_2",
+          "LEVEL_3"
+        ]
+      },
+      "EnvironmentData": {
+        "type": "object",
+        "additionalProperties": {
+          "type": [
+            "string",
+            "number",
+            "integer",
+            "boolean",
+            "object",
+            "array",
+            "null"
+          ]
+        },
+        "properties": {
+          "browser_name": {
+            "type": "string"
+          },
+          "browser_version": {
+            "type": "string"
+          },
+          "os": {
+            "type": "string"
+          },
+          "os_version": {
+            "type": "string"
+          },
+          "device_type": {
+            "type": "string"
+          },
+          "network_effective_type": {
+            "type": "string",
+            "enum": [
+              "slow-2g",
+              "2g",
+              "3g",
+              "4g",
+              "unknown"
+            ]
+          },
+          "time_zone": {
+            "type": "string"
+          },
+          "screen_resolution": {
+            "type": "string"
+          },
+          "canvas_hash": {
+            "type": "string"
+          }
+        }
+      },
+      "DeviceRegistrationRequest": {
+        "type": "object",
+        "required": [
+          "visitor_id"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "visitor_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191,
+            "description": "Client-derived probabilistic drift signal; not a security primitive."
+          },
+          "device_id": {
+            "$ref": "#/components/schemas/DeviceId"
+          },
+          "device_secret": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191
+          },
+          "environment_data": {
+            "$ref": "#/components/schemas/EnvironmentData"
+          }
+        }
+      },
+      "DeviceRegistrationResponse": {
+        "type": "object",
+        "required": [
+          "device_id",
+          "device_secret",
+          "trust_level",
+          "context_token"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "$ref": "#/components/schemas/DeviceId"
+          },
+          "device_secret": {
+            "type": "string"
+          },
+          "trust_level": {
+            "$ref": "#/components/schemas/TrustLevel"
+          },
+          "context_token": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "PortableContext": {
+        "type": "object",
+        "required": [
+          "ctx",
+          "dev",
+          "ses",
+          "site",
+          "net",
+          "ts",
+          "tl",
+          "iat",
+          "exp"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "ctx": {
+            "type": "string"
+          },
+          "dev": {
+            "$ref": "#/components/schemas/DeviceId"
+          },
+          "ses": {
+            "type": "string"
+          },
+          "site": {
+            "type": "string"
+          },
+          "net": {
+            "type": "string"
+          },
+          "ts": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "tl": {
+            "$ref": "#/components/schemas/TrustLevel"
+          },
+          "iat": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "exp": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "PulseRequest": {
+        "type": "object",
+        "required": [
+          "device_id",
+          "resource_sensitivity",
+          "request_id"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "$ref": "#/components/schemas/DeviceId"
+          },
+          "resource_sensitivity": {
+            "$ref": "#/components/schemas/ResourceSensitivity"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191
+          }
+        }
+      },
+      "PulseResponse": {
+        "type": "object",
+        "required": [
+          "pulse_id",
+          "expires_at",
+          "trust_level",
+          "request_id",
+          "resource_sensitivity",
+          "step_up_required"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "pulse_id": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "trust_level": {
+            "$ref": "#/components/schemas/TrustLevel"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "resource_sensitivity": {
+            "$ref": "#/components/schemas/ResourceSensitivity"
+          },
+          "step_up_required": {
+            "type": "boolean"
+          },
+          "cookie_omitted": {
+            "type": "boolean"
+          }
+        }
+      },
+      "IdentityResponse": {
+        "type": "object",
+        "required": [
+          "identity_id",
+          "verification_status",
+          "authority_memberships",
+          "capabilities"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "identity_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "verification_status": {
+            "type": "string"
+          },
+          "authority_memberships": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SessionResponse": {
+        "type": "object",
+        "required": [
+          "context_id",
+          "device_id",
+          "session_id",
+          "status",
+          "issued_at",
+          "expires"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "context_id": {
+            "type": "string"
+          },
+          "device_id": {
+            "$ref": "#/components/schemas/DeviceId"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "ephemeral"
+            ]
+          },
+          "issued_at": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "expires": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ClientReportRequest": {
+        "type": "object",
+        "required": [
+          "error_type",
+          "error_message"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "error_type": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "error_message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "device_id": {
+            "$ref": "#/components/schemas/DeviceId"
+          },
+          "context": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "ClientReportResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "device_id"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "const": "accepted"
+          },
+          "device_id": {
+            "$ref": "#/components/schemas/DeviceId"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -87,11 +87,12 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | Component | File | Status | Sprint | Notes |
 |---|---|---|---|---|
 | REST `/device` | `src/api/SirusRESTController.php` | ✅ | S-01 | Registered |
-| REST `/context` | `src/api/SirusRESTController.php` | ✅ | S-01 | Registered |
-| REST `/pulse` | `src/api/SirusRESTController.php` | 🟡 | **S-07** | Registered with HttpOnly/SameSite=Strict pulse cookie + metadata body; validation pending |
-| REST `/identity` | `src/api/SirusRESTController.php` | 🟡 | **S-07** | Registered; delegates to `IdentityResolver`; validation pending |
-| REST `/session` | `src/api/SirusRESTController.php` | 🟡 | **S-07** | Registered; exposes current session status; validation pending |
-| REST `/client-report` | `src/api/SirusRESTController.php` | 🟡 | **S-07** | Registered; delegates to `ClientTelemetry`; validation pending |
+| REST `/context` | `src/api/SirusRESTController.php` | ✅ | S-01 | Registered; optional `device_id` must match the current or token-derived context |
+| REST `/pulse` | `src/api/SirusRESTController.php` | 🟡 | **S-07** | Registered with HttpOnly/SameSite=Strict pulse cookie + metadata body; full validation pending dependency install |
+| REST `/identity` | `src/api/SirusRESTController.php` | 🟡 | **S-07** | Registered; delegates to `IdentityResolver`; full validation pending dependency install |
+| REST `/session` | `src/api/SirusRESTController.php` | 🟡 | **S-07** | Registered; exposes current session status; full validation pending dependency install |
+| REST `/client-report` | `src/api/SirusRESTController.php` | 🟡 | **S-07** | Registered; delegates to `ClientTelemetry`; full validation pending dependency install |
+| API contract + seed | `docs/contracts/sirus-api-contract.v1.json`, `docs/contracts/sirus-api-seed.v1.json` | ✅ | **S-07** | Machine-readable OpenAPI contract and seed payloads for downstream repos; smoke-tested without WordPress |
 | `CapabilityEngine` | `src/core/CapabilityEngine.php` | 🟡 | S-01 | `resolve(SirusContext): array`; no unit test |
 | `AuthorityResolver` | `src/core/AuthorityResolver.php` | 🟡 | S-01 | Built; no unit test |
 | `ClientTelemetry` | `src/core/ClientTelemetry.php` | 🟡 | S-01 | Built; no unit test |
@@ -126,18 +127,34 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 
 ---
 
+
+## Current Review Notes — 2026-06-09
+
+- Runtime/security review found `/context` accepted an optional `device_id` parameter but did not enforce it. The handler now rejects mismatches for both current-context and `ctx_token`-derived responses.
+- Dependency validation is currently gated by the installability of `sparxstar-ouroboros-integrity`. Keep S-07 validation rows 🟡 until CI or a credentialed environment can install dependencies and run the full suite.
+
+## Finish-Build Plan
+
+1. Restore authenticated/package access for `starisian/sparxstar-ouroboros-integrity` and make `composer install --no-interaction --prefer-dist` reproducible; keep `composer run smoke:api-contract` as the no-dependency preflight.
+2. Run `composer run test`, `composer run test:unit`, and `composer run analyze`; flip S-07 validation rows from 🟡 to ✅ only after those commands pass without deprecations or failures.
+3. Complete S-05 by raising PHPStan toward Level 7 in small, no-baseline increments.
+4. After the UEC stabilization window closes, execute S-03 legacy removal while preserving `StarUserEnv` method signatures.
+5. Verify Helios and Dheghom consume the same Ouroboros release and that pulse verification remains outside Sirus runtime.
+
+---
+
 ## Scoreboard — Ouroboros Migration
 
-The following provisional types must be removed when `sparxstar-ouroboros-integrity` ships.
+The provisional Sirus mirrors have been removed; these rows record the completed migration to `sparxstar-ouroboros-integrity`.
 
 | Provisional file | Canonical owner | Migration status |
 |---|---|---|
 | `src/exceptions/ContextBootException.php` | `sparxstar-ouroboros-integrity` | ✅ Migrated — Ouroboros CO-001 |
 | `src/dto/ContextPulse.php` | `sparxstar-ouroboros-integrity` | ✅ Migrated — Ouroboros CO-001 |
 
-**Hard rule (enforced at Ouroboros merge):**
+**Hard rule:**
 
-> Remove both provisional files. Import the Ouroboros-owned types directly. Do not maintain two copies.
+> Keep importing the Ouroboros-owned types directly. Do not reintroduce local mirrors.
 
 Ouroboros must own and export:
 - `ContextPulse` DTO
@@ -242,7 +259,7 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 
 > Replace provisional mirrors with Ouroboros package imports.
 
-**Prerequisite:** `sparxstar-ouroboros-integrity` package published to Packagist or private registry.
+**Current gate:** `sparxstar-ouroboros-integrity` must remain installable from the configured Packagist/private VCS source for local and CI validation.
 
 - [x] Add `sparxstar-ouroboros-integrity` to `composer.json` `require`
 - [x] Delete `src/exceptions/ContextBootException.php` (provisional)

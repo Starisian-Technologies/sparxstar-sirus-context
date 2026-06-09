@@ -242,6 +242,11 @@ final class RestApiTest extends SirusTestCase
         );
         $this->assertInstanceOf(\WP_Error::class, $context_result);
 
+        $context_device_result = $this->controller->handle_get_context(
+            $this->makeRequest('GET', '/sparxstar/v1/context', [ 'device_id' => 'other-device' ])
+        );
+        $this->assertInstanceOf(\WP_Error::class, $context_device_result);
+
         $pulse_result = $this->controller->handle_generate_pulse(
             $this->makeRequest(
                 'POST',

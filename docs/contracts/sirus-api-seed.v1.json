@@ -1,0 +1,80 @@
+{
+  "contract": "docs/contracts/sirus-api-contract.v1.json",
+  "version": "1.0.0",
+  "baseUrl": "/wp-json/sparxstar/v1",
+  "headers": {
+    "X-WP-Nonce": "seed-wp-rest-nonce",
+    "Content-Type": "application/json"
+  },
+  "requests": {
+    "registerDevice": {
+      "method": "POST",
+      "path": "/device",
+      "body": {
+        "visitor_id": "seed-visitor-01",
+        "environment_data": {
+          "browser_name": "Firefox",
+          "browser_version": "126.0",
+          "os": "Linux",
+          "os_version": "6.8",
+          "device_type": "desktop",
+          "network_effective_type": "4g",
+          "time_zone": "Etc/UTC",
+          "screen_resolution": "1920x1080",
+          "canvas_hash": "seed-canvas-hash"
+        }
+      }
+    },
+    "getContext": {
+      "method": "GET",
+      "path": "/context",
+      "query": {
+        "device_id": "CLI"
+      }
+    },
+    "issuePulse": {
+      "method": "POST",
+      "path": "/pulse",
+      "body": {
+        "device_id": "CLI",
+        "resource_sensitivity": "LEVEL_2",
+        "request_id": "seed-request-01"
+      }
+    },
+    "getIdentity": {
+      "method": "GET",
+      "path": "/identity",
+      "query": {
+        "device_id": "CLI"
+      }
+    },
+    "getSession": {
+      "method": "GET",
+      "path": "/session",
+      "query": {
+        "device_id": "CLI"
+      }
+    },
+    "recordClientReport": {
+      "method": "POST",
+      "path": "/client-report",
+      "body": {
+        "error_type": "js_error",
+        "error_message": "Seed client smoke report",
+        "device_id": "CLI",
+        "context": {
+          "component": "seed-smoke",
+          "severity": "low"
+        }
+      }
+    }
+  },
+  "expectedResponses": {
+    "registerDevice": 200,
+    "getContext": 200,
+    "issuePulse": 201,
+    "getIdentity": 200,
+    "getSession": 200,
+    "recordClientReport": 202
+  }
+}
