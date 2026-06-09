@@ -13,7 +13,11 @@ updates:
       include: "scope"
     open-pull-requests-limit: 5
 
-  # JavaScript dependencies via NPM (if using ESLint, Stylelint, etc.)
+  # JavaScript dependencies via pnpm (canonical lockfile: pnpm-lock.yaml).
+  # The "npm" ecosystem covers npm/yarn/pnpm; with no package-lock.json present,
+  # Dependabot resolves against pnpm-lock.yaml — the file CI installs from
+  # (`pnpm install --frozen-lockfile`). Do not reintroduce package-lock.json:
+  # a stale npm lockfile produces phantom alerts for versions no install uses.
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
