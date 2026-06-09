@@ -130,9 +130,8 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 
 ## Current Review Notes — 2026-06-09
 
-- Current branch: `work`; latest local commit references PR `#89`, but no Git remote is configured and `gh` is unavailable in this container, so no hosted open PR metadata could be fetched here.
 - Runtime/security review found `/context` accepted an optional `device_id` parameter but did not enforce it. The handler now rejects mismatches for both current-context and `ctx_token`-derived responses.
-- `composer install` is currently blocked by the private/missing `sparxstar-ouroboros-integrity` VCS source. Keep S-07 validation rows 🟡 until CI or a credentialed environment can install dependencies and run the full suite.
+- Dependency validation is currently gated by the installability of `sparxstar-ouroboros-integrity`. Keep S-07 validation rows 🟡 until CI or a credentialed environment can install dependencies and run the full suite.
 
 ## Finish-Build Plan
 
