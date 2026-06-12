@@ -385,7 +385,7 @@ With the gate trustworthy, run the suite and flip 🟡 → ✅ in this tracker f
 - [ ] REST `/pulse`, `/identity`, `/session`, `/client-report` (integration test asserts success + permission-denied + malformed)
 - [ ] `AuthorityResolverTest`, `CapabilityEngineTest`, `ClientTelemetryTest`
 - [ ] `copilot-instructions.md` PulseVerifier ownership contradiction resolved (remove `PulseVerifier` from the "What this repository owns" list)
-- [ ] Reconcile the `GATE-AUDIT` citation of "Engineering Standards §6.2" — the in-repo file `.github/instructions/sparxstar-coding-standards-v1.md` (renamed from `sparxstar-coding-standards-v1 (2).md` in this PR) §6.2 is "GraphQL Resolver Rules", not PSR-4 naming. Either correct the audit reference or supply the actual Engineering-Standards-v1.0 document.
+- [ ] Reconcile the `GATE-AUDIT` citation of "Engineering Standards §6.2" — the in-repo file `.github/instructions/sparxstar-coding-standards-v1.md` §6.2 is "GraphQL Resolver Rules", not PSR-4 naming. Either correct the audit reference or supply the actual Engineering-Standards-v1.0 document.
 
 **Out of scope (moved to S-09):**
 
@@ -420,7 +420,7 @@ With the gate trustworthy, run the suite and flip 🟡 → ✅ in this tracker f
 - [ ] Import `VerificationResult` enum from Ouroboros (S-07 leftover).
 - [ ] Import `AgreementResult` enum from Ouroboros (S-04 leftover).
 - [ ] Import `ValidationHelper` from Ouroboros (S-04 leftover).
-- [ ] Rewrite the 10 Ouroboros-coupled tests against `shared-test-vectors.json` — assertions derived from the spec vectors, never from current code (audit §C.1): `PulseRoundTripTest`, `PulseGeneratorTest`, `SirusContextTest`, `AuthorityResolverTest`, `CapabilityEngineTest`, `StepUpPolicyTest`, `TrustResolverTest`, `ContextEngineTest`, `ContextCacheTest`, `IdentityResolverTest`, `NetworkContextBrokerTest`.
+- [ ] Rewrite the 10 Ouroboros-coupled tests against `shared-test-vectors.json` — assertions derived from the spec vectors, never from current code (audit §C.1): `PulseRoundTripTest`, `PulseGeneratorTest`, `SirusContextTest`, `AuthorityResolverTest`, `CapabilityEngineTest`, `StepUpPolicyTest`, `ContextEngineTest`, `ContextCacheTest`, `IdentityResolverTest`, `NetworkContextBrokerTest`.
 - [ ] Lock `geo_zone` format (PAM-002-O3) — required before PAM-002-P3 ships.
 - [ ] Confirm Sirus's pulse field set still matches PAM-002 §3.3 canonical (15 fields including the four PAM-002-P2 restored fields).
 - [ ] Confirm Helios and Dheghom are pinned to the same Ouroboros version.
