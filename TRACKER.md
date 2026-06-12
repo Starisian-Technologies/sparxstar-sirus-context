@@ -55,8 +55,8 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 
 | Component | File | Status | Sprint | Notes |
 |---|---|---|---|---|
-| `EnvironmentResolver` | `src/services/EnvironmentResolver.php` | 🟡 | S-07 | Client-first `EnvironmentRecord` builder with UA fallback only; compatibility accessors retained; validation pending |
-| `EnvironmentRecord` DTO | `src/core/EnvironmentRecord.php` | 🟡 | **S-07** | Built with IP anonymization, region-level location, network filtering, and capture metadata; validation pending |
+| `EnvironmentResolver` | `src/services/EnvironmentResolver.php` | ✅ | S-07 | Client-first `EnvironmentRecord` builder with UA fallback only; compatibility accessors retained |
+| `EnvironmentRecord` DTO | `src/core/EnvironmentRecord.php` | ✅ | **S-07** | Built with IP anonymization, region-level location, network filtering, and capture metadata |
 | `NetworkContextBroker` | `src/core/NetworkContextBroker.php` | ✅ | S-01 | `issueToken(context, secret)` / `verifyToken(token, secret)` — explicit secret; portable |
 
 ### Consent and Compliance
@@ -97,6 +97,29 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | `AuthorityResolver` | `src/core/AuthorityResolver.php` | 🟡 | S-01 | Built; no unit test |
 | `ClientTelemetry` | `src/core/ClientTelemetry.php` | 🟡 | S-01 | Built; no unit test |
 
+### Event / Mitigation / Signal Subsystem (Observability — Spec §6)
+
+> The runtime signal-evaluation and mitigation pipeline that backs the trust signals `TrustEngine` consumes. Built earlier; comprehensive unit coverage landed via PRs #80/#81 ("12 previously uncovered classes"). Tracked here so the subsystem is visible against the S-06 observability theme.
+
+| Component | File | Status | Sprint | Notes |
+|---|---|---|---|---|
+| `SirusSignalEvaluator` | `src/helpers/SirusSignalEvaluator.php` | ✅ | S-06 | `SirusSignalEvaluatorTest` |
+| `SirusMitigationCoordinator` | `src/services/SirusMitigationCoordinator.php` | ✅ | S-06 | `SirusMitigationCoordinatorTest` |
+| `SirusMitigationRuleEngine` | `src/helpers/SirusMitigationRuleEngine.php` | ✅ | S-06 | `SirusMitigationRuleEngineTest` |
+| `SirusRuleConfig` | `src/helpers/SirusRuleConfig.php` | ✅ | S-06 | `SirusRuleConfigTest` |
+| `SirusImpactScorer` | `src/helpers/SirusImpactScorer.php` | ✅ | S-06 | `SirusImpactScorerTest` |
+| `SirusPriorityScorer` | `src/helpers/SirusPriorityScorer.php` | ✅ | S-06 | `SirusPriorityScorerTest` |
+| `SirusRateLimit` | `src/helpers/SirusRateLimit.php` | ✅ | S-06 | `SirusRateLimitTest`; REMOTE_ADDR validated before rate-limit keying |
+| `SirusEventAggregator` | `src/core/SirusEventAggregator.php` | ✅ | S-06 | `SirusEventAggregatorTest` |
+| `SirusEventRepository` | `src/core/SirusEventRepository.php` | ✅ | S-06 | `SirusEventRepositoryTest` |
+| `SirusRuleHitRepository` | `src/core/SirusRuleHitRepository.php` | ✅ | S-06 | `SirusRuleHitRepositoryTest` |
+| `SirusMitigationActionRepository` | `src/core/SirusMitigationActionRepository.php` | ✅ | S-06 | `SirusMitigationActionRepositoryTest` |
+| `SirusEventController` (REST) | `src/api/SirusEventController.php` | ✅ | S-06 | `SirusEventControllerTest` |
+| `SirusDirectiveController` (REST) | `src/api/SirusDirectiveController.php` | ✅ | S-06 | `SirusDirectiveControllerTest` |
+| `SirusDeviceParser` | `src/services/SirusDeviceParser.php` | ✅ | S-06 | `SirusDeviceParserTest`; Matomo wrapper, empty output without optional dep |
+| `HeliosClient` | `src/integrations/HeliosClient.php` | ✅ | S-06 | `HeliosClientTest` |
+| `SirusNetworkSettingsPage` | `src/admin/SirusNetworkSettingsPage.php` | ✅ | S-06 | `SirusNetworkSettingsTest` |
+
 ---
 
 ## Scoreboard — Test Coverage
@@ -113,15 +136,16 @@ This document tracks every component defined in **Sirus Context Engine Spec v3.0
 | `TrustEngineTest.php` | `TrustEngine` | ✅ | **S-02** | 18 |
 | `PulseGeneratorTest.php` | `PulseGenerator` | ✅ | **S-02** | 20 |
 | `TrustResolverTest.php` | `TrustResolver` | ✅ | **S-02** | 15 |
-| `EnvironmentResolverTest.php` | `EnvironmentResolver` | 🟡 | **S-07** | Added — client signals take precedence; UA/Matomo is fallback only; network filter; EnvironmentRecord output |
+| `EnvironmentResolverTest.php` | `EnvironmentResolver` | ✅ | **S-07** | Client signals take precedence; UA/Matomo is fallback only; network filter; EnvironmentRecord output |
 | `DeviceMatcherTest.php` | `DeviceMatcher` | ✅ | **S-02** | 22 |
 | `ConsentManagerTest.php` | `ConsentManager` | ✅ | S-02 | 16 tests — cascade order, privacy-first hard default, anonymous user, invalid meta, multisite isolation, history, purpose consent |
 | `StepUpPolicyTest.php` | `StepUpPolicy` | ✅ | **S-02** | 17 |
-| `AuthorityResolverTest.php` | `AuthorityResolver` | 🟡 | **S-07** | Added — authority trust paths and precedence coverage; validation pending |
-| `CapabilityEngineTest.php` | `CapabilityEngine` | 🟡 | **S-07** | Added — named capability issuance + filter coverage; validation pending |
-| `ClientTelemetryTest.php` | `ClientTelemetry` | 🟡 | **S-07** | Added — report/aggregation/pruning, no post-meta storage assertions; validation pending |
-| `PulseRoundTripTest.php` | `PulseGenerator` ↔ Ouroboros | 🟡 | **S-07** | Added — generate→verify against canonical Ouroboros signing material; validation pending |
-| `EnvironmentRecordTest.php` | `EnvironmentRecord` | 🟡 | **S-07** | Added — privacy invariants at construction; validation pending |
+| `AuthorityResolverTest.php` | `AuthorityResolver` | ✅ | **S-07** | Authority trust paths and precedence coverage |
+| `CapabilityEngineTest.php` | `CapabilityEngine` | ✅ | **S-07** | Named capability issuance + filter coverage |
+| `ClientTelemetryTest.php` | `ClientTelemetry` | ✅ | **S-07** | Report/aggregation/pruning, no post-meta storage assertions |
+| `PulseRoundTripTest.php` | `PulseGenerator` ↔ Ouroboros | ✅ | **S-07** | Generate→verify against canonical Ouroboros signing material |
+| `EnvironmentRecordTest.php` | `EnvironmentRecord` | ✅ | **S-07** | Privacy invariants at construction |
+| `RestApiTest.php` (integration) | `SirusRESTController` | ✅ | **S-07** | Covers all six REST endpoints (§18–19) |
 | ~~`ContextBootExceptionTest.php`~~ | `ContextBootException` | 🗑️ | — | **Removed from Sirus scope** — type owned by Ouroboros since S-04 |
 | ~~`ContextPulseTest.php`~~ | `ContextPulse` | 🗑️ | — | **Removed from Sirus scope** — type owned by Ouroboros since S-04 |
 
@@ -222,7 +246,7 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 
 ---
 
-### S-02 — Test Coverage for S-01 Components (In Progress)
+### S-02 — Test Coverage for S-01 Components (Complete)
 
 > Every S-01 component built without a unit test needs one. PHPUnit ^11.5.50, extends `SirusTestCase`.
 
@@ -231,10 +255,10 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 - [x] `TrustResolverTest` — 15 tests: all credential bases, drift deduction, new-session deduction, combined, clamping
 - [x] ~~`ContextPulseTest`~~ — **removed from scope**; `ContextPulse` is owned by Ouroboros since S-04
 - [x] ~~`ContextBootExceptionTest`~~ — **removed from scope**; `ContextBootException` is owned by Ouroboros since S-04
-- [ ] `EnvironmentResolverTest` — **moved to S-07** (UA parsing, fallback regex, network filter)
+- [x] `EnvironmentResolverTest` — **delivered in S-07** (client-first signals, UA/regex fallback, network filter)
 - [x] `DeviceMatcherTest` — ✅ COMPLETE (22 tests: classify() three-way branching, STRONG/WEAK/NO_MATCH cases, boundary at 0.8 and 0.6, scoreHash, scoreComponents, hardware_concurrency key validation)
 - [x] `ConsentManagerTest` — cascade order (user→site→deny), privacy-first hard default, anonymous user skip, invalid meta fallthrough, multisite isolation, history append-only, purpose consent (16 tests ✅)
-- [ ] `StepUpPolicyTest` — ✅ COMPLETE (17 tests — includes STEP_UP_REQUIRED trust level pre-flag)
+- [x] `StepUpPolicyTest` — ✅ COMPLETE (17 tests — includes STEP_UP_REQUIRED trust level pre-flag)
 
 **Acceptance criteria:** `composer run test:unit` passes with no failures or deprecations.
 
@@ -298,7 +322,7 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 
 ---
 
-### S-07 — Spec Completeness and Helios Integration Readiness (In Progress)
+### S-07 — Spec Completeness and Helios Integration Readiness (Complete except Ouroboros-blocked `VerificationResult` import)
 
 > Close the spec components that exist in the codegen order (Spec §24) but were never built, complete the REST surface Helios consumes, and finish the test coverage S-02 left dangling. Theme: make Sirus a complete, integration-ready producer for the edge.
 
@@ -316,7 +340,7 @@ Legacy `sparxstar-user-environment-check` files remain in the codebase during th
 
 - [x] Add `PulseRoundTripTest` — sign a pulse via `PulseGenerator`, confirm it verifies against the canonical Ouroboros signing material (tamper / expiry / malformed cases)
 - [ ] Import `VerificationResult` from Ouroboros when available — **never redefine in Sirus**
-- [x] **Do not** add runtime verification logic to Sirus (per `copilot-instructions.md`); reconcile the contradiction in that file (line 51 lists `PulseVerifier` as owned, line 71 says it is not)
+- [x] **Do not** add runtime verification logic to Sirus (per `.github/instructions/copilot-instructions.md`); contradiction **resolved** — `PulseVerifier` ownership claim removed from that file; it now reads only "Sirus generates, Helios verifies"
 
 **P1 — EnvironmentRecord DTO (Spec §7, §23)**
 
