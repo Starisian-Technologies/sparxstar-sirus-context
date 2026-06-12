@@ -3,6 +3,7 @@
 /**
  * Provides a caching layer for environment snapshots via the WordPress object cache.
  */
+
 declare(strict_types=1);
 
 namespace Starisian\SparxstarUEC\includes;

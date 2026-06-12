@@ -15,7 +15,9 @@ use WP_REST_Response;
 use Starisian\SparxstarUEC\StarUserEnv;
 use Starisian\SparxstarUEC\helpers\StarLogger;
 use Starisian\SparxstarUEC\core\SparxstarUECDatabase;
-use Starisian\SparxstarUEC\services\SparxstarUECGeoIPService; // Import Logger
+use Starisian\SparxstarUEC\services\SparxstarUECGeoIPService; 
+
+// Import Logger
 
 if (! defined('ABSPATH')) {
     exit;

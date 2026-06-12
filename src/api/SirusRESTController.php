@@ -601,7 +601,7 @@ final class SirusRESTController
 
         $fallbacks = [
             'browser_name'   => $device_info['browser'],
-            'browser_version'=> $device_info['browser_version'],
+            'browser_version' => $device_info['browser_version'],
             'os'             => $device_info['os'],
             'os_version'     => $device_info['os_version'],
             'device_type'    => $device_info['device_type'],

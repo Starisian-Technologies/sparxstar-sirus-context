@@ -56,7 +56,6 @@ final class SparxstarUECSnapshotRepository
             }
 
             return self::hydrate($row);
-
         } catch (\Throwable $throwable) {
             StarLogger::error('SnapshotRepo:get', $throwable);
             return null;
@@ -91,7 +90,6 @@ final class SparxstarUECSnapshotRepository
             }
 
             return self::hydrate($row);
-
         } catch (\Throwable $throwable) {
             StarLogger::error('SnapshotRepo:get_by_user_id', $throwable);
             return null;

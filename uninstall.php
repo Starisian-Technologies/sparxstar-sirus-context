@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Multisite-safe uninstall routine for SPARXSTAR Sirus — Context Engine.
  *

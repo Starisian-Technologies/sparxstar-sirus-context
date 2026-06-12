@@ -243,67 +243,67 @@ final class SirusNetworkSettingsPage
 
         ob_start();
         ?>
-		<div class="wrap">
-			<h1><?php esc_html_e('Sirus Observability — Network Settings', 'sparxstar-sirus'); ?></h1>
+        <div class="wrap">
+            <h1><?php esc_html_e('Sirus Observability — Network Settings', 'sparxstar-sirus'); ?></h1>
 
-			<?php if (isset($_GET['updated']) && sanitize_text_field(wp_unslash((string) ($_GET['updated'] ?? ''))) === '1') : // phpcs:ignore WordPress.Security.NonceVerification.Recommended?>
-				<div class="notice notice-success is-dismissible">
-					<p><?php esc_html_e('Settings saved.', 'sparxstar-sirus'); ?></p>
-				</div>
-			<?php endif; ?>
+            <?php if (isset($_GET['updated']) && sanitize_text_field(wp_unslash((string) ($_GET['updated'] ?? ''))) === '1') : // phpcs:ignore WordPress.Security.NonceVerification.Recommended?>
+                <div class="notice notice-success is-dismissible">
+                    <p><?php esc_html_e('Settings saved.', 'sparxstar-sirus'); ?></p>
+                </div>
+            <?php endif; ?>
 
-			<form method="post" action="<?php echo esc_url(network_admin_url('admin-post.php')); ?>">
-				<?php wp_nonce_field(self::NONCE_ACTION); ?>
-				<input type="hidden" name="action" value="sirus_network_settings" />
+            <form method="post" action="<?php echo esc_url(network_admin_url('admin-post.php')); ?>">
+                <?php wp_nonce_field(self::NONCE_ACTION); ?>
+                <input type="hidden" name="action" value="sirus_network_settings" />
 
-				<h2><?php esc_html_e('Default Access (applies to all subsites unless overridden)', 'sparxstar-sirus'); ?></h2>
+                <h2><?php esc_html_e('Default Access (applies to all subsites unless overridden)', 'sparxstar-sirus'); ?></h2>
 
-				<table class="form-table">
-					<tr>
-						<th scope="row"><?php esc_html_e('Enable Sirus Dashboard by Default', 'sparxstar-sirus'); ?></th>
-						<td>
-							<label>
-								<input type="checkbox" name="sirus_default_enabled" value="1" <?php checked($default['enabled'], true); ?> />
-								<?php esc_html_e('Allow subsites to view the Sirus Observability dashboard', 'sparxstar-sirus'); ?>
-							</label>
-						</td>
-					</tr>
-					<tr>
-						<th scope="row"><?php esc_html_e('Default Allowed Roles', 'sparxstar-sirus'); ?></th>
-						<td>
-							<?php foreach (self::SELECTABLE_ROLES as $role) : ?>
-								<label style="display:block;">
-									<input
-										type="checkbox"
-										name="sirus_default_roles[]"
-										value="<?php echo esc_attr($role); ?>"
-										<?php checked(in_array($role, $default['roles'], true), true); ?>
-									/>
-									<?php echo esc_html(ucfirst($role)); ?>
-								</label>
-							<?php endforeach; ?>
-							<p class="description">
-								<?php esc_html_e('Which roles on a subsite may view the Sirus dashboard.', 'sparxstar-sirus'); ?>
-							</p>
-						</td>
-					</tr>
-				</table>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Enable Sirus Dashboard by Default', 'sparxstar-sirus'); ?></th>
+                        <td>
+                            <label>
+                                <input type="checkbox" name="sirus_default_enabled" value="1" <?php checked($default['enabled'], true); ?> />
+                                <?php esc_html_e('Allow subsites to view the Sirus Observability dashboard', 'sparxstar-sirus'); ?>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Default Allowed Roles', 'sparxstar-sirus'); ?></th>
+                        <td>
+                            <?php foreach (self::SELECTABLE_ROLES as $role) : ?>
+                                <label style="display:block;">
+                                    <input
+                                        type="checkbox"
+                                        name="sirus_default_roles[]"
+                                        value="<?php echo esc_attr($role); ?>"
+                                        <?php checked(in_array($role, $default['roles'], true), true); ?>
+                                    />
+                                    <?php echo esc_html(ucfirst($role)); ?>
+                                </label>
+                            <?php endforeach; ?>
+                            <p class="description">
+                                <?php esc_html_e('Which roles on a subsite may view the Sirus dashboard.', 'sparxstar-sirus'); ?>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
 
-				<?php if ($sites !== []) : ?>
-					<h2><?php esc_html_e('Per-Site Overrides', 'sparxstar-sirus'); ?></h2>
-					<p class="description">
-						<?php esc_html_e('Leave a site unconfigured to use the default settings above.', 'sparxstar-sirus'); ?>
-					</p>
-					<table class="widefat striped">
-						<thead>
-							<tr>
-								<th><?php esc_html_e('Site', 'sparxstar-sirus'); ?></th>
-								<th><?php esc_html_e('Enable', 'sparxstar-sirus'); ?></th>
-								<th><?php esc_html_e('Allowed Roles', 'sparxstar-sirus'); ?></th>
-							</tr>
-						</thead>
-						<tbody>
-						<?php
+                <?php if ($sites !== []) : ?>
+                    <h2><?php esc_html_e('Per-Site Overrides', 'sparxstar-sirus'); ?></h2>
+                    <p class="description">
+                        <?php esc_html_e('Leave a site unconfigured to use the default settings above.', 'sparxstar-sirus'); ?>
+                    </p>
+                    <table class="widefat striped">
+                        <thead>
+                            <tr>
+                                <th><?php esc_html_e('Site', 'sparxstar-sirus'); ?></th>
+                                <th><?php esc_html_e('Enable', 'sparxstar-sirus'); ?></th>
+                                <th><?php esc_html_e('Allowed Roles', 'sparxstar-sirus'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <?php
                         foreach ($sites as $site) :
                             $blog_id     = (int) $site->blog_id;
                             $site_access = isset($overrides[ $blog_id ]) && is_array($overrides[ $blog_id ])
@@ -315,47 +315,47 @@ final class SirusNetworkSettingsPage
                             $site_enabled = $site_access !== null ? $site_access['enabled'] : $default['enabled'];
                             $site_roles   = $site_access !== null ? $site_access['roles'] : $default['roles'];
                             ?>
-							<tr>
-								<td>
-									<?php
+                            <tr>
+                                <td>
+                                    <?php
                                     $blog_details = get_blog_details($blog_id);
-                            $blog_name            = ($blog_details && isset($blog_details->blogname)) ? (string) $blog_details->blogname : (string) $blog_id;
-                            $blog_url             = ($blog_details && isset($blog_details->siteurl)) ? (string) $blog_details->siteurl : '';
-                            ?>
-									<strong><?php echo esc_html($blog_name); ?></strong>
-									<br><small><?php echo esc_html($blog_url); ?></small>
-								</td>
-								<td>
-									<input
-										type="checkbox"
-										name="sirus_site[<?php echo esc_attr((string) $blog_id); ?>][enabled]"
-										value="1"
-										<?php checked($site_enabled, true); ?>
-									/>
-								</td>
-								<td>
-									<?php foreach (self::SELECTABLE_ROLES as $role) : ?>
-										<label style="display:inline-block; margin-right:8px;">
-											<input
-												type="checkbox"
-												name="sirus_site[<?php echo esc_attr((string) $blog_id); ?>][roles][]"
-												value="<?php echo esc_attr($role); ?>"
-												<?php checked(in_array($role, $site_roles, true), true); ?>
-											/>
-											<?php echo esc_html(ucfirst($role)); ?>
-										</label>
-									<?php endforeach; ?>
-								</td>
-							</tr>
-						<?php endforeach; ?>
-						</tbody>
-					</table>
-				<?php endif; ?>
+                                    $blog_name            = ($blog_details && isset($blog_details->blogname)) ? (string) $blog_details->blogname : (string) $blog_id;
+                                    $blog_url             = ($blog_details && isset($blog_details->siteurl)) ? (string) $blog_details->siteurl : '';
+                                    ?>
+                                    <strong><?php echo esc_html($blog_name); ?></strong>
+                                    <br><small><?php echo esc_html($blog_url); ?></small>
+                                </td>
+                                <td>
+                                    <input
+                                        type="checkbox"
+                                        name="sirus_site[<?php echo esc_attr((string) $blog_id); ?>][enabled]"
+                                        value="1"
+                                        <?php checked($site_enabled, true); ?>
+                                    />
+                                </td>
+                                <td>
+                                    <?php foreach (self::SELECTABLE_ROLES as $role) : ?>
+                                        <label style="display:inline-block; margin-right:8px;">
+                                            <input
+                                                type="checkbox"
+                                                name="sirus_site[<?php echo esc_attr((string) $blog_id); ?>][roles][]"
+                                                value="<?php echo esc_attr($role); ?>"
+                                                <?php checked(in_array($role, $site_roles, true), true); ?>
+                                            />
+                                            <?php echo esc_html(ucfirst($role)); ?>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
 
-				<?php submit_button(esc_html__('Save Network Settings', 'sparxstar-sirus')); ?>
-			</form>
-		</div>
-		<?php
+                <?php submit_button(esc_html__('Save Network Settings', 'sparxstar-sirus')); ?>
+            </form>
+        </div>
+        <?php
         echo ob_get_clean(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
     }
 

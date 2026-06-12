@@ -269,7 +269,6 @@ final readonly class SparxstarUECDatabase
             }
 
             return $snapshot;
-
         } catch (\Throwable $throwable) {
             StarLogger::log('SparxstarUECDatabase', $throwable);
             return null;
