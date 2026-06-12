@@ -443,4 +443,4 @@ With the gate trustworthy, run the suite and flip 🟡 → ✅ in this tracker f
 
 ---
 
-*Last updated: 2026-06-09 | Spec version: Sirus Context Engine Spec v3.0 + PAM-002*
+*Last updated: 2026-06-12 | Spec version: Sirus Context Engine Spec v3.0 + PAM-002*
