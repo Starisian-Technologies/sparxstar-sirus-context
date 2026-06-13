@@ -3,6 +3,7 @@
 /**
  * Provides a caching layer for environment snapshots via the WordPress object cache.
  */
+
 declare(strict_types=1);
 
 namespace Starisian\SparxstarUEC\includes;
@@ -21,7 +22,7 @@ final class SparxstarUECCacheHelper
      * Retrieve a snapshot from the object cache.
      *
      * @param string $cache_key The deterministic key for the resource.
-     * @return array|null Null on cache miss, array on hit.
+     * @return array<string, mixed>|null Null on cache miss, array on hit.
      */
     public static function get(string $cache_key): null|array
     {
@@ -37,7 +38,7 @@ final class SparxstarUECCacheHelper
      * Store a snapshot in the object cache.
      *
      * @param string $cache_key The key to store the data under.
-     * @param array $snapshot The snapshot data to store.
+     * @param array<string, mixed> $snapshot The snapshot data to store.
      */
     public static function set(string $cache_key, array $snapshot = []): void
     {

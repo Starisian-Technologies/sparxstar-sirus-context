@@ -122,7 +122,7 @@ final class SirusPlugin
         );
 
         $scorer = new SirusPriorityScorer();
-        new SirusDashboardPage($event_repo, $scorer, $rule_hit_repo, $coordinator);
+        new SirusDashboardPage($event_repo, $scorer, $rule_hit_repo);
     }
 
     /**
@@ -256,7 +256,7 @@ final class SirusPlugin
         if (! isset($schedules['every_5_minutes'])) {
             $schedules['every_5_minutes'] = [
                 'interval' => SirusEventAggregator::CRON_INTERVAL_SEC,
-                'display'  => esc_html__('Every 5 Minutes', 'sparxstar'),
+                'display'  => esc_html__('Every 5 Minutes', 'sparxstar-sirus'),
             ];
         }
         return $schedules;

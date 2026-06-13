@@ -106,7 +106,7 @@ final readonly class SirusEventAggregator
 
         $this->wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             $this->wpdb->prepare(
-                'DELETE FROM %s WHERE bucket_start < ' . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                "DELETE FROM `{$table}` WHERE bucket_start < %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
                 $threshold
             )
         );
@@ -130,6 +130,7 @@ final readonly class SirusEventAggregator
         $bucket_end   = $bucket_start + $window_secs;
         $site_id      = (int) get_current_blog_id();
 
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $agg_table and $events_table are internal $wpdb->prefix identifiers (not user input); all bound values use %d/%s placeholders below
         $sql = $this->wpdb->prepare(
             "INSERT INTO {$agg_table}
                 (bucket_start, bucket_size, site_id, event_type, browser, device_type, network, event_count, session_count)
@@ -149,7 +150,8 @@ final readonly class SirusEventAggregator
             AS src
             ON DUPLICATE KEY UPDATE
                 event_count   = src.event_count,
-                session_count = src.session_count", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                session_count = src.session_count",
+            // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $bucket_start,
             $bucket_size,
             $site_id,

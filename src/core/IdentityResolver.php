@@ -63,7 +63,6 @@ final readonly class IdentityResolver
      */
     public function resolve(SirusContext $context): array
     {
-        /** @var array{identity_id: string|null, verification_status: string, authority_memberships: array<int, string>, capabilities: array<int, string>} $fallback */
         $fallback = self::FALLBACK_IDENTITY;
 
         if (! $this->helios_client instanceof HeliosClientInterface) {
@@ -87,7 +86,6 @@ final readonly class IdentityResolver
      */
     private function normalizeIdentityContext(array $result): array
     {
-        /** @var array{identity_id: string|null, verification_status: string, authority_memberships: array<int, string>, capabilities: array<int, string>} $normalized */
         $normalized = self::FALLBACK_IDENTITY;
 
         if (array_key_exists('identity_id', $result) && (is_string($result['identity_id']) || null === $result['identity_id'])) {

@@ -255,6 +255,7 @@ final class SparxstarUserEnvironmentCheck
      * Prevents serializing of the singleton instance.
      *
      * @since 0.1.0
+     * @param array<string, mixed> $data
      * @throws LogicException If someone tries to serialize the object.
      */
     public function __unserialize(array $data): void

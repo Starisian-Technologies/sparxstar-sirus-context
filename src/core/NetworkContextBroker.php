@@ -137,8 +137,7 @@ final class NetworkContextBroker
 
         $trust_score = max(0.0, min(1.0, isset($data['ts'])
             ? (float) $data['ts']
-            : self::trustScoreFromLevel($trust_level->value)
-        ));
+            : self::trustScoreFromLevel($trust_level->value)));
 
         return new SirusContext(
             context_id:     $context_id,
@@ -156,7 +155,7 @@ final class NetworkContextBroker
             trust_level:    $trust_level,
             trust_score:    $trust_score,
             issued_at:      (int) ($data['iat'] ?? 0),
-            expires:        (int) ($data['exp'] ?? 0),
+            expires:        (int) $data['exp'],
         );
     }
 

@@ -109,11 +109,13 @@ final class ContextEngine
             // Re-throw: ContextBootException MUST NEVER be swallowed.
             throw $e;
         } catch (\Throwable $e) {
+            // phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- static message; $e is the chained previous exception passed for logging, never echoed as HTML
             throw new ContextBootException(
                 '[Sirus] ContextBootException: context could not be established.',
                 0,
                 $e
             );
+            // phpcs:enable WordPress.Security.EscapeOutput.ExceptionNotEscaped
         }
     }
 
@@ -233,7 +235,7 @@ final class ContextEngine
             wp_unslash((string) $_COOKIE['spx_device_id'])
         ) : '';
         // Validate UUID v4 format to prevent arbitrary strings from reaching the DB.
-        $device_id = (is_string($raw_cookie) && wp_is_uuid($raw_cookie, 4))
+        $device_id = wp_is_uuid($raw_cookie, 4)
             ? $raw_cookie
             : wp_generate_uuid4();
 

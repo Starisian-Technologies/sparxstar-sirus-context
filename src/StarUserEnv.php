@@ -12,6 +12,11 @@ declare(strict_types=1);
 namespace Starisian\SparxstarUEC;
 
 use Throwable;
+use Starisian\SparxstarUEC\helpers\StarLogger;
+use Starisian\Sparxstar\Sirus\core\ContextEngine;
+use Starisian\SparxstarUEC\includes\SparxstarUECCacheHelper;
+use Starisian\SparxstarUEC\core\SparxstarUECSnapshotRepository;
+use Starisian\SparxstarUEC\includes\SparxstarUECSessionManager;
 
 use function __;
 use function hash;
@@ -35,18 +40,11 @@ use function apply_filters;
 use function session_start;
 use function session_status;
 use function wp_json_encode;
-
-use const FILTER_VALIDATE_IP;
-use const PHP_SESSION_ACTIVE;
-
 use function get_current_user_id;
 use function sanitize_text_field;
 
-use Starisian\SparxstarUEC\helpers\StarLogger;
-use Starisian\Sparxstar\Sirus\core\ContextEngine;
-use Starisian\SparxstarUEC\includes\SparxstarUECCacheHelper;
-use Starisian\SparxstarUEC\core\SparxstarUECSnapshotRepository;
-use Starisian\SparxstarUEC\includes\SparxstarUECSessionManager;
+use const FILTER_VALIDATE_IP;
+use const PHP_SESSION_ACTIVE;
 
 if (! defined('ABSPATH')) {
     exit;
@@ -70,6 +68,8 @@ final class StarUserEnv
 
     /**
      * Runtime cache for the current request's snapshot.
+     *
+     * @var array<string, mixed>
      */
     private static ?array $snapshot_cache = null;
 
@@ -119,6 +119,8 @@ final class StarUserEnv
 
     /**
      * Retrieve the latest stored snapshot for a user/session (public).
+     *
+     * @return array<string, mixed>|null
      */
     public static function get_snapshot(?int $user_id = null, ?string $session_id = null): ?array
     {
@@ -128,6 +130,8 @@ final class StarUserEnv
     /**
      * Internal engine: fetch the full snapshot from session, runtime cache,
      * object cache, or database.
+     *
+     * @return array<string, mixed>|null
      */
     private static function fetch_snapshot(?int $user_id, ?string $session_id): ?array
     {
@@ -220,6 +224,8 @@ final class StarUserEnv
 
     /**
      * Retrieves the entire raw snapshot for debugging or full-data use cases.
+     *
+     * @return array<string, mixed>|null
      */
     public static function get_full_snapshot(?int $user_id = null, ?string $session_id = null): ?array
     {
@@ -391,6 +397,9 @@ final class StarUserEnv
 
     // --- Snapshot-based Geolocation Convenience (camelCase variants) ---
 
+    /**
+     * @return array<string, mixed>
+     */
     public static function get_geolocation(?int $user_id = null, ?string $session_id = null): array
     {
         $geo = self::get_value_from_snapshot(
@@ -605,11 +614,15 @@ final class StarUserEnv
     public static function getSessionValue(string $key, mixed $default = null): mixed
     {
         self::ensure_session();
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- internal session store written by this plugin, not external request input
         return $_SESSION[ self::SESSION_NAMESPACE ][ $key ] ?? $default;
     }
 
     /**
      * Store an environment snapshot and its context within the PHP session.
+     *
+     * @param array<string, mixed> $snapshot
+     * @param array<string, mixed> $context
      */
     public static function storeEnvironmentSnapshot(array $snapshot, array $context = []): void
     {
@@ -624,11 +637,14 @@ final class StarUserEnv
 
     /**
      * Retrieve the stored environment snapshot from the PHP session.
+     *
+     * @return array<string, mixed>
      */
     public static function getEnvironmentSnapshot(): array
     {
         self::ensure_session();
 
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- internal session store written by this plugin, not external request input
         $stored = $_SESSION[ self::SESSION_NAMESPACE ][ self::SESSION_KEY ] ?? [];
 
         return is_array($stored) ? $stored : [];
@@ -678,6 +694,8 @@ final class StarUserEnv
 
     /**
      * Fetch geolocation data using an external provider hooked via WordPress filters.
+     *
+     * @return array<string, mixed>
      */
     public static function getIPGeoLocation(string $ip = ''): array
     {
@@ -695,6 +713,7 @@ final class StarUserEnv
         $location = self::getIPGeoLocation($ip);
 
         if ($location === []) {
+            // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralDomain -- text domain centralized in a constant; this plugin ships its own translations, not WordPress.org language packs
             return __('Location data unavailable.', SPX_ENV_CHECK_TEXT_DOMAIN);
         }
 
@@ -718,6 +737,7 @@ final class StarUserEnv
             return sanitize_text_field((string) $location[ $key ]);
         }
 
+        // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralDomain -- text domain centralized in a constant; this plugin ships its own translations, not WordPress.org language packs
         return __('Specific location data unavailable.', SPX_ENV_CHECK_TEXT_DOMAIN);
     }
 

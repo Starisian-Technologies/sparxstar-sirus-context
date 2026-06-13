@@ -77,7 +77,7 @@ final class SirusRESTController
         if (! is_string($nonce) || $nonce === '') {
             return new WP_Error(
                 'sparxstar_sirus_rest_nonce_missing',
-                __('REST nonce is missing.', 'sparxstar'),
+                __('REST nonce is missing.', 'sparxstar-sirus'),
                 [ 'status' => 403 ]
             );
         }
@@ -85,7 +85,7 @@ final class SirusRESTController
         if (! wp_verify_nonce($nonce, 'wp_rest')) {
             return new WP_Error(
                 'sparxstar_sirus_rest_nonce_invalid',
-                __('REST nonce is invalid.', 'sparxstar'),
+                __('REST nonce is invalid.', 'sparxstar-sirus'),
                 [ 'status' => 403 ]
             );
         }
@@ -601,7 +601,7 @@ final class SirusRESTController
 
         $fallbacks = [
             'browser_name'   => $device_info['browser'],
-            'browser_version'=> $device_info['browser_version'],
+            'browser_version' => $device_info['browser_version'],
             'os'             => $device_info['os'],
             'os_version'     => $device_info['os_version'],
             'device_type'    => $device_info['device_type'],
@@ -680,7 +680,7 @@ final class SirusRESTController
      */
     private function get_raw_request_ip(): string
     {
-        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        // phpcs:ignore WordPressVIPMinimum.Variables.ServerVariables.UserControlledHeaders -- REMOTE_ADDR is the TCP peer address; it is unslashed, sanitized, and validated with FILTER_VALIDATE_IP below before use
         $ip = sanitize_text_field(wp_unslash((string) ($_SERVER['REMOTE_ADDR'] ?? '')));
 
         return filter_var($ip, FILTER_VALIDATE_IP) !== false ? $ip : '';

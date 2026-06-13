@@ -31,6 +31,8 @@ final class SparxstarUECSnapshotRepository
 
     /**
      * FRONTEND LOOKUP (fingerprint + device hash)
+     *
+     * @return array<string, mixed>|null
      */
     public static function get(?string $fingerprint, ?string $device_hash): ?array
     {
@@ -56,7 +58,6 @@ final class SparxstarUECSnapshotRepository
             }
 
             return self::hydrate($row);
-
         } catch (\Throwable $throwable) {
             StarLogger::error('SnapshotRepo:get', $throwable);
             return null;
@@ -67,6 +68,8 @@ final class SparxstarUECSnapshotRepository
      * ADMIN LOOKUP (by WordPress User ID ONLY)
      * This is the correct production method.
      * The Admin DOES NOT and SHOULD NOT use fingerprint/device.
+     *
+     * @return array<string, mixed>|null
      */
     public static function get_by_user_id(int $user_id): ?array
     {
@@ -91,7 +94,6 @@ final class SparxstarUECSnapshotRepository
             }
 
             return self::hydrate($row);
-
         } catch (\Throwable $throwable) {
             StarLogger::error('SnapshotRepo:get_by_user_id', $throwable);
             return null;
@@ -100,6 +102,9 @@ final class SparxstarUECSnapshotRepository
 
     /**
      * Convert DB row → canonical array for Admin / API use.
+     *
+     * @param array<string, mixed> $row
+     * @return array<string, mixed>
      */
     private static function hydrate(array $row): array
     {

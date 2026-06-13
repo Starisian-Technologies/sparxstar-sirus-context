@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Service for performing GeoIP lookups.
  *
@@ -13,6 +11,8 @@ declare(strict_types=1);
  *   privacy-sanitized data produced by this service; custom callbacks may further
  *   restrict or, if they deliberately choose, widen this data.
  */
+
+declare(strict_types=1);
 
 namespace Starisian\SparxstarUEC\services;
 
@@ -36,7 +36,7 @@ final class SparxstarUECGeoIPService
      * Supports both ipinfo.io (API) and MaxMind GeoIP2 (local database).
      *
      * @param string $ip_address The IP to look up.
-     * @return array|null The location data or null if lookup fails.
+     * @return array<string, mixed>|null The location data or null if lookup fails.
      */
     public function lookup(string $ip_address): ?array
     {
@@ -107,8 +107,8 @@ final class SparxstarUECGeoIPService
      *   approx_lat  — latitude rounded to 1 decimal place (~11 km precision)
      *   approx_lng  — longitude rounded to 1 decimal place (~11 km precision)
      *
-     * @param array $raw Raw location data from the provider.
-     * @return array Region-level location data.
+     * @param array<string, mixed> $raw Raw location data from the provider.
+     * @return array<string, mixed> Region-level location data.
      */
     private function to_region_level(array $raw): array
     {
@@ -124,7 +124,7 @@ final class SparxstarUECGeoIPService
      * Perform lookup using ipinfo.io API.
      *
      * @param string $ip_address The IP to look up.
-     * @return array|null Raw location data or null.
+     * @return array<string, mixed>|null Raw location data or null.
      */
     private function lookup_ipinfo(string $ip_address): ?array
     {
@@ -165,7 +165,7 @@ final class SparxstarUECGeoIPService
      * Perform lookup using MaxMind GeoIP2 local database.
      *
      * @param string $ip_address The IP to look up.
-     * @return array|null Raw location data or null.
+     * @return array<string, mixed>|null Raw location data or null.
      */
     private function lookup_maxmind(string $ip_address): ?array
     {

@@ -142,17 +142,18 @@ final class SparxstarUECAdmin
 
         ob_start();
         ?>
-		<div class="wrap">
-			<h1><?php esc_html_e('SPARXSTAR Sirus Settings', 'sparxstar-user-environment-check'); ?></h1>
-			<form action="options.php" method="post">
-				<?php
+        <div class="wrap">
+            <h1><?php esc_html_e('SPARXSTAR Sirus Settings', 'sparxstar-user-environment-check'); ?></h1>
+            <form action="options.php" method="post">
+                <?php
                         settings_fields('sparxstar_uec_options_group');
-        do_settings_sections(self::PAGE_SLUG);
-        submit_button(esc_html__('Save Settings', 'sparxstar-user-environment-check'));
-        ?>
-			</form>
-		</div>
-		<?php
+                do_settings_sections(self::PAGE_SLUG);
+                submit_button(esc_html__('Save Settings', 'sparxstar-user-environment-check'));
+                ?>
+            </form>
+        </div>
+        <?php
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- buffered admin form composed entirely of static markup and esc_*__() / esc_url() / submit_button() output above
         echo ob_get_clean();
     }
 
@@ -163,21 +164,21 @@ final class SparxstarUECAdmin
     {
         $provider = get_option(self::OPTION_KEY_PROVIDER, 'none');
         ?>
-		<select name="<?php echo esc_attr(self::OPTION_KEY_PROVIDER); ?>">
-			<option value="none" <?php selected($provider, 'none'); ?>>
-				<?php esc_html_e('None (Disabled)', 'sparxstar-user-environment-check'); ?>
-			</option>
-			<option value="ipinfo" <?php selected($provider, 'ipinfo'); ?>>
-				<?php esc_html_e('ipinfo.io (API)', 'sparxstar-user-environment-check'); ?>
-			</option>
-			<option value="maxmind" <?php selected($provider, 'maxmind'); ?>>
-				<?php esc_html_e('MaxMind GeoIP2 (Local Database)', 'sparxstar-user-environment-check'); ?>
-			</option>
-		</select>
-		<p class="description">
-			<?php esc_html_e('Select your preferred GeoIP lookup provider.', 'sparxstar-user-environment-check'); ?>
-		</p>
-		<?php
+        <select name="<?php echo esc_attr(self::OPTION_KEY_PROVIDER); ?>">
+            <option value="none" <?php selected($provider, 'none'); ?>>
+                <?php esc_html_e('None (Disabled)', 'sparxstar-user-environment-check'); ?>
+            </option>
+            <option value="ipinfo" <?php selected($provider, 'ipinfo'); ?>>
+                <?php esc_html_e('ipinfo.io (API)', 'sparxstar-user-environment-check'); ?>
+            </option>
+            <option value="maxmind" <?php selected($provider, 'maxmind'); ?>>
+                <?php esc_html_e('MaxMind GeoIP2 (Local Database)', 'sparxstar-user-environment-check'); ?>
+            </option>
+        </select>
+        <p class="description">
+            <?php esc_html_e('Select your preferred GeoIP lookup provider.', 'sparxstar-user-environment-check'); ?>
+        </p>
+        <?php
     }
 
     /**
@@ -310,6 +311,7 @@ final class SparxstarUECAdmin
         }
 
         if ('' !== $message) {
+            // phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- $message is assembled solely from esc_html__() strings (lines 301/306/308); the remaining printf args are escaped
             printf(
                 '<div class="notice notice-warning is-dismissible"><p><strong>%1$s</strong> %2$s <a href="%3$s">%4$s</a>.</p></div>',
                 esc_html__('SPARXSTAR Sirus', 'sparxstar-user-environment-check'),
@@ -317,6 +319,7 @@ final class SparxstarUECAdmin
                 esc_url(admin_url('options-general.php?page=' . self::PAGE_SLUG)),
                 esc_html__('settings page', 'sparxstar-user-environment-check')
             );
+            // phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
         }
     }
 }

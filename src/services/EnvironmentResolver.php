@@ -139,9 +139,11 @@ final class EnvironmentResolver
      */
     private function getRemoteIpAddress(): string
     {
+        // phpcs:disable WordPressVIPMinimum.Variables.ServerVariables.UserControlledHeaders -- REMOTE_ADDR is the TCP peer address; it is unslashed, sanitized, and validated with FILTER_VALIDATE_IP below before use
         $remote_addr = isset($_SERVER['REMOTE_ADDR'])
             ? sanitize_text_field(wp_unslash((string) $_SERVER['REMOTE_ADDR']))
             : '';
+        // phpcs:enable WordPressVIPMinimum.Variables.ServerVariables.UserControlledHeaders
 
         return filter_var($remote_addr, FILTER_VALIDATE_IP) !== false ? $remote_addr : '';
     }

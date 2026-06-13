@@ -120,9 +120,9 @@ final class SirusDirectiveController
      * Admin-only. Returns recent rule hits.
      *
      * @param WP_REST_Request $request Incoming REST request.
-     * @return WP_REST_Response|WP_Error
+     * @return WP_REST_Response
      */
-    public function get_rule_hits(WP_REST_Request $request): WP_REST_Response|WP_Error
+    public function get_rule_hits(WP_REST_Request $request): WP_REST_Response
     {
         $limit_raw = $request->get_param('limit');
         $limit     = $limit_raw !== null ? absint($limit_raw) : 100;

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Multisite-safe uninstall routine for SPARXSTAR Sirus — Context Engine.
  *
@@ -54,8 +55,8 @@ if (is_multisite()) {
 
     $sites = get_sites(['number' => 0]);
     foreach ($sites as $site) {
-        $blog_id = (int) $site->blog_id;
-        switch_to_blog($blog_id);
+        $current_blog_id = (int) $site->blog_id;
+        switch_to_blog($current_blog_id);
         spx_uec_uninstall_site($wpdb);
         restore_current_blog();
     }
