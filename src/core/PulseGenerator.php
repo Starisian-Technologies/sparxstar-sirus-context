@@ -41,12 +41,12 @@ use Starisian\Sparxstar\Sirus\services\EnvironmentResolver;
  * the appropriate window without the generator making a policy decision.
  * The default of 60 seconds applies when no TTL is specified.
  */
-final class PulseGenerator
+final readonly class PulseGenerator
 {
     /** Default pulse TTL in seconds. Used when no $ttlSeconds is supplied. */
     public const PULSE_TTL = 60;
 
-    private readonly EnvironmentResolver $environmentResolver;
+    private EnvironmentResolver $environmentResolver;
 
     public function __construct(
         ?EnvironmentResolver $environmentResolver = null
@@ -158,7 +158,7 @@ final class PulseGenerator
     private function resolveSessionDuration(int $session_start, int $issued_at): int
     {
         $duration = $issued_at - $session_start;
-        return $duration > 0 ? $duration : 0;
+        return max($duration, 0);
     }
 
     /**

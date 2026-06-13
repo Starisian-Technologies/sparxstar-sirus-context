@@ -130,7 +130,7 @@ final readonly class SirusEventRepository
         $table = $this->wpdb->prefix . 'sirus_events';
 
         $sql = $this->wpdb->prepare(
-            "SELECT * FROM `{$table}` ORDER BY timestamp DESC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
+            'SELECT * FROM `%s` ORDER BY timestamp DESC LIMIT ' . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
             $limit
         );
 
@@ -176,7 +176,7 @@ final readonly class SirusEventRepository
         $since = time() - $windowSeconds;
 
         $sql = $this->wpdb->prepare(
-            "SELECT COUNT(DISTINCT session_id) FROM `{$table}` WHERE timestamp >= %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
+            'SELECT COUNT(DISTINCT session_id) FROM `%s` WHERE timestamp >= ' . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
             $since
         );
 
@@ -222,7 +222,7 @@ final readonly class SirusEventRepository
         $table = $this->wpdb->prefix . 'sirus_events';
 
         $sql = $this->wpdb->prepare(
-            "SELECT url, COUNT(*) AS error_count, COUNT(DISTINCT session_id) AS affected_sessions FROM `{$table}` WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND url IS NOT NULL AND timestamp >= %d GROUP BY url ORDER BY error_count DESC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
+            "SELECT url, COUNT(*) AS error_count, COUNT(DISTINCT session_id) AS affected_sessions FROM `%s` WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND url IS NOT NULL AND timestamp >= %d GROUP BY url ORDER BY error_count DESC LIMIT " . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
             $since,
             $limit
         );
@@ -244,7 +244,7 @@ final readonly class SirusEventRepository
         $table = $this->wpdb->prefix . 'sirus_events';
 
         $sql = $this->wpdb->prepare(
-            "SELECT event_type, context_json, error_json, url, timestamp, device_id, session_id FROM `{$table}` WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND timestamp >= %d ORDER BY timestamp DESC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
+            "SELECT event_type, context_json, error_json, url, timestamp, device_id, session_id FROM `%s` WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND timestamp >= %d ORDER BY timestamp DESC LIMIT " . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
             $since,
             $limit
         );
@@ -274,7 +274,7 @@ final readonly class SirusEventRepository
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $result = $this->wpdb->query(
             $this->wpdb->prepare(
-                "DELETE FROM `{$table}` WHERE timestamp < %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
+                'DELETE FROM `%s` WHERE timestamp < ' . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
                 $cutoff
             )
         );
@@ -326,7 +326,7 @@ final readonly class SirusEventRepository
         $table = $this->wpdb->prefix . 'sirus_events';
 
         $sql = $this->wpdb->prepare(
-            "SELECT COUNT(*) FROM `{$table}` WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND network IN ('slow-2g','2g','slow-3g') AND timestamp >= %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
+            "SELECT COUNT(*) FROM `%s` WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND network IN ('slow-2g','2g','slow-3g') AND timestamp >= " . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
             $since
         );
 
@@ -343,7 +343,7 @@ final readonly class SirusEventRepository
         $table = $this->wpdb->prefix . 'sirus_events';
 
         $sql = $this->wpdb->prepare(
-            "SELECT COUNT(*) FROM `{$table}` WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND device_type = 'mobile' AND timestamp >= %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
+            "SELECT COUNT(*) FROM `%s` WHERE event_type IN ('js_error','api_error','network_issue','capability_failure') AND device_type = 'mobile' AND timestamp >= " . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
             $since
         );
 

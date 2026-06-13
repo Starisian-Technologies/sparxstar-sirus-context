@@ -106,7 +106,7 @@ final readonly class SirusEventAggregator
 
         $this->wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             $this->wpdb->prepare(
-                "DELETE FROM `{$table}` WHERE bucket_start < %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
+                'DELETE FROM `%s` WHERE bucket_start < ' . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
                 $threshold
             )
         );

@@ -113,7 +113,7 @@ final readonly class SirusMitigationActionRepository
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $this->wpdb->query(
             $this->wpdb->prepare(
-                "UPDATE `{$table}` SET status = 'expired', expires_at = %d WHERE id = %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
+                "UPDATE `%s` SET status = 'expired', expires_at = %d WHERE id = " . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
                 time(),
                 $actionId
             )
@@ -133,7 +133,7 @@ final readonly class SirusMitigationActionRepository
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $result = $this->wpdb->query(
             $this->wpdb->prepare(
-                "DELETE FROM `{$table}` WHERE created_at < %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
+                'DELETE FROM `%s` WHERE created_at < ' . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
                 $cutoff
             )
         );
