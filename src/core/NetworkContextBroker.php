@@ -155,7 +155,7 @@ final class NetworkContextBroker
             trust_level:    $trust_level,
             trust_score:    $trust_score,
             issued_at:      (int) ($data['iat'] ?? 0),
-            expires:        (int) ($data['exp'] ?? 0),
+            expires:        (int) $data['exp'],
         );
     }
 

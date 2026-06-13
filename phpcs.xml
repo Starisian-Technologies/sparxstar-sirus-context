@@ -28,6 +28,11 @@
        stdout and writes files by design. WordPress web-security sniffs (output
        escaping, filesystem restrictions, global overrides) do not apply. -->
   <exclude-pattern>bin/*</exclude-pattern>
+  <!-- Static-analysis tooling, loaded by PHPStan only (reflection shims for
+       optional deps) and its cache. Not shipped runtime code, so the WordPress
+       prefix/global sniffs do not apply. -->
+  <exclude-pattern>phpstan/*</exclude-pattern>
+  <exclude-pattern>.phpstan-cache/*</exclude-pattern>
 
   <!-- PHPCS runtime options -->
   <arg value="sp"/> <!-- Show sniff codes + progress -->

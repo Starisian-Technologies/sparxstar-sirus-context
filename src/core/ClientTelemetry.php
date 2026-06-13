@@ -95,7 +95,7 @@ final class ClientTelemetry
      *
      * @param string $error_type Short error type slug (e.g. 'js_error').
      * @param string $error_message Human-readable error message.
-     * @param array $context Additional structured context.
+     * @param array<string, mixed> $context Additional structured context.
      * @param string|null $device_id Optional device UUID.
      */
     public function record(
@@ -213,7 +213,7 @@ final class ClientTelemetry
     public static function unschedule_cron(): void
     {
         $timestamp = wp_next_scheduled(self::CRON_HOOK);
-        if ($timestamp !== false && $timestamp !== null) {
+        if ($timestamp !== false) {
             wp_unschedule_event((int) $timestamp, self::CRON_HOOK);
         }
     }

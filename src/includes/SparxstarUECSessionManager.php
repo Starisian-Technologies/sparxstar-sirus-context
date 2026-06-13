@@ -19,7 +19,11 @@ final class SparxstarUECSessionManager
         // empty
     }
 
-    /** Set multiple values in the session at once. */
+    /**
+     * Set multiple values in the session at once.
+     *
+     * @param array<string, mixed> $data
+     */
     public static function set_all(array $data): void
     {
         try {
@@ -109,6 +113,9 @@ final class SparxstarUECSessionManager
         }
     }
 
+    /**
+     * @param array<array-key, mixed> $array
+     */
     public static function get_value_from_array(array $array, string $path, ?string $default = null): ?string
     {
         try {

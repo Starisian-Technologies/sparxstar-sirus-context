@@ -145,7 +145,7 @@ final class SirusNetworkSettingsPage
         $can_view = false;
 
         if ($user instanceof \WP_User) {
-            $user_roles = (array) ($user->roles ?? []);
+            $user_roles = (array) $user->roles;
             $can_view   = (bool) array_intersect($user_roles, $access['roles']);
         }
 
@@ -246,7 +246,7 @@ final class SirusNetworkSettingsPage
         <div class="wrap">
             <h1><?php esc_html_e('Sirus Observability — Network Settings', 'sparxstar-sirus'); ?></h1>
 
-            <?php if (isset($_GET['updated']) && sanitize_text_field(wp_unslash((string) ($_GET['updated'] ?? ''))) === '1') : // phpcs:ignore WordPress.Security.NonceVerification.Recommended?>
+            <?php if (isset($_GET['updated']) && sanitize_text_field(wp_unslash((string) $_GET['updated'])) === '1') : // phpcs:ignore WordPress.Security.NonceVerification.Recommended?>
                 <div class="notice notice-success is-dismissible">
                     <p><?php esc_html_e('Settings saved.', 'sparxstar-sirus'); ?></p>
                 </div>

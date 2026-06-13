@@ -235,7 +235,7 @@ final class ContextEngine
             wp_unslash((string) $_COOKIE['spx_device_id'])
         ) : '';
         // Validate UUID v4 format to prevent arbitrary strings from reaching the DB.
-        $device_id = (is_string($raw_cookie) && wp_is_uuid($raw_cookie, 4))
+        $device_id = wp_is_uuid($raw_cookie, 4)
             ? $raw_cookie
             : wp_generate_uuid4();
 

@@ -122,7 +122,7 @@ final class SirusPlugin
         );
 
         $scorer = new SirusPriorityScorer();
-        new SirusDashboardPage($event_repo, $scorer, $rule_hit_repo, $coordinator);
+        new SirusDashboardPage($event_repo, $scorer, $rule_hit_repo);
     }
 
     /**

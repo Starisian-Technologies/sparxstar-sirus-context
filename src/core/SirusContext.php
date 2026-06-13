@@ -34,8 +34,8 @@ final readonly class SirusContext
      * @param string $session_id Session identifier.
      * @param string|null $identity_id Authenticated identity, or null.
      * @param string|null $authority_id Resolved authority type, or null.
-     * @param array $role_set WordPress roles associated with the context.
-     * @param array $capabilities Resolved capability strings.
+     * @param array<int, string> $role_set WordPress roles associated with the context.
+     * @param array<int, string> $capabilities Resolved capability strings.
      * @param TrustLevelPrimitive $trust_level Resolved trust level.
      * @param float $trust_score Numerical trust score in [0.0, 1.0] from TrustEngine.
      * @param int $issued_at Unix timestamp when the context was issued.

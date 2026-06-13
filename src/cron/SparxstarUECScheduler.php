@@ -29,7 +29,7 @@ final class SparxstarUECScheduler
      *
      * @param string $hook The action hook to execute.
      * @param int $interval_in_seconds How often to run (e.g., 3600, 86400).
-     * @param array $args Arguments to pass to the hook.
+     * @param array<int|string, mixed> $args Arguments to pass to the hook.
      */
     public static function schedule_recurring(string $hook, int $interval_in_seconds, array $args = []): void
     {
@@ -80,6 +80,8 @@ final class SparxstarUECScheduler
 
     /**
      * Clear all queued instances of a hook.
+     *
+     * @param array<int|string, mixed> $args
      */
     public static function clear(string $hook, array $args = []): void
     {
@@ -129,7 +131,7 @@ final class SparxstarUECScheduler
         // 2. Check any custom schedules added by other plugins/themes
         $schedules = \wp_get_schedules();
         foreach ($schedules as $key => $data) {
-            if (isset($data['interval']) && (int) $data['interval'] === $seconds) {
+            if ((int) $data['interval'] === $seconds) {
                 return $key;
             }
         }

@@ -136,7 +136,7 @@ final class SparxstarUECAssetManager
      * Gathers all necessary server-side data.
      * FIXED: Matches JS keys and Controller Namespace.
      *
-     * @return array The data to be localized.
+     * @return array<string, mixed> The data to be localized.
      */
     private static function get_localization_data(): array
     {

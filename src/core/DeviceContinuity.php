@@ -52,7 +52,7 @@ final class DeviceContinuity
      * @param string $device_id The device UUID from the client's localStorage.
      * @param string $device_secret The device secret from the client's localStorage.
      * @param string $fingerprint_hash SHA-256 hash of the client fingerprint (server-derived).
-     * @param array $environment_data Raw environment data from the client.
+     * @param array<string, mixed> $environment_data Raw environment data from the client.
      */
     public function resolveDevice(
         string $device_id,
@@ -132,7 +132,7 @@ final class DeviceContinuity
      * Both device_id and device_secret are always server-generated.
      *
      * @param string $fingerprint_hash SHA-256 hash of the client fingerprint.
-     * @param array $environment_data Raw environment data from the client.
+     * @param array<string, mixed> $environment_data Raw environment data from the client.
      */
     public function registerDevice(string $fingerprint_hash, array $environment_data): DeviceRecord
     {

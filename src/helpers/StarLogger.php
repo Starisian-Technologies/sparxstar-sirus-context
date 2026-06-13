@@ -33,6 +33,7 @@ class StarLogger
      */
     protected static int $min_log_level = self::INFO;
 
+    /** @var array<string, int> */
     protected static array $levels = [
         'debug'     => self::DEBUG,
         'info'      => self::INFO,
@@ -48,6 +49,7 @@ class StarLogger
 
     protected static ?string $correlation_id = null;
 
+    /** @var array<string, float> */
     protected static array $timers = [];
 
     /*
@@ -92,6 +94,10 @@ class StarLogger
         return self::$levels[ strtolower($level_name) ] ?? self::ERROR;
     }
 
+    /**
+     * @param array<array-key, mixed> $data
+     * @return array<array-key, mixed>
+     */
     protected static function sanitizeData(array $data): array
     {
         foreach ($data as $k => &$v) {
@@ -108,6 +114,8 @@ class StarLogger
     /**
      * Main logging method.
      * Writes directly to PHP error_log (standard WP debug.log).
+     *
+     * @param array<string, mixed> $extra
      */
     public static function log(string $context, mixed $msg, string $level = 'error', array $extra = []): void
     {
@@ -201,46 +209,55 @@ class StarLogger
     ==============================================================
      * CONVENIENCE WRAPPERS
      *=============================================================*/
+    /** @param array<string, mixed> $extra */
     public static function debug(string $context, mixed $msg, array $extra = []): void
     {
         self::log($context, $msg, 'debug', $extra);
     }
 
+    /** @param array<string, mixed> $extra */
     public static function info(string $context, mixed $msg, array $extra = []): void
     {
         self::log($context, $msg, 'info', $extra);
     }
 
+    /** @param array<string, mixed> $extra */
     public static function notice(string $context, mixed $msg, array $extra = []): void
     {
         self::log($context, $msg, 'notice', $extra);
     }
 
+    /** @param array<string, mixed> $extra */
     public static function warning(string $context, mixed $msg, array $extra = []): void
     {
         self::log($context, $msg, 'warning', $extra);
     }
 
+    /** @param array<string, mixed> $extra */
     public static function warn(string $context, mixed $msg, array $extra = []): void
     {
         self::log($context, $msg, 'warning', $extra);
     }
 
+    /** @param array<string, mixed> $extra */
     public static function error(string $context, mixed $msg, array $extra = []): void
     {
         self::log($context, $msg, 'error', $extra);
     }
 
+    /** @param array<string, mixed> $extra */
     public static function critical(string $context, mixed $msg, array $extra = []): void
     {
         self::log($context, $msg, 'critical', $extra);
     }
 
+    /** @param array<string, mixed> $extra */
     public static function alert(string $context, mixed $msg, array $extra = []): void
     {
         self::log($context, $msg, 'alert', $extra);
     }
 
+    /** @param array<string, mixed> $extra */
     public static function emergency(string $context, mixed $msg, array $extra = []): void
     {
         self::log($context, $msg, 'emergency', $extra);

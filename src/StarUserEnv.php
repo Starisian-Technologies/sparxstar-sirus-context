@@ -68,6 +68,8 @@ final class StarUserEnv
 
     /**
      * Runtime cache for the current request's snapshot.
+     *
+     * @var array<string, mixed>
      */
     private static ?array $snapshot_cache = null;
 
@@ -117,6 +119,8 @@ final class StarUserEnv
 
     /**
      * Retrieve the latest stored snapshot for a user/session (public).
+     *
+     * @return array<string, mixed>|null
      */
     public static function get_snapshot(?int $user_id = null, ?string $session_id = null): ?array
     {
@@ -126,6 +130,8 @@ final class StarUserEnv
     /**
      * Internal engine: fetch the full snapshot from session, runtime cache,
      * object cache, or database.
+     *
+     * @return array<string, mixed>|null
      */
     private static function fetch_snapshot(?int $user_id, ?string $session_id): ?array
     {
@@ -218,6 +224,8 @@ final class StarUserEnv
 
     /**
      * Retrieves the entire raw snapshot for debugging or full-data use cases.
+     *
+     * @return array<string, mixed>|null
      */
     public static function get_full_snapshot(?int $user_id = null, ?string $session_id = null): ?array
     {
@@ -389,6 +397,9 @@ final class StarUserEnv
 
     // --- Snapshot-based Geolocation Convenience (camelCase variants) ---
 
+    /**
+     * @return array<string, mixed>
+     */
     public static function get_geolocation(?int $user_id = null, ?string $session_id = null): array
     {
         $geo = self::get_value_from_snapshot(
@@ -609,6 +620,9 @@ final class StarUserEnv
 
     /**
      * Store an environment snapshot and its context within the PHP session.
+     *
+     * @param array<string, mixed> $snapshot
+     * @param array<string, mixed> $context
      */
     public static function storeEnvironmentSnapshot(array $snapshot, array $context = []): void
     {
@@ -623,6 +637,8 @@ final class StarUserEnv
 
     /**
      * Retrieve the stored environment snapshot from the PHP session.
+     *
+     * @return array<string, mixed>
      */
     public static function getEnvironmentSnapshot(): array
     {
@@ -678,6 +694,8 @@ final class StarUserEnv
 
     /**
      * Fetch geolocation data using an external provider hooked via WordPress filters.
+     *
+     * @return array<string, mixed>
      */
     public static function getIPGeoLocation(string $ip = ''): array
     {

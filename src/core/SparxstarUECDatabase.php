@@ -109,6 +109,9 @@ final readonly class SparxstarUECDatabase
 
     /**
      * Insert or update a snapshot.
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>|\WP_Error
      */
     public function store_snapshot(array $data): array|\WP_Error
     {

@@ -42,13 +42,11 @@ final class SirusDashboardPage
      * @param SirusEventRepository $repository Events DAL.
      * @param SirusPriorityScorer $scorer Priority scoring helper.
      * @param SirusRuleHitRepository $ruleHitRepo Rule hits DAL.
-     * @param SirusMitigationCoordinator $coordinator Mitigation coordinator.
      */
     public function __construct(
         private readonly SirusEventRepository $repository,
         private readonly SirusPriorityScorer $scorer,
         private readonly SirusRuleHitRepository $ruleHitRepo,
-        private readonly SirusMitigationCoordinator $coordinator,
     ) {
         add_action('admin_menu', [ $this, 'add_admin_menu' ]);
     }
