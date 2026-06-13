@@ -44,7 +44,7 @@ final class EnvironmentResolver
      */
     public function resolve(array $clientSignals = []): EnvironmentRecord
     {
-        if ($clientSignals === [] && $this->resolved instanceof \Starisian\Sparxstar\Sirus\core\EnvironmentRecord) {
+        if ($clientSignals === [] && $this->resolved !== null) {
             return $this->resolved;
         }
 

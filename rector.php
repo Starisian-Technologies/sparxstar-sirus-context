@@ -18,6 +18,21 @@ return RectorConfig::configure()
             '*/wordpress-installer/*',
             '*/wp-admin/*',
             '*/wp-content/*',
+            // Files whose $wpdb->prepare() patterns Rector has historically mangled.
+            // The codingStyle set converts `prepare('SQL ' . $table, $val)` into
+            //   `prepare('SQL %s', $val)` . $table  — which swaps the table name
+            // into the placeholder slot at runtime. Until we identify and disable
+            // the specific rule(s), skip these files entirely. Their queries use
+            // an established sprintf($table) + %%d/%%s pattern that is already safe.
+            __DIR__ . '/src/core/SirusEventRepository.php',
+            __DIR__ . '/src/core/SirusEventAggregator.php',
+            __DIR__ . '/src/core/SirusRuleHitRepository.php',
+            __DIR__ . '/src/core/SirusMitigationActionRepository.php',
+            // Files whose `!== null` checks Rector flips to fully-qualified
+            // `instanceof \Some\Long\Namespace\Class`, which is uglier and
+            // adds zero safety since the property/return types already enforce it.
+            __DIR__ . '/src/core/DeviceContinuity.php',
+            __DIR__ . '/src/services/EnvironmentResolver.php',
         )
     )
     // Use the modern "Prepared Sets" (Replaces the old LevelSetList/SetList)

@@ -66,7 +66,7 @@ final readonly class DeviceContinuity
         if ($device_id !== '') {
             $existing = $this->repository->findByDeviceId($device_id);
 
-            if ($existing instanceof \Starisian\Sparxstar\Sirus\core\DeviceRecord && $existing->isActive() && $existing->verifySecret($device_secret)) {
+            if ($existing !== null && $existing->isActive() && $existing->verifySecret($device_secret)) {
                 if (
                     $fingerprint_hash !== '' && $existing->fingerprint_hash !== '' && $existing->fingerprint_hash !== $fingerprint_hash
                 ) {
@@ -109,7 +109,7 @@ final readonly class DeviceContinuity
         // extend to component-based (partial) matching in the future.
         if ($fingerprint_hash !== '') {
             $by_fp = $this->repository->findByFingerprintHash($fingerprint_hash);
-            if ($by_fp instanceof \Starisian\Sparxstar\Sirus\core\DeviceRecord) {
+            if ($by_fp !== null) {
                 $match = DeviceMatcher::classify(
                     $matcher->scoreHash($by_fp->fingerprint_hash, $fingerprint_hash)
                 );

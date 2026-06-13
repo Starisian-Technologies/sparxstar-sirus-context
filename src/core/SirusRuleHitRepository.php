@@ -81,7 +81,7 @@ final readonly class SirusRuleHitRepository
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $this->wpdb->query(
                 $this->wpdb->prepare(
-                    'UPDATE `%s` SET hit_count = hit_count + 1, updated_at = %d WHERE id = ' . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
+                    sprintf('UPDATE %s SET hit_count = hit_count + 1, updated_at = %%d WHERE id = %%d', $table), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
                     time(),
                     (int) $existing['id']
                 )
@@ -111,7 +111,7 @@ final readonly class SirusRuleHitRepository
         $table = $this->wpdb->prefix . 'sirus_rule_hits';
 
         $sql = $this->wpdb->prepare(
-            'SELECT * FROM `%s` ORDER BY created_at DESC LIMIT ' . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
+            sprintf('SELECT * FROM %s ORDER BY created_at DESC LIMIT %%d', $table), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
             $limit
         );
 
@@ -153,7 +153,7 @@ final readonly class SirusRuleHitRepository
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $result = $this->wpdb->query(
             $this->wpdb->prepare(
-                'DELETE FROM `%s` WHERE created_at < ' . $table, // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
+                sprintf('DELETE FROM %s WHERE created_at < %%d', $table), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is an internal $wpdb->prefix identifier, not user input
                 $cutoff
             )
         );
