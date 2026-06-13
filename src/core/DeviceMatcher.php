@@ -117,7 +117,7 @@ final class DeviceMatcher
      */
     public function scoreComponents(array $stored, array $current): float
     {
-        if (empty($stored) || empty($current)) {
+        if ($stored === [] || $current === []) {
             return 0.0;
         }
 
@@ -125,9 +125,14 @@ final class DeviceMatcher
         $total_weight   = 0.0;
 
         foreach (self::COMPONENT_WEIGHTS as $key => $weight) {
-            if (! array_key_exists($key, $stored) || ! array_key_exists($key, $current)) {
+            if (! array_key_exists($key, $stored)) {
                 continue;
             }
+
+            if (! array_key_exists($key, $current)) {
+                continue;
+            }
+
             $total_weight += $weight;
             if ($stored[$key] === $current[$key]) {
                 $matched_weight += $weight;

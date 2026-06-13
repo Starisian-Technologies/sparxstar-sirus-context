@@ -33,7 +33,6 @@ final class EnvironmentResolver
     /** @var array<int, string> */
     private const GEO_APPROX_LNG_KEYS = [ 'approx_lng', 'approxLng' ];
 
-    /** @var EnvironmentRecord|null */
     private ?EnvironmentRecord $resolved = null;
 
     /**
@@ -45,7 +44,7 @@ final class EnvironmentResolver
      */
     public function resolve(array $clientSignals = []): EnvironmentRecord
     {
-        if ($clientSignals === [] && $this->resolved !== null) {
+        if ($clientSignals === [] && $this->resolved instanceof \Starisian\Sparxstar\Sirus\core\EnvironmentRecord) {
             return $this->resolved;
         }
 
@@ -124,7 +123,11 @@ final class EnvironmentResolver
 
         foreach ([ 'country', 'region' ] as $key) {
             $value = $location[$key] ?? '';
-            if (! is_string($value) || $value === '') {
+            if (! is_string($value)) {
+                continue;
+            }
+
+            if ($value === '') {
                 continue;
             }
 
@@ -480,6 +483,6 @@ final class EnvironmentResolver
             return '';
         }
 
-        return sanitize_text_field((string) ($matches[1] ?? ''));
+        return sanitize_text_field($matches[1] ?? '');
     }
 }

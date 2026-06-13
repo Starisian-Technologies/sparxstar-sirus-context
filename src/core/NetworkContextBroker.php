@@ -60,6 +60,7 @@ final class NetworkContextBroker
         if ($json === false) {
             throw new \RuntimeException('[Sirus NetworkContextBroker] Failed to encode token payload as JSON.');
         }
+
         $payload_b64 = $this->base64url_encode($json);
         $signature   = hash_hmac('sha256', $payload_b64, $secret, true);
         $sig_b64     = $this->base64url_encode($signature);
@@ -137,7 +138,7 @@ final class NetworkContextBroker
 
         $trust_score = max(0.0, min(1.0, isset($data['ts'])
             ? (float) $data['ts']
-            : self::trustScoreFromLevel($trust_level->value)));
+            : $this->trustScoreFromLevel($trust_level->value)));
 
         return new SirusContext(
             context_id:     $context_id,
@@ -190,7 +191,7 @@ final class NetworkContextBroker
      * @param string $trust_level Trust level string from the portable payload.
      * @return float Derived trust score in [0.0, 1.0].
      */
-    private static function trustScoreFromLevel(string $trust_level): float
+    private function trustScoreFromLevel(string $trust_level): float
     {
         return match (strtolower($trust_level)) {
             'elder'       => 0.95,
