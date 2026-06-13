@@ -128,9 +128,14 @@ final class SparxstarUECScheduler
             return $key;
         }
 
-        // 2. Check any custom schedules added by other plugins/themes
+        // 2. Check any custom schedules added by other plugins/themes.
+        // wp_get_schedules() is filterable — third-party schedule entries can
+        // omit the 'interval' key, so guard before reading it.
         $schedules = \wp_get_schedules();
         foreach ($schedules as $key => $data) {
+            if (! is_array($data) || ! isset($data['interval'])) {
+                continue;
+            }
             if ((int) $data['interval'] === $seconds) {
                 return $key;
             }

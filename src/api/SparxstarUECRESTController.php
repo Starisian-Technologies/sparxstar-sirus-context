@@ -15,9 +15,7 @@ use WP_REST_Response;
 use Starisian\SparxstarUEC\StarUserEnv;
 use Starisian\SparxstarUEC\helpers\StarLogger;
 use Starisian\SparxstarUEC\core\SparxstarUECDatabase;
-use Starisian\SparxstarUEC\services\SparxstarUECGeoIPService; 
-
-// Import Logger
+use Starisian\SparxstarUEC\services\SparxstarUECGeoIPService;
 
 if (! defined('ABSPATH')) {
     exit;
@@ -61,7 +59,7 @@ final readonly class SparxstarUECRESTController
     public function handle_log_request(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
         $payload = $request->get_json_params();
-        if ($payload === []) {
+        if (! is_array($payload) || $payload === []) {
             StarLogger::warning('REST', 'Received empty or invalid JSON payload.');
             return new WP_Error('invalid_data', 'Invalid JSON payload.', [ 'status' => 400 ]);
         }

@@ -16,7 +16,9 @@ define('SPX_ENV_CHECK_PLUGIN_FILE', __FILE__);
 define('SPX_ENV_CHECK_PLUGIN_PATH', __DIR__ . '/');
 define('SPX_ENV_CHECK_VERSION', '0.5.0');
 define('SPX_ENV_CHECK_TEXT_DOMAIN', 'sparxstar_user_environment_check');
-define('SPX_ENV_CHECK_DB_TABLE_NAME', 'Sparxstar_User_Environment');
+// Must match the runtime fallback in sparxstar-sirus-context.php so static
+// analysis sees the same value the entry file defines.
+define('SPX_ENV_CHECK_DB_TABLE_NAME', 'sparxstar_env_snapshots');
 
 // Sirus plugin constants (runtime-defined in sparxstar-sirus-context.php).
 define('SIRUS_VERSION', '1.0.0');

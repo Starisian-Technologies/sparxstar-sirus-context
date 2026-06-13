@@ -109,19 +109,15 @@ final class SirusPlugin
         // Network settings page: super-admin only, registered in network_admin_menu.
         new SirusNetworkSettingsPage();
 
-        // Build coordinator dependencies.
+        // Build only the repositories the admin dashboard actually consumes.
+        // The mitigation coordinator and action repository are wired in
+        // registerRestRoutes() where they are consumed by the event/directive
+        // controllers — instantiating them here was dead work on every admin
+        // request.
         $event_repo    = new SirusEventRepository($wpdb);
         $rule_hit_repo = new SirusRuleHitRepository($wpdb);
-        $action_repo   = new SirusMitigationActionRepository($wpdb);
-        $coordinator   = new SirusMitigationCoordinator(
-            new SirusSignalEvaluator(),
-            new SirusImpactScorer(),
-            new SirusMitigationRuleEngine(),
-            $rule_hit_repo,
-            $action_repo
-        );
+        $scorer        = new SirusPriorityScorer();
 
-        $scorer = new SirusPriorityScorer();
         new SirusDashboardPage($event_repo, $scorer, $rule_hit_repo);
     }
 
