@@ -88,8 +88,8 @@ if (! file_exists($autoloader)) {
         deactivate_plugins(plugin_basename(__FILE__));
     }
     wp_die(
-        esc_html__('SPARXSTAR User Environment Check Error: Plugin deactivated as dependencies are missing. Please run composer install.', 'sparxstar_user_environment_check'),
-        esc_html__('Plugin Activation Error', 'sparxstar_user_environment_check'),
+        esc_html__('SPARXSTAR User Environment Check Error: Plugin deactivated as dependencies are missing. Please run composer install.', 'sparxstar-user-environment-check'),
+        esc_html__('Plugin Activation Error', 'sparxstar-user-environment-check'),
         array('back_link' => true)
     );
 } else {
@@ -119,6 +119,7 @@ function spx_uec_on_uninstall(): void
     if (file_exists($uninstall_file)) {
         require_once $uninstall_file;
     }
+    // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.flush_rewrite_rules_flush_rewrite_rules -- one-time flush on deactivation cleanup, not a per-request call
     flush_rewrite_rules();
 }
 

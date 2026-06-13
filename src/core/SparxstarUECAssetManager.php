@@ -151,11 +151,13 @@ final class SparxstarUECAssetManager
             'nonce'      => wp_create_nonce('wp_rest'),
             'debug'      => defined('WP_DEBUG') && WP_DEBUG,
             'ip_address' => \Starisian\SparxstarUEC\StarUserEnv::get_current_visitor_ip(),
+            // phpcs:disable WordPress.WP.I18n.NonSingularStringLiteralDomain -- text domain centralized in the class constant; this plugin ships its own translations, not WordPress.org language packs
             'i18n'       => [
                 'notice'         => __('Important Notice', self::TEXT_DOMAIN),
                 'update_message' => __('For the best experience, please update your browser.', self::TEXT_DOMAIN),
                 'update_link'    => __('Learn how', self::TEXT_DOMAIN),
             ],
+            // phpcs:enable WordPress.WP.I18n.NonSingularStringLiteralDomain
         ];
     }
 }

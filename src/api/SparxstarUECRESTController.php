@@ -133,6 +133,7 @@ final readonly class SparxstarUECRESTController
                     'event_data'   => $data['event'] ?? [],
                 ]
             );
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional diagnostic logging, reached only inside the WP_DEBUG-guarded branch above
             error_log('[SparxstarUEC Recorder] ' . wp_json_encode($data));
         }
 

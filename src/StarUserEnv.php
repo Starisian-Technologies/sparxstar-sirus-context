@@ -12,6 +12,11 @@ declare(strict_types=1);
 namespace Starisian\SparxstarUEC;
 
 use Throwable;
+use Starisian\SparxstarUEC\helpers\StarLogger;
+use Starisian\Sparxstar\Sirus\core\ContextEngine;
+use Starisian\SparxstarUEC\includes\SparxstarUECCacheHelper;
+use Starisian\SparxstarUEC\core\SparxstarUECSnapshotRepository;
+use Starisian\SparxstarUEC\includes\SparxstarUECSessionManager;
 
 use function __;
 use function hash;
@@ -35,18 +40,11 @@ use function apply_filters;
 use function session_start;
 use function session_status;
 use function wp_json_encode;
-
-use const FILTER_VALIDATE_IP;
-use const PHP_SESSION_ACTIVE;
-
 use function get_current_user_id;
 use function sanitize_text_field;
 
-use Starisian\SparxstarUEC\helpers\StarLogger;
-use Starisian\Sparxstar\Sirus\core\ContextEngine;
-use Starisian\SparxstarUEC\includes\SparxstarUECCacheHelper;
-use Starisian\SparxstarUEC\core\SparxstarUECSnapshotRepository;
-use Starisian\SparxstarUEC\includes\SparxstarUECSessionManager;
+use const FILTER_VALIDATE_IP;
+use const PHP_SESSION_ACTIVE;
 
 if (! defined('ABSPATH')) {
     exit;
@@ -605,6 +603,7 @@ final class StarUserEnv
     public static function getSessionValue(string $key, mixed $default = null): mixed
     {
         self::ensure_session();
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- internal session store written by this plugin, not external request input
         return $_SESSION[ self::SESSION_NAMESPACE ][ $key ] ?? $default;
     }
 
@@ -629,6 +628,7 @@ final class StarUserEnv
     {
         self::ensure_session();
 
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- internal session store written by this plugin, not external request input
         $stored = $_SESSION[ self::SESSION_NAMESPACE ][ self::SESSION_KEY ] ?? [];
 
         return is_array($stored) ? $stored : [];
@@ -695,6 +695,7 @@ final class StarUserEnv
         $location = self::getIPGeoLocation($ip);
 
         if ($location === []) {
+            // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralDomain -- text domain centralized in a constant; this plugin ships its own translations, not WordPress.org language packs
             return __('Location data unavailable.', SPX_ENV_CHECK_TEXT_DOMAIN);
         }
 
@@ -718,6 +719,7 @@ final class StarUserEnv
             return sanitize_text_field((string) $location[ $key ]);
         }
 
+        // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralDomain -- text domain centralized in a constant; this plugin ships its own translations, not WordPress.org language packs
         return __('Specific location data unavailable.', SPX_ENV_CHECK_TEXT_DOMAIN);
     }
 

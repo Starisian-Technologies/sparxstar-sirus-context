@@ -213,7 +213,8 @@ final class SirusEventController
             // Derive an anonymized IP subnet for the second rate-limit dimension.
             // Using a /24 (IPv4) or /48 (IPv6) subnet prevents easy bypass via
             // device_id rotation while respecting the privacy model (no raw IPs).
-            $ip_raw    = (string) ($_SERVER['REMOTE_ADDR'] ?? ''); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated
+            // phpcs:ignore WordPressVIPMinimum.Variables.ServerVariables.UserControlledHeaders -- REMOTE_ADDR is the TCP peer address, sanitized here and anonymized to a /24 or /48 subnet before use
+            $ip_raw    = sanitize_text_field(wp_unslash((string) ($_SERVER['REMOTE_ADDR'] ?? '')));
             $ip_subnet = IpAnonymizer::ipSubnet($ip_raw);
 
             if (! $this->rateLimiter->allow($device_id, $ip_subnet)) {

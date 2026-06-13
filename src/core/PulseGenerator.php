@@ -66,9 +66,11 @@ final class PulseGenerator
     public function generate(SirusContext $context, int $now = 0, int $ttlSeconds = self::PULSE_TTL): ContextPulse
     {
         if ($ttlSeconds <= 0) {
+            // phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- developer-facing exception message interpolating an integer; not echoed as HTML
             throw new \InvalidArgumentException(
                 '[Sirus PulseGenerator] $ttlSeconds must be a positive integer; got ' . $ttlSeconds . '.'
             );
+            // phpcs:enable WordPress.Security.EscapeOutput.ExceptionNotEscaped
         }
 
         $key = $this->resolveSigningKey();
@@ -179,10 +181,12 @@ final class PulseGenerator
         $minimum_key_length = Platform::PULSE_MIN_SIGNING_KEY_BYTES;
 
         if (strlen($key) < $minimum_key_length) {
+            // phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- developer-facing exception message interpolating an integer; not echoed as HTML
             throw new \RuntimeException(
                 '[Sirus] PulseGenerator: SIRUS_PULSE_SIGNING_KEY must be at least '
                 . $minimum_key_length . ' bytes.'
             );
+            // phpcs:enable WordPress.Security.EscapeOutput.ExceptionNotEscaped
         }
 
         return $key;

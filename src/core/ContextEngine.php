@@ -109,11 +109,13 @@ final class ContextEngine
             // Re-throw: ContextBootException MUST NEVER be swallowed.
             throw $e;
         } catch (\Throwable $e) {
+            // phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- static message; $e is the chained previous exception passed for logging, never echoed as HTML
             throw new ContextBootException(
                 '[Sirus] ContextBootException: context could not be established.',
                 0,
                 $e
             );
+            // phpcs:enable WordPress.Security.EscapeOutput.ExceptionNotEscaped
         }
     }
 

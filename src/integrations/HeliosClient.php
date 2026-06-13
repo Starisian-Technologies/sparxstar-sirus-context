@@ -86,6 +86,7 @@ final readonly class HeliosClient implements HeliosClientInterface
             [
                 'headers'     => [ 'Content-Type' => 'application/json' ],
                 'body'        => $body,
+                // phpcs:ignore WordPressVIPMinimum.Performance.RemoteRequestTimeout.timeout_timeout -- 5s is acceptable for this synchronous trust-service call on standard (non-VIP) hosting
                 'timeout'     => 5,
                 'redirection' => 0,
             ]

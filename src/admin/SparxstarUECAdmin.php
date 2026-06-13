@@ -153,6 +153,7 @@ final class SparxstarUECAdmin
             </form>
         </div>
         <?php
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- buffered admin form composed entirely of static markup and esc_*__() / esc_url() / submit_button() output above
         echo ob_get_clean();
     }
 
@@ -310,6 +311,7 @@ final class SparxstarUECAdmin
         }
 
         if ('' !== $message) {
+            // phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- $message is assembled solely from esc_html__() strings (lines 301/306/308); the remaining printf args are escaped
             printf(
                 '<div class="notice notice-warning is-dismissible"><p><strong>%1$s</strong> %2$s <a href="%3$s">%4$s</a>.</p></div>',
                 esc_html__('SPARXSTAR Sirus', 'sparxstar-user-environment-check'),
@@ -317,6 +319,7 @@ final class SparxstarUECAdmin
                 esc_url(admin_url('options-general.php?page=' . self::PAGE_SLUG)),
                 esc_html__('settings page', 'sparxstar-user-environment-check')
             );
+            // phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
         }
     }
 }

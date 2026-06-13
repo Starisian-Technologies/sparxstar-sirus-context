@@ -153,6 +153,7 @@ class StarLogger
         }
 
         // Send to standard WordPress debug.log
+        // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- StarLogger is the logging abstraction; writing to the PHP error log is its intended sink
         error_log($log_entry);
 
         // Fire hooks for external integrations

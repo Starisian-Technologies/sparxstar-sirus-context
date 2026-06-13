@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Service for performing GeoIP lookups.
  *
@@ -13,6 +11,8 @@ declare(strict_types=1);
  *   privacy-sanitized data produced by this service; custom callbacks may further
  *   restrict or, if they deliberately choose, widen this data.
  */
+
+declare(strict_types=1);
 
 namespace Starisian\SparxstarUEC\services;
 
