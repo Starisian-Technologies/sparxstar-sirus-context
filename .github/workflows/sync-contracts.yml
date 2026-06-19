@@ -10,6 +10,8 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout Helios
         uses: actions/checkout@v4
@@ -33,6 +35,10 @@ jobs:
 
       - name: Copy contracts
         run: |
+          if [ ! -d source/packages/sparxstar-helios-contracts/src ]; then
+            echo "Source directory source/packages/sparxstar-helios-contracts/src does not exist — nothing to sync."
+            exit 0
+          fi
           rm -rf target/Contracts/IAMC/Helios/
           mkdir -p target/Contracts/IAMC/Helios/
           cp -r source/packages/sparxstar-helios-contracts/src/* target/Contracts/IAMC/Helios/
