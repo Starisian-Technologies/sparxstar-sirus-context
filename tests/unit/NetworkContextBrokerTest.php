@@ -338,7 +338,7 @@ final class NetworkContextBrokerTest extends TestCase
         $result = $this->broker->verifyToken($payload_b64 . '.' . $sig_b64, self::TEST_SECRET);
 
         $this->assertNotNull($result);
-        $this->assertSame('NORMAL', $result->trust_level->value);
+        $this->assertSame('LOCKED', $result->trust_level->value);
         $this->assertLessThanOrEqual(0.50, $result->trust_score);
     }
 

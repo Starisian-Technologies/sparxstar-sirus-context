@@ -54,71 +54,38 @@ final class CapabilityEngineTest extends SirusTestCase
         );
     }
 
-    // ── anonymous ─────────────────────────────────────────────────────────────
+    // ── LOCKED ────────────────────────────────────────────────────────────────
 
     /**
-     * anonymous: only read_context is granted.
+     * LOCKED: no capabilities granted.
      */
-    public function testAnonymousGrantsOnlyReadContext(): void
+    public function testLockedGrantsNoCapabilities(): void
     {
-        $caps = $this->engine->resolve($this->makeContext('anonymous'));
+        $caps = $this->engine->resolve($this->makeContext('LOCKED'));
+
+        $this->assertSame([], $caps);
+    }
+
+    // ── STEP_UP_REQUIRED ─────────────────────────────────────────────────────
+
+    /**
+     * STEP_UP_REQUIRED: only read_context is granted.
+     */
+    public function testStepUpRequiredGrantsOnlyReadContext(): void
+    {
+        $caps = $this->engine->resolve($this->makeContext('STEP_UP_REQUIRED'));
 
         $this->assertSame(['read_context'], $caps);
     }
 
-    // ── device ────────────────────────────────────────────────────────────────
+    // ── NORMAL ───────────────────────────────────────────────────────────────
 
     /**
-     * device: read_context + submit_environment.
+     * NORMAL: full capability set is granted.
      */
-    public function testDeviceGrantsReadContextAndSubmitEnvironment(): void
+    public function testNormalGrantsFullCapabilitySet(): void
     {
-        $caps = $this->engine->resolve($this->makeContext('device'));
-
-        $this->assertContains('read_context', $caps);
-        $this->assertContains('submit_environment', $caps);
-        $this->assertCount(2, $caps);
-    }
-
-    // ── contributor ───────────────────────────────────────────────────────────
-
-    /**
-     * contributor: read_context + submit_environment + submit_content.
-     */
-    public function testContributorGrantsThreeCapabilities(): void
-    {
-        $caps = $this->engine->resolve($this->makeContext('contributor'));
-
-        $this->assertContains('read_context', $caps);
-        $this->assertContains('submit_environment', $caps);
-        $this->assertContains('submit_content', $caps);
-        $this->assertCount(3, $caps);
-    }
-
-    // ── user ──────────────────────────────────────────────────────────────────
-
-    /**
-     * user: read_context + submit_environment + submit_content + read_profile.
-     */
-    public function testUserGrantsFourCapabilities(): void
-    {
-        $caps = $this->engine->resolve($this->makeContext('user'));
-
-        $this->assertContains('read_context', $caps);
-        $this->assertContains('submit_environment', $caps);
-        $this->assertContains('submit_content', $caps);
-        $this->assertContains('read_profile', $caps);
-        $this->assertCount(4, $caps);
-    }
-
-    // ── authority ─────────────────────────────────────────────────────────────
-
-    /**
-     * authority: all six capabilities.
-     */
-    public function testAuthorityGrantsSixCapabilities(): void
-    {
-        $caps = $this->engine->resolve($this->makeContext('authority'));
+        $caps = $this->engine->resolve($this->makeContext('NORMAL'));
 
         $this->assertContains('read_context', $caps);
         $this->assertContains('submit_environment', $caps);
@@ -130,9 +97,9 @@ final class CapabilityEngineTest extends SirusTestCase
     }
 
     /**
-     * authority context returns the exact expected capability set in order.
+     * NORMAL context returns the exact expected capability set in order.
      */
-    public function testAuthorityContextGetsManagementCapabilities(): void
+    public function testNormalContextGetsManagementCapabilities(): void
     {
         $this->assertSame(
             [
@@ -143,35 +110,26 @@ final class CapabilityEngineTest extends SirusTestCase
                 'manage_context',
                 'resolve_authority',
             ],
-            $this->engine->resolve($this->makeContext('authority'))
+            $this->engine->resolve($this->makeContext('NORMAL'))
         );
     }
 
-    // ── capability set is a superset of the level below ───────────────────────
+    // ── capability set is a superset of lower trust levels ───────────────────
 
     /**
      * Each trust level's capabilities are a superset of the level below it.
-     * This validates the additive permission model.
      */
     public function testCapabilitiesAreCumulativeAcrossLevels(): void
     {
-        $anon        = $this->engine->resolve($this->makeContext('anonymous'));
-        $device      = $this->engine->resolve($this->makeContext('device'));
-        $contributor = $this->engine->resolve($this->makeContext('contributor'));
-        $user        = $this->engine->resolve($this->makeContext('user'));
-        $authority   = $this->engine->resolve($this->makeContext('authority'));
+        $locked   = $this->engine->resolve($this->makeContext('LOCKED'));
+        $step_up  = $this->engine->resolve($this->makeContext('STEP_UP_REQUIRED'));
+        $normal   = $this->engine->resolve($this->makeContext('NORMAL'));
 
-        foreach ($anon as $cap) {
-            $this->assertContains($cap, $device);
+        foreach ($locked as $cap) {
+            $this->assertContains($cap, $step_up);
         }
-        foreach ($device as $cap) {
-            $this->assertContains($cap, $contributor);
-        }
-        foreach ($contributor as $cap) {
-            $this->assertContains($cap, $user);
-        }
-        foreach ($user as $cap) {
-            $this->assertContains($cap, $authority);
+        foreach ($step_up as $cap) {
+            $this->assertContains($cap, $normal);
         }
     }
 
@@ -182,20 +140,20 @@ final class CapabilityEngineTest extends SirusTestCase
      */
     public function testResolveAlwaysReturnsArray(): void
     {
-        foreach (['anonymous', 'device', 'contributor', 'user', 'authority'] as $level) {
+        foreach (['LOCKED', 'STEP_UP_REQUIRED', 'NORMAL'] as $level) {
             $result = $this->engine->resolve($this->makeContext($level));
             $this->assertIsArray($result, "Expected array for trust level '{$level}'.");
         }
     }
 
-    // ── read_context is universal ─────────────────────────────────────────────
+    // ── read_context is present in non-locked levels ──────────────────────────
 
     /**
-     * read_context must be present in every trust level's capability set.
+     * read_context must be present for STEP_UP_REQUIRED and NORMAL.
      */
-    public function testReadContextPresentForAllLevels(): void
+    public function testReadContextPresentForNonLockedLevels(): void
     {
-        foreach (['anonymous', 'device', 'contributor', 'user', 'authority'] as $level) {
+        foreach (['STEP_UP_REQUIRED', 'NORMAL'] as $level) {
             $caps = $this->engine->resolve($this->makeContext($level));
             $this->assertContains(
                 'read_context',
@@ -224,7 +182,7 @@ final class CapabilityEngineTest extends SirusTestCase
 
         $this->assertContains(
             'custom_capability',
-            $engine->resolve($this->makeContext('user'))
+            $engine->resolve($this->makeContext('NORMAL'))
         );
     }
 }

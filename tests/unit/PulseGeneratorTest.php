@@ -276,13 +276,13 @@ final class PulseGeneratorTest extends SirusTestCase
         $pulse = $this->generator->generate(
             $this->makeContext(
                 trust_score: 0.6,
-                trust_level: 'ELEVATED'
+                trust_level: 'STEP_UP_REQUIRED'
             )
         );
 
         $this->assertIsArray($pulse->behavior_flags);
         $this->assertNotSame([], $pulse->behavior_flags);
-        $this->assertContains('trust_level_elevated', $pulse->behavior_flags);
+        $this->assertContains('step_up_required', $pulse->behavior_flags);
         $this->assertContains('low_trust_score', $pulse->behavior_flags);
     }
 

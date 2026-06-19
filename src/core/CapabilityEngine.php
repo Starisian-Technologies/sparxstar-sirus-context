@@ -22,11 +22,7 @@ final class CapabilityEngine
 {
     /** @var array<string, list<string>> Capabilities granted per trust level. */
     private const BASE_CAPABILITIES = [
-        'anonymous'   => [ 'read_context' ],
-        'device'      => [ 'read_context', 'submit_environment' ],
-        'contributor' => [ 'read_context', 'submit_environment', 'submit_content' ],
-        'user'        => [ 'read_context', 'submit_environment', 'submit_content', 'read_profile' ],
-        'authority'   => [
+        'NORMAL'            => [
             'read_context',
             'submit_environment',
             'submit_content',
@@ -34,6 +30,8 @@ final class CapabilityEngine
             'manage_context',
             'resolve_authority',
         ],
+        'STEP_UP_REQUIRED'  => [ 'read_context' ],
+        'LOCKED'            => [],
     ];
 
     /**
@@ -46,7 +44,7 @@ final class CapabilityEngine
     public function resolve(SirusContext $context): array
     {
         $capabilities = self::BASE_CAPABILITIES[ $context->trust_level->value ]
-            ?? self::BASE_CAPABILITIES['anonymous'];
+            ?? self::BASE_CAPABILITIES['LOCKED'];
 
         /** @var list<string> $capabilities */
         $capabilities = apply_filters('sparxstar_sirus_capabilities', $capabilities, $context);
