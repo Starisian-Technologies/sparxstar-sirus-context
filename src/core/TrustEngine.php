@@ -64,12 +64,12 @@ final class TrustEngine
      * Trust level returned when trust_score < 0.7.
      * Used by StepUpPolicy: Level 2 auth IS required at this threshold.
      */
-    public const LEVEL_ELEVATED = 'ELEVATED';
+    public const LEVEL_ELEVATED = 'STEP_UP_REQUIRED';
 
     /**
      * Trust level returned when trust_score = 0.0 (fully untrusted).
      */
-    public const LEVEL_CRITICAL = 'CRITICAL';
+    public const LEVEL_CRITICAL = 'LOCKED';
 
     /**
      * Computes the trust score from a signal map and returns both score and level.

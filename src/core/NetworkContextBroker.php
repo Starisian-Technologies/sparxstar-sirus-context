@@ -132,7 +132,7 @@ final class NetworkContextBroker
                 return null;
             }
         } else {
-            $trust_level = TrustLevelPrimitive::from('anonymous');
+            $trust_level = TrustLevelPrimitive::from('NORMAL');
         }
 
         $trust_score = max(0.0, min(1.0, isset($data['ts'])

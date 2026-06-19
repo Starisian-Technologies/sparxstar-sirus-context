@@ -26,7 +26,7 @@ final class SirusContextTest extends TestCase
         ?string $identity_id = null,
         ?string $authority_id = null,
         array $capabilities = [],
-        string $trust_level = 'anonymous',
+        string $trust_level = 'NORMAL',
         array $role_set = [],
     ): SirusContext {
         return new SirusContext(
