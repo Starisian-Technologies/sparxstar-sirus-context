@@ -1,0 +1,51 @@
+name: Sync Contracts to Public Repo
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/sparxstar-helios-contracts/src/**'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Helios
+        uses: actions/checkout@v4
+        with:
+          path: source
+
+      - name: Generate token
+        uses: actions/create-github-app-token@v1
+        id: token
+        with:
+          app-id: ${{ vars.CONTRACT_SYNC_CLIENT_ID }}
+          private-key: ${{ secrets.CONTRACT_SYNC_PRIVATE_KEY }}
+          owner: Starisian-Technologies
+
+      - name: Checkout contracts repo
+        uses: actions/checkout@v4
+        with:
+          repository: Starisian-Technologies/sparxstar-platform-contracts
+          token: ${{ steps.token.outputs.token }}
+          path: target
+
+      - name: Copy contracts
+        run: |
+          rm -rf target/Contracts/IAMC/Helios/
+          mkdir -p target/Contracts/IAMC/Helios/
+          cp -r source/packages/sparxstar-helios-contracts/src/* target/Contracts/IAMC/Helios/
+
+      - name: Push if changed
+        working-directory: target
+        run: |
+          git config user.name "sparxstar-contract-sync[bot]"
+          git config user.email "contract-sync@starisian.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to sync."
+            exit 0
+          fi
+          git commit -m "chore: sync Helios contracts from helios-trust@${{ github.sha }}"
+          git push origin main
