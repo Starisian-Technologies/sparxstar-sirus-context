@@ -189,7 +189,7 @@ final class ContextEngineTest extends TestCase
             environment_json: '{}',
             first_seen:       time() - 10,
             last_seen:        time(),
-            trust_level:      'anonymous',
+            trust_level:      'NORMAL',
         );
 
         $built = ContextEngine::buildFromDevice($record);
@@ -240,7 +240,7 @@ final class ContextEngineTest extends TestCase
             authority_id:   null,
             role_set:       [],
             capabilities:   [],
-            trust_level:    TrustLevelPrimitive::from('anonymous'),
+            trust_level:    TrustLevelPrimitive::from('NORMAL'),
             trust_score:    1.0,
             issued_at:      1000,
             expires:        1001, // already expired

@@ -67,7 +67,7 @@ final class SirusContextTest extends TestCase
             device_id:      'dev', session_id: 'sess',
             identity_id:    null, authority_id: null,
             role_set:       [], capabilities: [],
-            trust_level:    TrustLevelPrimitive::from('anonymous'),
+            trust_level:    TrustLevelPrimitive::from('NORMAL'),
             trust_score:    1.0,
             issued_at:      time(),
             expires:        time() + 300,
@@ -86,7 +86,7 @@ final class SirusContextTest extends TestCase
             device_id:      'dev', session_id: 'sess',
             identity_id:    null, authority_id: null,
             role_set:       [], capabilities: [],
-            trust_level:    TrustLevelPrimitive::from('anonymous'),
+            trust_level:    TrustLevelPrimitive::from('NORMAL'),
             trust_score:    1.0,
             issued_at:      1000,
             expires:        1001, // well in the past
@@ -105,7 +105,7 @@ final class SirusContextTest extends TestCase
             device_id:      'dev', session_id: 'sess',
             identity_id:    null, authority_id: null,
             role_set:       [], capabilities: [],
-            trust_level:    TrustLevelPrimitive::from('anonymous'),
+            trust_level:    TrustLevelPrimitive::from('NORMAL'),
             trust_score:    1.0,
             issued_at:      1000,
             expires:        0,
@@ -123,7 +123,7 @@ final class SirusContextTest extends TestCase
             identity_id:  'user-42',
             authority_id: 'starisian',
             capabilities: ['read', 'write'],
-            trust_level:  'user',
+            trust_level:  'NORMAL',
             role_set:     ['editor'],
         );
 
@@ -137,7 +137,7 @@ final class SirusContextTest extends TestCase
         $this->assertSame('starisian', $ctx->authority_id);
         $this->assertSame(['editor'], $ctx->role_set);
         $this->assertSame(['read', 'write'], $ctx->capabilities);
-        $this->assertSame('user', $ctx->trust_level->value);
+        $this->assertSame('NORMAL', $ctx->trust_level->value);
         $this->assertSame(1.0, $ctx->trust_score);
         $this->assertSame(1000, $ctx->issued_at);
         $this->assertSame(1300, $ctx->expires);

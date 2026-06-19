@@ -40,7 +40,7 @@ final class IdentityResolverTest extends SirusTestCase
             authority_id:   null,
             role_set:       [],
             capabilities:   [],
-            trust_level:    TrustLevelPrimitive::from('anonymous'),
+            trust_level:    TrustLevelPrimitive::from('NORMAL'),
             trust_score:    1.0,
             issued_at:      time(),
             expires:        0,

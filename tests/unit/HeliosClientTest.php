@@ -99,7 +99,7 @@ final class HeliosClientTest extends SirusTestCase
         $client = new HeliosClient('https://helios.example.com');
         $result = $client->resolve('dev-1', 'sess-1');
 
-        $this->assertSame('anonymous', $result['trust_level'] ?? null);
+        $this->assertSame('NORMAL', $result['trust_level'] ?? null);
     }
 
     /**
