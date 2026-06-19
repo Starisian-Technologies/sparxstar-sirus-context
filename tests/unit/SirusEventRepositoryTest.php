@@ -102,7 +102,7 @@ final class SirusEventRepositoryTest extends SirusTestCase
 
         // Inject the failure by overriding insert to return false.
         $failingWpdb = new class extends \wpdb {
-            public function insert(string $table, array $data): bool
+            public function insert(string $table, array $data, array $format = []): bool
             {
                 return false;
             }
