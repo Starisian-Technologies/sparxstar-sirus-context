@@ -282,9 +282,10 @@ final class HeliosClientTest extends SirusTestCase
     }
 
     /**
-     * getIdentityContext() defaults verification_status to 'none' when absent.
+     * getIdentityContext() inherits the 'unverified' default from resolve() when
+     * verification_status is absent from the Helios response.
      */
-    public function testGetIdentityContextDefaultsVerificationStatusToNone(): void
+    public function testGetIdentityContextDefaultsVerificationStatusToUnverifiedWhenAbsent(): void
     {
         $GLOBALS['__helios_response'] = [
             'response' => ['code' => 200],
@@ -294,6 +295,6 @@ final class HeliosClientTest extends SirusTestCase
         $client = new HeliosClient('https://helios.example.com');
         $result = $client->getIdentityContext('dev-4', 'sess-4');
 
-        $this->assertSame('none', $result['verification_status'] ?? null);
+        $this->assertSame('unverified', $result['verification_status'] ?? null);
     }
 }
