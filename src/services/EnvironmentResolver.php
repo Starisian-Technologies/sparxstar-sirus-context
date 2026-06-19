@@ -412,10 +412,10 @@ final class EnvironmentResolver
             }
         }
 
-        if (str_contains($ua, 'Mobile') || str_contains($ua, 'iPhone')) {
-            $resolved['device_type'] = 'smartphone';
-        } elseif (str_contains($ua, 'Tablet') || str_contains($ua, 'iPad')) {
+        if (str_contains($ua, 'iPad') || str_contains($ua, 'Tablet')) {
             $resolved['device_type'] = 'tablet';
+        } elseif (str_contains($ua, 'Mobile') || str_contains($ua, 'iPhone')) {
+            $resolved['device_type'] = 'smartphone';
         } elseif ($resolved['device_type'] !== 'bot' && $resolved['os'] !== 'unknown') {
             $resolved['device_type'] = 'desktop';
         }
