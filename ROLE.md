@@ -21,7 +21,7 @@
 - `StarUserEnv` facade — frozen public surface (UEC backward compatibility); signatures are permanent
 - `UECCompatibilityShim` — namespace alias bridge for legacy callers
 - Signal/mitigation subsystem: `SirusSignalEvaluator`, `SirusMitigationCoordinator`, `SirusMitigationRuleEngine`, `SirusImpactScorer`, `SirusPriorityScorer`, `SirusRateLimit`, `SirusEventAggregator`, `SirusEventRepository`, `SirusRuleHitRepository`, `SirusMitigationActionRepository`
-- REST surface (Spec §18–19): `/sparxstar/v1/device`, `/context`, `/pulse`, `/identity`, `/session`, `/client-report`
+- REST surface (Spec §18–19): `/sparxstar/v1/device`, `/sparxstar/v1/context`, `/sparxstar/v1/pulse`, `/sparxstar/v1/identity`, `/sparxstar/v1/session`, `/sparxstar/v1/client-report`
 - API contract files: `docs/contracts/sirus-api-contract.v1.json`, `docs/contracts/sirus-api-seed.v1.json`
 
 ## Does not own

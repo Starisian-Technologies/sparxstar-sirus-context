@@ -97,8 +97,11 @@ jobs:
         id: check
         run: |
           cd source
-          CHANGED=$(git diff HEAD~1 --name-only -- docs/sirus-tech-spec.md || echo "")
-          if [ -n "$CHANGED" ]; then
+          if ! git diff HEAD~1 --name-only -- docs/sirus-tech-spec.md > /tmp/spec-changes.txt 2>&1; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -s /tmp/spec-changes.txt ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -162,8 +165,11 @@ jobs:
         id: check
         run: |
           cd source
-          CHANGED=$(git diff HEAD~1 --name-only -- docs/contracts/ || echo "")
-          if [ -n "$CHANGED" ]; then
+          if ! git diff HEAD~1 --name-only -- docs/contracts/ > /tmp/contract-changes.txt 2>&1; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -s /tmp/contract-changes.txt ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"

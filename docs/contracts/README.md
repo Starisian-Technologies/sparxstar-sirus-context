@@ -15,7 +15,7 @@ and compatibility callers consume:
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `/device` | GET | Current device record |
+| `/device` | POST | Register or resolve a device record |
 | `/context` | GET | Current `SirusContext`; optional `device_id` must match |
 | `/pulse` | POST | Issue a signed `ContextPulse`; returns HttpOnly cookie + `{pulse_id, expires_at, trust_level}` |
 | `/identity` | GET | Resolve current identity tier |

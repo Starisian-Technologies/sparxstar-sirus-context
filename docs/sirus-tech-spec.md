@@ -94,10 +94,9 @@ Trust score maps to trust level:
 
 | Score | Level |
 |---|---|
-| ≥ 0.9 | HIGH |
 | ≥ 0.7 | NORMAL |
-| ≥ 0.4 | LOW |
-| < 0.4 | UNTRUSTED |
+| > 0.0 | ELEVATED |
+| = 0.0 | CRITICAL |
 
 Step-up policy: Level 3 always; Level 2 (step-up required) when `trust_score < 0.7`.
 
@@ -134,11 +133,11 @@ Sirus signs pulses via HMAC-SHA256 using Ouroboros `ContextPulseSigningMaterial:
 
 | Field | Type | Notes |
 |---|---|---|
-| `identity_id` | `string` | Resolved identity; `"SYSTEM"` for CLI |
+| `identity_id` | `?string` | Resolved identity; `"SYSTEM"` for CLI; null if unresolved |
 | `device_id` | `string` | Server-issued; never JS-only |
 | `trust_score` | `float` | [0.0, 1.0] |
-| `trust_level` | `TrustLevelPrimitive` | Enum: HIGH / NORMAL / LOW / UNTRUSTED |
-| `authority_id` | `string` | Governance scope; `"GLOBAL"` for CLI |
+| `trust_level` | `TrustLevelPrimitive` | Enum: NORMAL / ELEVATED / CRITICAL |
+| `authority_id` | `?string` | Governance scope; `"GLOBAL"` for CLI; null if unresolved |
 | `environment` | `EnvironmentRecord` | Client-first environment record |
 | `consent` | `ConsentRecord` | Three-level cascade result |
 | `capabilities` | `array` | Named capabilities from `CapabilityEngine` |
@@ -169,7 +168,7 @@ Sirus signs pulses via HMAC-SHA256 using Ouroboros `ContextPulseSigningMaterial:
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/sparxstar/v1/device` | Current device record |
+| `POST` | `/sparxstar/v1/device` | Register or resolve a device record |
 | `GET` | `/sparxstar/v1/context` | Current `SirusContext`; optional `device_id` must match |
 | `POST` | `/sparxstar/v1/pulse` | Issue signed `ContextPulse`; HttpOnly/SameSite=Strict cookie + `{pulse_id, expires_at, trust_level}` body |
 | `GET` | `/sparxstar/v1/identity` | Resolve current identity tier |
