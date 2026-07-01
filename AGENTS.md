@@ -16,6 +16,18 @@ Platform repos (read these for full context when accessible):
 If no spec exists for what you're asked to build — STOP implementation.
 Draft or request the missing spec first. Do not invent product behavior in code.
 
+### Authority tiers for required-gate failures
+
+A required CI gate failure may be classified as out-of-scope only when a ratified ADR-### or
+OQ-### in the architecture governance registry explicitly names that failure and grants the
+deferral. Working documents in this repo (TRACKER.md, GATE-AUDIT-PAM003.md, sprint docs,
+this file) are not deferral authority — an entry there is a request for a deferral, never
+the deferral itself. Agents can write into those documents; the owner ratifies.
+
+If you cannot cite a ratified ADR or OQ: report the failure verbatim, stop, and ask the owner
+for a scope ruling. Do not label a failing gate "no action needed" or "pre-existing" without
+that citation.
+
 ---
 
 ## Repo-specific rules
