@@ -27,12 +27,17 @@ jobs:
           owner: Starisian-Technologies
           repositories: sparxstar-ouroboros-integrity
 
+      - name: Wire git to use Composer resolver token for Ouroboros
+        env:
+          TOKEN: ${{ steps.composer-token.outputs.token }}
+        run: git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
+
       - name: Cache Composer packages
         uses: actions/cache@v4
         with:
           path: vendor
-          key: composer-${{ hashFiles('composer.lock') }}
-          restore-keys: composer-
+          key: composer-v2-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-v2-
 
       - name: Install Composer dependencies
         env:
