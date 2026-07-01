@@ -66,7 +66,7 @@ final class DeviceContinuity
         if ($device_id !== '') {
             $existing = $this->repository->findByDeviceId($device_id);
 
-            if ($existing !== null && $existing->isActive() && $existing->verifySecret($device_secret)) {
+            if ($existing instanceof DeviceRecord && $existing->isActive() && $existing->verifySecret($device_secret)) {
                 if (
                     $fingerprint_hash !== '' && $existing->fingerprint_hash !== '' && $existing->fingerprint_hash !== $fingerprint_hash
                 ) {
@@ -97,6 +97,7 @@ final class DeviceContinuity
                 $this->repository->updateLastSeen($device_id);
                 return $existing;
             }
+
             // If secret mismatch or expired: fall through to fingerprint lookup.
             // Do NOT register a new device based on an unverified device_id claim.
         }
@@ -108,7 +109,7 @@ final class DeviceContinuity
         // extend to component-based (partial) matching in the future.
         if ($fingerprint_hash !== '') {
             $by_fp = $this->repository->findByFingerprintHash($fingerprint_hash);
-            if ($by_fp !== null) {
+            if ($by_fp instanceof DeviceRecord) {
                 $match = DeviceMatcher::classify(
                     $matcher->scoreHash($by_fp->fingerprint_hash, $fingerprint_hash)
                 );

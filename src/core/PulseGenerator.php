@@ -158,7 +158,7 @@ final class PulseGenerator
     private function resolveSessionDuration(int $session_start, int $issued_at): int
     {
         $duration = $issued_at - $session_start;
-        return $duration > 0 ? $duration : 0;
+        return max($duration, 0);
     }
 
     /**

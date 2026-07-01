@@ -50,8 +50,6 @@ final readonly class EnvironmentRecord
 
     public string $time_zone;
 
-    public bool $is_bot;
-
     public int $captured_at;
 
     /**
@@ -83,7 +81,7 @@ final readonly class EnvironmentRecord
         string $ip_address,
         array $location,
         string $time_zone,
-        bool $is_bot,
+        public bool $is_bot,
         int $captured_at,
     ) {
         $this->environment_id         = $this->sanitizeString($environment_id);
@@ -98,7 +96,6 @@ final readonly class EnvironmentRecord
         $this->ip_address             = IpAnonymizer::anonymize($ip_address);
         $this->location               = $this->normalizeLocation($location);
         $this->time_zone              = $this->sanitizeString($time_zone);
-        $this->is_bot                 = $is_bot;
         $this->captured_at            = $captured_at > 0 ? $captured_at : time();
     }
 
@@ -160,7 +157,10 @@ final readonly class EnvironmentRecord
         $normalized = [];
 
         foreach ([ 'country', 'region' ] as $key) {
-            if (! isset($location[$key]) || ! is_scalar($location[$key])) {
+            if (! isset($location[$key])) {
+                continue;
+            }
+            if (! is_scalar($location[$key])) {
                 continue;
             }
 
@@ -171,7 +171,10 @@ final readonly class EnvironmentRecord
         }
 
         foreach ([ 'approx_lat', 'approx_lng' ] as $key) {
-            if (! isset($location[$key]) || ! is_numeric($location[$key])) {
+            if (! isset($location[$key])) {
+                continue;
+            }
+            if (! is_numeric($location[$key])) {
                 continue;
             }
 
