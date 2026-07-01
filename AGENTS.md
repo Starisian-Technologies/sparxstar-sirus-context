@@ -20,13 +20,21 @@ Draft or request the missing spec first. Do not invent product behavior in code.
 
 A required CI gate failure may be classified as out-of-scope only when a ratified ADR-### or
 OQ-### in the architecture governance registry explicitly names that failure and grants the
-deferral. Working documents in this repo (TRACKER.md, GATE-AUDIT-PAM003.md, sprint docs,
-this file) are not deferral authority — an entry there is a request for a deferral, never
-the deferral itself. Agents can write into those documents; the owner ratifies.
+deferral. Two requirements must both be met:
 
-If you cannot cite a ratified ADR or OQ: report the failure verbatim, stop, and ask the owner
-for a scope ruling. Do not label a failing gate "no action needed" or "pre-existing" without
-that citation.
+1. The cited number must exist in the governance registry and be ratified by the owner.
+2. The cited number's actual subject in the registry must match the failure being deferred.
+   Citing a real OQ number whose registry content concerns a different topic is not authority
+   — it is a false citation, which is worse than citing nothing.
+
+Working documents in this repo (TRACKER.md, GATE-AUDIT-PAM003.md, sprint docs, this file)
+are not deferral authority. An entry there is a request for a deferral, never the deferral
+itself. Agents can write into those documents; the owner ratifies in the governance registry.
+
+If you cannot cite a ratified ADR or OQ whose subject matches the failure: report the failure
+verbatim, state the gate is "failing and unratified," stop, and ask the owner for a ruling.
+Do not label a failing gate "no action needed," "pre-existing," or "pending OQ-###" unless
+the OQ number is real, ratified, and on-subject.
 
 ---
 
