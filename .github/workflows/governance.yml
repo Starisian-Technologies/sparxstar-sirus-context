@@ -1,0 +1,205 @@
+name: Governance
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+
+  # ─── STEP 1: PULL SPEC ────────────────────────────────────
+  pull-spec:
+    uses: Starisian-Technologies/sparxstar-product-specification-registry/.github/workflows/fetch-specs.yml@v1.0.0
+    with:
+      specs: "sirus"
+      agent-ref: main
+      contract-ref: "v1.0.0"
+    secrets:
+      COMPOSER_RESOLVER_PRIVATE_KEY: ${{ secrets.COMPOSER_RESOLVER_PRIVATE_KEY }}
+
+  # ─── STEP 2: CI ───────────────────────────────────────────
+  # Core CI runs after spec pull. Lint and static analysis run
+  # independently via standards.yml — not chained here to avoid
+  # masking PHPStan behind a PHPCS short-circuit.
+
+  smoke:
+    needs: [pull-spec]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f
+        with:
+          php-version: '8.3'
+          tools: composer:2.9.8
+
+      - name: Run API contract smoke test
+        run: composer run smoke:api-contract
+
+  test:
+    needs: [pull-spec]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f
+        with:
+          php-version: '8.3'
+          tools: composer:2.9.8
+
+      - name: Mint Composer resolver token
+        id: composer-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.COMPOSER_RESOLVER_CLIENT_ID }}
+          private-key: ${{ secrets.COMPOSER_RESOLVER_PRIVATE_KEY }}
+          owner: Starisian-Technologies
+          repositories: sparxstar-ouroboros-integrity
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install PHP dependencies
+        env:
+          COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ steps.composer-token.outputs.token }}"}}'
+        run: composer install --no-interaction
+
+      - name: Run unit tests
+        run: composer run test:unit
+
+  # ─── STEP 3A: PROPOSE SPEC UPDATE ─────────────────────────
+  propose-spec:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          path: source
+
+      - name: Check if spec changed
+        id: check
+        run: |
+          cd source
+          CHANGED=$(git diff HEAD~1 --name-only -- docs/sirus-tech-spec.md || echo "")
+          if [ -n "$CHANGED" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate token
+        if: steps.check.outputs.changed == 'true'
+        uses: actions/create-github-app-token@v1
+        id: token
+        with:
+          app-id: ${{ vars.CONTRACT_SYNC_CLIENT_ID }}
+          private-key: ${{ secrets.CONTRACT_SYNC_PRIVATE_KEY }}
+          owner: Starisian-Technologies
+
+      - name: Propose to registry
+        if: steps.check.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          SPEC_KEY: "sirus"
+        run: |
+          REGISTRY="Starisian-Technologies/sparxstar-product-specification-registry"
+          BRANCH="propose/${SPEC_KEY}-$(date +%Y%m%d-%H%M%S)"
+          TARGET="specs/${SPEC_KEY}/${SPEC_KEY}-tech-spec.md"
+
+          git clone --depth 1 \
+            "https://x-access-token:${GH_TOKEN}@github.com/${REGISTRY}.git" \
+            registry
+
+          cd registry
+          git checkout -b "$BRANCH"
+          mkdir -p "$(dirname "$TARGET")"
+          cp "../source/docs/${SPEC_KEY}-tech-spec.md" "$TARGET"
+
+          git config user.name "sparxstar-contract-sync[bot]"
+          git config user.email "contract-sync@starisian.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No spec changes to propose."
+            exit 0
+          fi
+          git commit -m "propose: ${SPEC_KEY} spec from ${GITHUB_REPOSITORY}@${GITHUB_SHA:0:7}"
+          git push origin "$BRANCH"
+          gh pr create \
+            --repo "$REGISTRY" \
+            --base main \
+            --head "$BRANCH" \
+            --title "propose: ${SPEC_KEY} spec update" \
+            --body "Proposed by ${GITHUB_REPOSITORY}. Review before merging."
+
+  # ─── STEP 3B: SYNC CONTRACTS ──────────────────────────────
+  sync-contracts:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          path: source
+
+      - name: Check if contracts changed
+        id: check
+        run: |
+          cd source
+          CHANGED=$(git diff HEAD~1 --name-only -- docs/contracts/ || echo "")
+          if [ -n "$CHANGED" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate token
+        if: steps.check.outputs.changed == 'true'
+        uses: actions/create-github-app-token@v1
+        id: token
+        with:
+          app-id: ${{ vars.CONTRACT_SYNC_CLIENT_ID }}
+          private-key: ${{ secrets.CONTRACT_SYNC_PRIVATE_KEY }}
+          owner: Starisian-Technologies
+
+      - name: Checkout contracts registry
+        if: steps.check.outputs.changed == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: Starisian-Technologies/sparxstar-contracts-registry
+          token: ${{ steps.token.outputs.token }}
+          path: target
+
+      - name: Sync
+        if: steps.check.outputs.changed == 'true'
+        env:
+          SPEC_KEY: "sirus"
+        run: |
+          rm -rf "target/Contracts/${SPEC_KEY}"
+          mkdir -p "target/Contracts/${SPEC_KEY}"
+          cp -r source/docs/contracts/* "target/Contracts/${SPEC_KEY}/"
+
+      - name: Push
+        if: steps.check.outputs.changed == 'true'
+        working-directory: target
+        run: |
+          git config user.name "sparxstar-contract-sync[bot]"
+          git config user.email "contract-sync@starisian.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing changed."
+            exit 0
+          fi
+          git commit -m "sync: contracts from ${GITHUB_REPOSITORY}@${GITHUB_SHA:0:7}"
+          git push origin main

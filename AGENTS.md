@@ -1,10 +1,32 @@
-SPARXSTAR Sirus Context --- Agent Instructions
+# Agent Instructions
+
+## Platform governance
+
+Read `.github/instructions/governance/` for compiled ADRs, invariants, and open questions.
+These are the platform rules. Do not assume rules not in the governance reference.
+
+Platform repos (read these for full context when accessible):
+- Decisions: https://github.com/Starisian-Technologies/sparxstar-architecture-governance-registry
+- Specs: https://github.com/Starisian-Technologies/sparxstar-product-specification-registry
+- Standards: https://github.com/Starisian-Technologies/starisian-technologies-coding-standards
+- Enforcement: https://github.com/Starisian-Technologies/sparxstar-code-conformance
+- Contracts: https://github.com/Starisian-Technologies/sparxstar-contracts-registry
+- PR Review: https://github.com/Starisian-Technologies/sparxstar-claude-pr-review
+
+If no spec exists for what you're asked to build — STOP implementation.
+Draft or request the missing spec first. Do not invent product behavior in code.
+
+---
+
+## Repo-specific rules
+
+SPARXSTAR Sirus Context — Agent Instructions
 ============================================
 
 Who reads this file
 -------------------
 
-AI agents operating in this repository. Read this alongside `copilot-instructions.md`.
+AI agents operating in this repository. Read this alongside `.github/copilot-instructions.md`.
 
 Platform position
 -----------------

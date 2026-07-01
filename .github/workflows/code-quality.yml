@@ -48,11 +48,8 @@ jobs:
           COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ steps.composer-token.outputs.token }}"}}'
         run: composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Run PHPCS
-        run: composer phpcs
-
-      - name: Run PHPStan
-        run: composer phpstan
+      # PHPCS and PHPStan run independently via standards.yml (sparxstar-code-conformance).
+      # Do not duplicate them here — it masks PHPStan behind a PHPCS short-circuit.
 
       - name: Run Rector (dry-run)
         run: composer rector
