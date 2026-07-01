@@ -5,6 +5,8 @@ on:
   push:
     branches: [main]
 
+permissions: {}
+
 jobs:
   pnpm:
     uses: Starisian-Technologies/sparxstar-code-conformance/.github/workflows/pnpm-enforcement.yml@v1

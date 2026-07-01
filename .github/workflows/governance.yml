@@ -6,6 +6,11 @@ on:
   push:
     branches: [main]
 
+# Default: least-privilege. Jobs that push (propose-spec, sync-contracts) use
+# an explicit app token — GITHUB_TOKEN only needs read access to checkout.
+permissions:
+  contents: read
+
 jobs:
 
   # ─── STEP 1: PULL SPEC ────────────────────────────────────
