@@ -150,7 +150,7 @@ final class EnvironmentResolver
 
     /**
      * @param array<string, mixed> $signals
-     * @param array<int, string>   $keys
+     * @param array<int, string> $keys
      */
     private function resolveStringSignal(array $signals, array $keys, string $fallback = ''): string
     {
@@ -171,7 +171,7 @@ final class EnvironmentResolver
 
     /**
      * @param array<string, mixed> $signals
-     * @param array<int, string>   $keys
+     * @param array<int, string> $keys
      */
     private function resolveBooleanSignal(array $signals, array $keys, bool $fallback = false): bool
     {
@@ -260,7 +260,7 @@ final class EnvironmentResolver
 
     /**
      * @param array<string, mixed> $geo
-     * @param array<int, string>   $keys
+     * @param array<int, string> $keys
      */
     private function extractGeoValue(array $geo, array $keys): string
     {
@@ -281,7 +281,7 @@ final class EnvironmentResolver
 
     /**
      * @param array<string, mixed> $geo
-     * @param array<int, string>   $keys
+     * @param array<int, string> $keys
      */
     private function extractGeoFloat(array $geo, array $keys): ?float
     {
@@ -322,17 +322,17 @@ final class EnvironmentResolver
             $osInfo      = $dd->getOs();
 
             return [
-                'browser_name'    => isset($browserInfo['name']) && is_string($browserInfo['name']) ? $browserInfo['name'] : 'unknown',
+                'browser_name'    => isset($browserInfo['name'])    && is_string($browserInfo['name']) ? $browserInfo['name'] : 'unknown',
                 'browser_version' => isset($browserInfo['version']) && is_string($browserInfo['version']) ? $browserInfo['version'] : '',
-                'os'              => isset($osInfo['name']) && is_string($osInfo['name']) ? $osInfo['name'] : 'unknown',
-                'os_version'      => isset($osInfo['version']) && is_string($osInfo['version']) ? $osInfo['version'] : '',
+                'os'              => isset($osInfo['name'])         && is_string($osInfo['name']) ? $osInfo['name'] : 'unknown',
+                'os_version'      => isset($osInfo['version'])      && is_string($osInfo['version']) ? $osInfo['version'] : '',
                 'device_type'     => $dd->isSmartphone() ? 'smartphone'
                     : ($dd->isTablet() ? 'tablet'
                     : ($dd->isDesktop() ? 'desktop'
                     : ($dd->isBot() ? 'bot' : 'unknown'))),
-                'device_brand'    => is_string($dd->getBrandName()) ? $dd->getBrandName() : '',
-                'device_model'    => is_string($dd->getModel()) ? $dd->getModel() : '',
-                'is_bot'          => $dd->isBot(),
+                'device_brand' => is_string($dd->getBrandName()) ? $dd->getBrandName() : '',
+                'device_model' => is_string($dd->getModel()) ? $dd->getModel() : '',
+                'is_bot'       => $dd->isBot(),
             ];
         } catch (\Throwable) {
             return $this->resolveWithFallback($ua);

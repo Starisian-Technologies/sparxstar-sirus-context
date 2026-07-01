@@ -55,20 +55,20 @@ final readonly class EnvironmentRecord
     public int $captured_at;
 
     /**
-     * @param string               $environment_id         Stable identifier for the captured environment.
-     * @param string               $browser_name           Client-first browser name.
-     * @param string               $browser_version        Browser version when available.
-     * @param string               $os                     Client-first operating system name.
-     * @param string               $os_version             Operating system version when available.
-     * @param string               $device_type            Device class (desktop/tablet/smartphone/etc).
-     * @param string               $device_brand           Device brand when available.
-     * @param string               $device_model           Device model when available.
-     * @param string               $network_effective_type Effective network type signal.
-     * @param string               $ip_address             Raw or anonymized IP; anonymized at construction.
-     * @param array<string, mixed> $location               Region-level location payload only.
-     * @param string               $time_zone              Client time zone string.
-     * @param bool                 $is_bot                 Whether the environment appears to be automated.
-     * @param int                  $captured_at            Unix timestamp when captured.
+     * @param string $environment_id Stable identifier for the captured environment.
+     * @param string $browser_name Client-first browser name.
+     * @param string $browser_version Browser version when available.
+     * @param string $os Client-first operating system name.
+     * @param string $os_version Operating system version when available.
+     * @param string $device_type Device class (desktop/tablet/smartphone/etc).
+     * @param string $device_brand Device brand when available.
+     * @param string $device_model Device model when available.
+     * @param string $network_effective_type Effective network type signal.
+     * @param string $ip_address Raw or anonymized IP; anonymized at construction.
+     * @param array<string, mixed> $location Region-level location payload only.
+     * @param string $time_zone Client time zone string.
+     * @param bool $is_bot Whether the environment appears to be automated.
+     * @param int $captured_at Unix timestamp when captured.
      */
     public function __construct(
         string $environment_id,

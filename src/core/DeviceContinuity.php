@@ -182,9 +182,9 @@ final class DeviceContinuity
      * ContextEngine. Output shape is fixed — no optional keys, no dynamic structure.
      *
      * @param DeviceRecord $device A fully resolved DeviceRecord.
-     * @return array{device_hash: string, continuity_score: float, risk_flags: array<int, string>}
      *
      * @throws \RuntimeException If the device context is missing (empty device_id or fingerprint_hash).
+     * @return array{device_hash: string, continuity_score: float, risk_flags: array<int, string>}
      */
     public function evaluateContinuity(DeviceRecord $device): array
     {

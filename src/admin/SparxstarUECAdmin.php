@@ -147,9 +147,9 @@ final class SparxstarUECAdmin
             <form action="options.php" method="post">
                 <?php
                         settings_fields('sparxstar_uec_options_group');
-                do_settings_sections(self::PAGE_SLUG);
-                submit_button(esc_html__('Save Settings', 'sparxstar-user-environment-check'));
-                ?>
+        do_settings_sections(self::PAGE_SLUG);
+        submit_button(esc_html__('Save Settings', 'sparxstar-user-environment-check'));
+        ?>
             </form>
         </div>
         <?php

@@ -41,8 +41,8 @@ final class NetworkContextBroker
      * Issues a signed base64url-encoded context token.
      *
      * @param SirusContext $context The context to encode into the token.
-     * @param string       $secret  HMAC-SHA256 signing secret. Must not be empty.
-     *                              In WordPress contexts pass `wp_salt('auth')`.
+     * @param string $secret HMAC-SHA256 signing secret. Must not be empty.
+     *                       In WordPress contexts pass `wp_salt('auth')`.
      * @return string The signed token string.
      */
     public function issueToken(SirusContext $context, string $secret): string
@@ -56,7 +56,7 @@ final class NetworkContextBroker
         $payload['nbf'] = $now;
         $payload['exp'] = $now + self::TOKEN_TTL;
 
-        $json        = json_encode($payload);
+        $json = json_encode($payload);
         if ($json === false) {
             throw new \RuntimeException('[Sirus NetworkContextBroker] Failed to encode token payload as JSON.');
         }
@@ -70,7 +70,7 @@ final class NetworkContextBroker
     /**
      * Verifies a signed token and returns a reconstructed SirusContext, or null on failure.
      *
-     * @param string $token  The token string to verify.
+     * @param string $token The token string to verify.
      * @param string $secret HMAC-SHA256 signing secret. Must match the secret used in issueToken().
      *                       In WordPress contexts pass `wp_salt('auth')`.
      * @return SirusContext|null The reconstructed context, or null if invalid/expired.
@@ -193,13 +193,13 @@ final class NetworkContextBroker
     private static function trustScoreFromLevel(string $trust_level): float
     {
         return match (strtolower($trust_level)) {
-            'elder'       => 0.95,
-            'contributor' => 0.90,
+            'elder'          => 0.95,
+            'contributor'    => 0.90,
             'user', 'normal' => 0.85,
-            'device'      => 0.70,
-            'elevated'    => 0.60,
-            'critical'    => 0.10,
-            default       => 0.50,
+            'device'         => 0.70,
+            'elevated'       => 0.60,
+            'critical'       => 0.10,
+            default          => 0.50,
         };
     }
 }

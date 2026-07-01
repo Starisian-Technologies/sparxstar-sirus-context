@@ -20,9 +20,8 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-use Starisian\Sparxstar\Infrastructure\Exceptions\ContextBootException;
 use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
-use Starisian\Sparxstar\Sirus\core\TrustEngine;
+use Starisian\Sparxstar\Infrastructure\Exceptions\ContextBootException;
 
 /**
  * Responsible for assembling a fully resolved SirusContext.
@@ -79,8 +78,8 @@ final class ContextEngine
      * Expired contexts are evicted from the cache and rebuilt transparently so that
      * stale authority / capability data is never served.
      *
-     * @return SirusContext A valid, fully-resolved context.
      * @throws ContextBootException If context cannot be established. MUST NOT be swallowed.
+     * @return SirusContext A valid, fully-resolved context.
      */
     public static function current(): SirusContext
     {
@@ -159,9 +158,9 @@ final class ContextEngine
      * binding the cookie-based build() path might resolve a different device_id.
      *
      * @param DeviceRecord $device The resolved and persisted device record.
-     * @return SirusContext A fully initialized context seeded with the device.
      *
      * @throws \RuntimeException If the supplied device has an empty device_id.
+     * @return SirusContext A fully initialized context seeded with the device.
      */
     public static function buildFromDevice(DeviceRecord $device): SirusContext
     {
