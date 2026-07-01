@@ -128,6 +128,7 @@ final class DeviceMatcher
             if (! array_key_exists($key, $stored)) {
                 continue;
             }
+
             if (! array_key_exists($key, $current)) {
                 continue;
             }

@@ -126,6 +126,7 @@ final class EnvironmentResolver
             if (! is_string($value)) {
                 continue;
             }
+
             if ($value === '') {
                 continue;
             }

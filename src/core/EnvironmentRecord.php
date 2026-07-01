@@ -160,6 +160,7 @@ final readonly class EnvironmentRecord
             if (! isset($location[$key])) {
                 continue;
             }
+
             if (! is_scalar($location[$key])) {
                 continue;
             }
@@ -174,6 +175,7 @@ final readonly class EnvironmentRecord
             if (! isset($location[$key])) {
                 continue;
             }
+
             if (! is_numeric($location[$key])) {
                 continue;
             }
