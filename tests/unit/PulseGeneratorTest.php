@@ -276,7 +276,7 @@ final class PulseGeneratorTest extends SirusTestCase
         $pulse = $this->generator->generate(
             $this->makeContext(
                 trust_score: 0.6,
-                trust_level: 'ELEVATED'
+                trust_level: 'STEP_UP_REQUIRED'
             )
         );
 
