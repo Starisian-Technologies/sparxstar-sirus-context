@@ -11,6 +11,7 @@ declare(strict_types=1);
 namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use Starisian\Sparxstar\Infrastructure\DTOs\CredentialTier;
 use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
 use Starisian\Sparxstar\Sirus\core\ContextCache;
 use Starisian\Sparxstar\Sirus\core\ContextEngine;
@@ -240,7 +241,8 @@ final class ContextEngineTest extends TestCase
             authority_id:   null,
             role_set:       [],
             capabilities:   [],
-            trust_level:    TrustLevelPrimitive::from('anonymous'),
+            credential_tier: CredentialTier::ANONYMOUS,
+            trust_level:    TrustLevelPrimitive::STEP_UP_REQUIRED,
             trust_score:    1.0,
             issued_at:      1000,
             expires:        1001, // already expired

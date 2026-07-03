@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 
+use Starisian\Sparxstar\Infrastructure\DTOs\CredentialTier;
 use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
 use Starisian\Sparxstar\Sirus\core\AuthorityResolver;
 use Starisian\Sparxstar\Sirus\core\SirusContext;
@@ -145,7 +146,7 @@ final class AuthorityResolverTest extends SirusTestCase
 
     // ── Helper ────────────────────────────────────────────────────────────────
 
-    private function makeContext(string $trustLevel): SirusContext
+    private function makeContext(string $credentialTier): SirusContext
     {
         return new SirusContext(
             context_id:     'ctx-auth',
@@ -158,7 +159,8 @@ final class AuthorityResolverTest extends SirusTestCase
             authority_id:   null,
             role_set:       [],
             capabilities:   [],
-            trust_level:    TrustLevelPrimitive::from($trustLevel),
+            credential_tier: CredentialTier::from($credentialTier),
+            trust_level:    TrustLevelPrimitive::NORMAL,
             trust_score:    1.0,
             issued_at:      1_700_000_000,
             expires:        1_700_000_300,

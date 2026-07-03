@@ -18,6 +18,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
+use Starisian\Sparxstar\Infrastructure\DTOs\CredentialTier;
 use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
 
 /**
@@ -124,17 +125,19 @@ final class NetworkContextBroker
             return null;
         }
 
-        // Least-privilege fallback: when tl/ts are absent (pre-v2 token), default to
-        // 'anonymous' rather than reconstructing a higher-trust context from partial data.
-        // If tl is present but unmappable, fail closed.
+        // Two-axis fail-closed defaults: absent tl → STEP_UP_REQUIRED (device trust axis),
+        // absent ct → ANONYMOUS (credential/identity axis). If tl is present but unmappable,
+        // fail closed rather than silently promoting trust.
         if (isset($data['tl'])) {
             $trust_level = TrustLevelPrimitive::tryFrom((string) $data['tl']);
             if ($trust_level === null) {
                 return null;
             }
         } else {
-            $trust_level = TrustLevelPrimitive::from('anonymous');
+            $trust_level = TrustLevelPrimitive::STEP_UP_REQUIRED;
         }
+
+        $credential_tier = CredentialTier::tryFrom((string) ($data['ct'] ?? '')) ?? CredentialTier::ANONYMOUS;
 
         $trust_score = max(0.0, min(1.0, isset($data['ts'])
             ? (float) $data['ts']
@@ -153,6 +156,7 @@ final class NetworkContextBroker
             capabilities:   isset($data['caps']) && is_array($data['caps'])
                                 ? array_map(strval(...), $data['caps'])
                                 : [],
+            credential_tier: $credential_tier,
             trust_level:    $trust_level,
             trust_score:    $trust_score,
             issued_at:      (int) ($data['iat'] ?? 0),

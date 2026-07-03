@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 
 use Starisian\Sparxstar\Infrastructure\Constants\Platform;
+use Starisian\Sparxstar\Infrastructure\DTOs\CredentialTier;
 use Starisian\Sparxstar\Sirus\core\PulseGenerator;
 use Starisian\Sparxstar\Sirus\core\SirusContext;
 use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
@@ -466,6 +467,7 @@ final class PulseGeneratorTest extends SirusTestCase
             authority_id:   null,
             role_set:       [],
             capabilities:   [],
+            credential_tier: CredentialTier::ANONYMOUS,
             trust_level:    TrustLevelPrimitive::from($trust_level),
             trust_score:    $trust_score,
             issued_at:      $context_issued_at,

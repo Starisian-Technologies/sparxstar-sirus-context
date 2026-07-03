@@ -20,6 +20,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
+use Starisian\Sparxstar\Infrastructure\DTOs\CredentialTier;
 use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
 use Starisian\Sparxstar\Infrastructure\Exceptions\ContextBootException;
 
@@ -141,7 +142,8 @@ final class ContextEngine
             authority_id:   'GLOBAL',
             role_set:       [],
             capabilities:   [],
-            trust_level:    TrustLevelPrimitive::from('NORMAL'),
+            credential_tier: CredentialTier::AUTHORITY,
+            trust_level:    TrustLevelPrimitive::NORMAL,
             trust_score:    1.0,
             issued_at:      $issued_at,
             expires:        0,
@@ -203,6 +205,7 @@ final class ContextEngine
             authority_id:   null,
             role_set:       [],
             capabilities:   [],
+            credential_tier: CredentialTier::tryFrom($device->trust_level) ?? CredentialTier::ANONYMOUS,
             trust_level:    TrustLevelPrimitive::from($trust_level),
             trust_score:    $trust_score,
             issued_at:      $issued_at,
@@ -263,6 +266,7 @@ final class ContextEngine
             authority_id:   $authority_id,
             role_set:       $role_set,
             capabilities:   $capabilities,
+            credential_tier: CredentialTier::ANONYMOUS,
             trust_level:    TrustLevelPrimitive::from($trust_level),
             trust_score:    $trust_score,
             issued_at:      $issued_at,
