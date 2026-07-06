@@ -14,7 +14,7 @@ if (! defined('ABSPATH')) {
 define('SPX_ENV_CHECK_LOADED', true);
 define('SPX_ENV_CHECK_PLUGIN_FILE', __FILE__);
 define('SPX_ENV_CHECK_PLUGIN_PATH', __DIR__ . '/');
-define('SPX_ENV_CHECK_VERSION', '0.5.0');
+define('SPX_ENV_CHECK_VERSION', '0.9.6');
 define('SPX_ENV_CHECK_TEXT_DOMAIN', 'sparxstar_user_environment_check');
 define('SPX_ENV_CHECK_DB_TABLE_NAME', 'Sparxstar_User_Environment');
 

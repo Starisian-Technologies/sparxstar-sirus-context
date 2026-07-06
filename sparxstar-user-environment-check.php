@@ -139,7 +139,7 @@ add_action(
     'plugins_loaded',
     function () {
         try {
-            // Skip initialization for background/automated WordPress requests
+            // Skip initialization for WP-Cron requests
             if (defined('DOING_CRON') && DOING_CRON) {
                 return;
             }
