@@ -33,7 +33,7 @@ jobs:
               id: composer-token
               uses: actions/create-github-app-token@v3
               with:
-                  app-id: ${{ vars.COMPOSER_RESOLVER_CLIENT_ID }}
+                  client-id: ${{ vars.COMPOSER_RESOLVER_CLIENT_ID }}
                   private-key: ${{ secrets.COMPOSER_RESOLVER_PRIVATE_KEY }}
                   owner: Starisian-Technologies
                   repositories: sparxstar-ouroboros-integrity
