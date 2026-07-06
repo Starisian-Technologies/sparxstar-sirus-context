@@ -47,7 +47,8 @@ final class AuthorityResolverTest extends SirusTestCase
 
     public function testManageOptionsFallsBackToStarisian(): void
     {
-        $GLOBALS['__current_user_id']              = 42;
+        $GLOBALS['__current_user_id']                    = 42;
+        $GLOBALS['__user_can_map'][42]['manage_network'] = false;
         $GLOBALS['__user_can_map'][42]['manage_options'] = true;
 
         $resolver = new AuthorityResolver();

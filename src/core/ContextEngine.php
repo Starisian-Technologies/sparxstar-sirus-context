@@ -93,12 +93,12 @@ final class ContextEngine
             $cached = ContextCache::get();
 
             // Evict expired context so downstream code always receives a fresh one.
-            if ($cached !== null && $cached->isExpired()) {
+            if ($cached instanceof SirusContext && $cached->isExpired()) {
                 ContextCache::clear();
                 $cached = null;
             }
 
-            if ($cached !== null) {
+            if ($cached instanceof SirusContext) {
                 return $cached;
             }
 
@@ -124,8 +124,6 @@ final class ContextEngine
      *
      * CLI context is never cached — it is always freshly constructed because CLI
      * requests are typically short-lived and do not share request-level state.
-     *
-     * @return SirusContext
      */
     private static function buildCliContext(): SirusContext
     {

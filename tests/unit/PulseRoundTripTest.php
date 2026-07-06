@@ -204,7 +204,7 @@ final class PulseRoundTripTest extends SirusTestCase
         }
 
         $candidate = new ContextPulse(
-            pulse_version:          (int) ($payload['pulse_version'] ?? Platform::PULSE_VERSION_CURRENT),
+            pulse_version:          (string) ($payload['pulse_version'] ?? Platform::PULSE_VERSION_CURRENT),
             pulse_id:               (string) $payload['pulse_id'],
             context_id:             (string) $payload['context_id'],
             device_id:              $payload['device_id'],
