@@ -54,4 +54,4 @@ jobs:
             exit 0
           fi
           git commit -m "chore: sync Helios contracts from helios-trust@${{ github.sha }}"
-          git push origin main
+          git push origin main || { echo "Failed to push changes. Please check permissions and branch protection rules."; exit 1; }
