@@ -287,7 +287,13 @@ final class RestApiTest extends SirusTestCase
      */
     private function makeRequest(string $method, string $route, array $params = []): \WP_REST_Request
     {
-        $request = new \WP_REST_Request($method, $route, $params);
+        $method  = strtoupper($method);
+        $request = new \WP_REST_Request($method, $route);
+        if (in_array($method, ['POST', 'PUT', 'PATCH'], true)) {
+            $request->set_body_params($params);
+        } else {
+            $request->set_query_params($params);
+        }
         $request->set_header('X-WP-Nonce', wp_create_nonce('wp_rest'));
 
         return $request;
