@@ -329,7 +329,9 @@ final class EnvironmentResolver
                 'browser_version' => isset($browserInfo['version']) && is_string($browserInfo['version']) ? $browserInfo['version'] : '',
                 'os'              => isset($osInfo['name'])         && is_string($osInfo['name']) ? $osInfo['name'] : 'unknown',
                 'os_version'      => isset($osInfo['version'])      && is_string($osInfo['version']) ? $osInfo['version'] : '',
-                'device_type'     => $dd->isTablet() ? 'tablet'
+                // str_contains check for iPad covers device-detector versions that
+                // classify iPad UA tokens as smartphones due to the Mobile/ suffix.
+                'device_type'     => (str_contains($ua, '(iPad;') || $dd->isTablet()) ? 'tablet'
                     : ($dd->isSmartphone() ? 'smartphone'
                     : ($dd->isDesktop() ? 'desktop'
                     : ($dd->isBot() ? 'bot' : 'unknown'))),
