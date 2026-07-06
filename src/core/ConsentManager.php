@@ -109,8 +109,8 @@ final class ConsentManager
      * Appends to consent history before updating the current state so that
      * the history record always reflects the state at the time of change.
      *
-     * @param int    $user_id WordPress user ID. Must be > 0.
-     * @param string $state   One of STATE_GRANTED or STATE_DENIED.
+     * @param int $user_id WordPress user ID. Must be > 0.
+     * @param string $state One of STATE_GRANTED or STATE_DENIED.
      * @return bool True on success, false if user_id is invalid or state is unrecognised.
      */
     public function setTechnicalConsent(int $user_id, string $state): bool
@@ -161,8 +161,8 @@ final class ConsentManager
      * capability checks — callers must ensure appropriate authorization before
      * invoking this method.
      *
-     * @param string $state   One of STATE_GRANTED or STATE_DENIED.
-     * @param int    $blog_id Blog/site ID. 0 = current site.
+     * @param string $state One of STATE_GRANTED or STATE_DENIED.
+     * @param int $blog_id Blog/site ID. 0 = current site.
      * @return bool True on success, false if state is unrecognised.
      */
     public function setSiteConsentDefault(string $state, int $blog_id = 0): bool
@@ -210,9 +210,9 @@ final class ConsentManager
     /**
      * Records a purpose-level consent decision for the given user.
      *
-     * @param int    $user_id     WordPress user ID. Must be > 0.
+     * @param int $user_id WordPress user ID. Must be > 0.
      * @param string $purpose_key Machine-readable purpose identifier (e.g. 'analytics', 'telemetry').
-     * @param string $state       One of STATE_GRANTED or STATE_DENIED.
+     * @param string $state One of STATE_GRANTED or STATE_DENIED.
      * @return bool True on success, false if inputs are invalid.
      */
     public function setPurposeConsent(int $user_id, string $purpose_key, string $state): bool
@@ -231,7 +231,7 @@ final class ConsentManager
             return false;
         }
 
-        $map = $this->getPurposeConsent($user_id);
+        $map                           = $this->getPurposeConsent($user_id);
         $map[ $sanitized_purpose_key ] = $state;
 
         $this->appendHistory($user_id, 'purpose:' . $sanitized_purpose_key, $state);
@@ -263,12 +263,7 @@ final class ConsentManager
         return array_values(
             array_filter(
                 $raw,
-                static fn ($entry): bool =>
-                    is_array($entry) &&
-                    isset($entry['scope'], $entry['state'], $entry['timestamp']) &&
-                    is_string($entry['scope']) &&
-                    is_string($entry['state']) &&
-                    is_int($entry['timestamp'])
+                static fn ($entry): bool => is_array($entry) && isset($entry['scope'], $entry['state'], $entry['timestamp']) && is_string($entry['scope']) && is_string($entry['state']) && is_int($entry['timestamp'])
             )
         );
     }
@@ -276,9 +271,9 @@ final class ConsentManager
     /**
      * Appends a new history entry. This is the only write path to the history.
      *
-     * @param int    $user_id   WordPress user ID.
-     * @param string $scope     Consent scope identifier (e.g. 'technical', 'purpose:analytics').
-     * @param string $state     The consent state recorded at this point.
+     * @param int $user_id WordPress user ID.
+     * @param string $scope Consent scope identifier (e.g. 'technical', 'purpose:analytics').
+     * @param string $state The consent state recorded at this point.
      */
     private function appendHistory(int $user_id, string $scope, string $state): void
     {

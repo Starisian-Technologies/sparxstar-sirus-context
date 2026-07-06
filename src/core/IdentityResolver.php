@@ -100,7 +100,7 @@ final readonly class IdentityResolver
             $normalized['authority_memberships'] = array_values(
                 array_filter(
                     $result['authority_memberships'],
-                    static fn (mixed $membership): bool => is_string($membership)
+                    is_string(...)
                 )
             );
         }
@@ -109,7 +109,7 @@ final readonly class IdentityResolver
             $normalized['capabilities'] = array_values(
                 array_filter(
                     $result['capabilities'],
-                    static fn (mixed $capability): bool => is_string($capability)
+                    is_string(...)
                 )
             );
         }

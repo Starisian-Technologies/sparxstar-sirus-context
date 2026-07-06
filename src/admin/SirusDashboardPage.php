@@ -26,7 +26,6 @@ use Starisian\Sparxstar\Sirus\helpers\SirusRuleConfig;
 use Starisian\Sparxstar\Sirus\core\SirusEventRepository;
 use Starisian\Sparxstar\Sirus\core\SirusRuleHitRepository;
 use Starisian\Sparxstar\Sirus\helpers\SirusPriorityScorer;
-use Starisian\Sparxstar\Sirus\services\SirusMitigationCoordinator;
 
 /**
  * Registers and renders the site-level Sirus Observability dashboard.
@@ -205,8 +204,8 @@ final class SirusDashboardPage
                     </h2>
                     <?php
                     $action_hits = $this->ruleHitRepo->getRecentHits(5);
-                    if ($action_hits === []) :
-                        ?>
+        if ($action_hits === []) :
+            ?>
                         <p><?php esc_html_e('No active recommendations.', 'sparxstar-sirus'); ?></p>
                     <?php else : ?>
                         <table class="widefat striped">
@@ -356,14 +355,14 @@ final class SirusDashboardPage
                             </thead>
                             <tbody>
                                 <?php
-                                foreach ($scored_urls as $row) :
-                                    $priority    = (string) ($row['priority'] ?? SirusPriorityScorer::PRIORITY_LOW);
-                                    $badge_color = match ($priority) {
-                                        SirusPriorityScorer::PRIORITY_HIGH   => '#d63638',
-                                        SirusPriorityScorer::PRIORITY_MEDIUM => '#dba617',
-                                        default                              => '#1d2327',
-                                    };
-                                    ?>
+                    foreach ($scored_urls as $row) :
+                        $priority    = (string) ($row['priority'] ?? SirusPriorityScorer::PRIORITY_LOW);
+                        $badge_color = match ($priority) {
+                            SirusPriorityScorer::PRIORITY_HIGH   => '#d63638',
+                            SirusPriorityScorer::PRIORITY_MEDIUM => '#dba617',
+                            default                              => '#1d2327',
+                        };
+                        ?>
                                     <tr>
                                         <td><code><?php echo esc_html((string) ($row['url'] ?? '')); ?></code></td>
                                         <td><?php echo esc_html((string) ($row['error_count'] ?? 0)); ?></td>

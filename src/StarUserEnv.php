@@ -12,17 +12,13 @@ declare(strict_types=1);
 namespace Starisian\SparxstarUEC;
 
 use Throwable;
-use Starisian\SparxstarUEC\helpers\StarLogger;
-use Starisian\Sparxstar\Sirus\core\ContextEngine;
-use Starisian\SparxstarUEC\includes\SparxstarUECCacheHelper;
-use Starisian\SparxstarUEC\core\SparxstarUECSnapshotRepository;
-use Starisian\SparxstarUEC\includes\SparxstarUECSessionManager;
 
 use function __;
 use function hash;
 use function trim;
 use function gmdate;
 use function is_ssl;
+
 use function strtok;
 use function substr;
 use function explode;
@@ -40,11 +36,19 @@ use function apply_filters;
 use function session_start;
 use function session_status;
 use function wp_json_encode;
-use function get_current_user_id;
-use function sanitize_text_field;
 
 use const FILTER_VALIDATE_IP;
 use const PHP_SESSION_ACTIVE;
+
+use function get_current_user_id;
+use function sanitize_text_field;
+
+use Starisian\SparxstarUEC\helpers\StarLogger;
+use Starisian\Sparxstar\Sirus\core\ContextEngine;
+use Starisian\SparxstarUEC\includes\SparxstarUECCacheHelper;
+
+use Starisian\SparxstarUEC\core\SparxstarUECSnapshotRepository;
+use Starisian\SparxstarUEC\includes\SparxstarUECSessionManager;
 
 if (! defined('ABSPATH')) {
     exit;

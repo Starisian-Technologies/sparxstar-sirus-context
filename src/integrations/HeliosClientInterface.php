@@ -29,8 +29,8 @@ interface HeliosClientInterface
      * Returns an array with keys: identity_id, trust_level, verification_status,
      * authority_memberships, capabilities – or null on failure / unavailability.
      *
-     * @param string $device_id   Device UUID.
-     * @param string $session_id  Session identifier.
+     * @param string $device_id Device UUID.
+     * @param string $session_id Session identifier.
      * @param string|null $identity_claim Optional identity claim to pass to Helios.
      * @return array<string, mixed>|null
      */
@@ -53,8 +53,8 @@ interface HeliosClientInterface
      *
      * Returns null if Helios is unavailable or the identity cannot be resolved.
      *
-     * @param string $device_id   Device UUID.
-     * @param string $session_id  Session identifier.
+     * @param string $device_id Device UUID.
+     * @param string $session_id Session identifier.
      * @param string|null $identity_claim Optional identity hint passed from the client.
      * @return array{
      *     identity_id: string|null,

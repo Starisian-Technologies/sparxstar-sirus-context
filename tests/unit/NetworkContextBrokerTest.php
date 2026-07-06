@@ -11,6 +11,7 @@ declare(strict_types=1);
 namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use Starisian\Sparxstar\Infrastructure\DTOs\CredentialTier;
 use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
 use Starisian\Sparxstar\Sirus\core\NetworkContextBroker;
 use Starisian\Sparxstar\Sirus\core\SirusContext;
@@ -43,7 +44,8 @@ final class NetworkContextBrokerTest extends TestCase
             authority_id:   'sparxstar',
             role_set:       [],
             capabilities:   ['read', 'publish'],
-            trust_level:    TrustLevelPrimitive::from('user'),
+            credential_tier: CredentialTier::USER,
+            trust_level:    TrustLevelPrimitive::NORMAL,
             trust_score:    1.0,
             issued_at:      time(),
             expires:        time() + 300,
@@ -113,7 +115,8 @@ final class NetworkContextBrokerTest extends TestCase
             authority_id:   null,
             role_set:       [],
             capabilities:   [],
-            trust_level:    TrustLevelPrimitive::from('user'),
+            credential_tier: CredentialTier::USER,
+            trust_level:    TrustLevelPrimitive::NORMAL,
             trust_score:    1.0,
             issued_at:      time(),
             expires:        time() + 300,
@@ -266,7 +269,8 @@ final class NetworkContextBrokerTest extends TestCase
             'auth' => null,
             'caps' => [],
             'ts'   => 0.85,
-            'tl'   => 'user',
+            'ct'   => 'user',
+            'tl'   => 'NORMAL',
             'iat'  => time(),
             'exp'  => time() + 300,
             'nbf'  => time(),
@@ -295,7 +299,8 @@ final class NetworkContextBrokerTest extends TestCase
             'auth' => null,
             'caps' => [],
             'ts'   => 0.85,
-            'tl'   => 'user',
+            'ct'   => 'user',
+            'tl'   => 'NORMAL',
             'iat'  => time(),
             'exp'  => time() + 300,
             'nbf'  => time(),
@@ -338,7 +343,8 @@ final class NetworkContextBrokerTest extends TestCase
         $result = $this->broker->verifyToken($payload_b64 . '.' . $sig_b64, self::TEST_SECRET);
 
         $this->assertNotNull($result);
-        $this->assertSame('anonymous', $result->trust_level->value);
+        $this->assertSame('anonymous', $result->credential_tier->value);
+        $this->assertSame(TrustLevelPrimitive::STEP_UP_REQUIRED, $result->trust_level);
         $this->assertLessThanOrEqual(0.50, $result->trust_score);
     }
 

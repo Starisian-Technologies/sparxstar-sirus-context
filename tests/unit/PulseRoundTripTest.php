@@ -12,6 +12,7 @@ namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 
 use Starisian\Sparxstar\Infrastructure\Constants\Platform;
 use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
+use Starisian\Sparxstar\Infrastructure\DTOs\CredentialTier;
 use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
 use Starisian\Sparxstar\Infrastructure\Utils\ContextPulseSigningMaterial;
 use Starisian\Sparxstar\Sirus\core\PulseGenerator;
@@ -203,7 +204,7 @@ final class PulseRoundTripTest extends SirusTestCase
         }
 
         $candidate = new ContextPulse(
-            pulse_version:          (int) ($payload['pulse_version'] ?? Platform::PULSE_VERSION_CURRENT),
+            pulse_version:          (string) ($payload['pulse_version'] ?? Platform::PULSE_VERSION_CURRENT),
             pulse_id:               (string) $payload['pulse_id'],
             context_id:             (string) $payload['context_id'],
             device_id:              $payload['device_id'],
@@ -239,7 +240,8 @@ final class PulseRoundTripTest extends SirusTestCase
             authority_id:   null,
             role_set:       [],
             capabilities:   [],
-            trust_level:    TrustLevelPrimitive::from('NORMAL'),
+            credential_tier: CredentialTier::ANONYMOUS,
+            trust_level:    TrustLevelPrimitive::NORMAL,
             trust_score:    0.9,
             issued_at:      1_699_999_970,
             expires:        1_700_000_300,

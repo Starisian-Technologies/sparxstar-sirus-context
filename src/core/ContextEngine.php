@@ -20,9 +20,9 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-use Starisian\Sparxstar\Infrastructure\Exceptions\ContextBootException;
+use Starisian\Sparxstar\Infrastructure\DTOs\CredentialTier;
 use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
-use Starisian\Sparxstar\Sirus\core\TrustEngine;
+use Starisian\Sparxstar\Infrastructure\Exceptions\ContextBootException;
 
 /**
  * Responsible for assembling a fully resolved SirusContext.
@@ -79,8 +79,8 @@ final class ContextEngine
      * Expired contexts are evicted from the cache and rebuilt transparently so that
      * stale authority / capability data is never served.
      *
-     * @return SirusContext A valid, fully-resolved context.
      * @throws ContextBootException If context cannot be established. MUST NOT be swallowed.
+     * @return SirusContext A valid, fully-resolved context.
      */
     public static function current(): SirusContext
     {
@@ -93,12 +93,12 @@ final class ContextEngine
             $cached = ContextCache::get();
 
             // Evict expired context so downstream code always receives a fresh one.
-            if ($cached !== null && $cached->isExpired()) {
+            if ($cached instanceof SirusContext && $cached->isExpired()) {
                 ContextCache::clear();
                 $cached = null;
             }
 
-            if ($cached !== null) {
+            if ($cached instanceof SirusContext) {
                 return $cached;
             }
 
@@ -124,8 +124,6 @@ final class ContextEngine
      *
      * CLI context is never cached — it is always freshly constructed because CLI
      * requests are typically short-lived and do not share request-level state.
-     *
-     * @return SirusContext
      */
     private static function buildCliContext(): SirusContext
     {
@@ -142,7 +140,8 @@ final class ContextEngine
             authority_id:   'GLOBAL',
             role_set:       [],
             capabilities:   [],
-            trust_level:    TrustLevelPrimitive::from('NORMAL'),
+            credential_tier: CredentialTier::AUTHORITY,
+            trust_level:    TrustLevelPrimitive::NORMAL,
             trust_score:    1.0,
             issued_at:      $issued_at,
             expires:        0,
@@ -159,9 +158,9 @@ final class ContextEngine
      * binding the cookie-based build() path might resolve a different device_id.
      *
      * @param DeviceRecord $device The resolved and persisted device record.
-     * @return SirusContext A fully initialized context seeded with the device.
      *
      * @throws \RuntimeException If the supplied device has an empty device_id.
+     * @return SirusContext A fully initialized context seeded with the device.
      */
     public static function buildFromDevice(DeviceRecord $device): SirusContext
     {
@@ -204,6 +203,7 @@ final class ContextEngine
             authority_id:   null,
             role_set:       [],
             capabilities:   [],
+            credential_tier: CredentialTier::tryFrom($device->trust_level) ?? CredentialTier::ANONYMOUS,
             trust_level:    TrustLevelPrimitive::from($trust_level),
             trust_score:    $trust_score,
             issued_at:      $issued_at,
@@ -264,6 +264,7 @@ final class ContextEngine
             authority_id:   $authority_id,
             role_set:       $role_set,
             capabilities:   $capabilities,
+            credential_tier: CredentialTier::ANONYMOUS,
             trust_level:    TrustLevelPrimitive::from($trust_level),
             trust_score:    $trust_score,
             issued_at:      $issued_at,

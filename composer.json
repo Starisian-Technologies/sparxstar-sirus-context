@@ -6,7 +6,8 @@
   "autoload": {
     "psr-4": {
       "Starisian\\SparxstarUEC\\": "src/",
-      "Starisian\\Sparxstar\\Sirus\\": "src/"
+      "Starisian\\Sparxstar\\Sirus\\": "src/",
+      "Starisian\\Sparxstar\\Infrastructure\\": "src/Infrastructure/"
     }
   },
   "authors": [
@@ -18,7 +19,7 @@
   "minimum-stability": "stable",
   "require": {
     "geoip2/geoip2": "^3.2",
-    "starisian/sparxstar-ouroboros-integrity": "^2.0"
+    "starisian/sparxstar-ouroboros-integrity": "^3.0"
   },
   "suggest": {
     "matomo/device-detector": "^6.4 — Required for server-side UA parsing. Install via: composer require matomo/device-detector. Without this package, SirusDeviceParser returns empty device metadata."

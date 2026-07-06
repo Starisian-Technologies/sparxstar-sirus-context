@@ -33,7 +33,6 @@ final class EnvironmentResolver
     /** @var array<int, string> */
     private const GEO_APPROX_LNG_KEYS = [ 'approx_lng', 'approxLng' ];
 
-    /** @var EnvironmentRecord|null */
     private ?EnvironmentRecord $resolved = null;
 
     /**
@@ -45,7 +44,7 @@ final class EnvironmentResolver
      */
     public function resolve(array $clientSignals = []): EnvironmentRecord
     {
-        if ($clientSignals === [] && $this->resolved !== null) {
+        if ($clientSignals === [] && $this->resolved instanceof EnvironmentRecord) {
             return $this->resolved;
         }
 
@@ -124,7 +123,11 @@ final class EnvironmentResolver
 
         foreach ([ 'country', 'region' ] as $key) {
             $value = $location[$key] ?? '';
-            if (! is_string($value) || $value === '') {
+            if (! is_string($value)) {
+                continue;
+            }
+
+            if ($value === '') {
                 continue;
             }
 
@@ -150,7 +153,7 @@ final class EnvironmentResolver
 
     /**
      * @param array<string, mixed> $signals
-     * @param array<int, string>   $keys
+     * @param array<int, string> $keys
      */
     private function resolveStringSignal(array $signals, array $keys, string $fallback = ''): string
     {
@@ -171,7 +174,7 @@ final class EnvironmentResolver
 
     /**
      * @param array<string, mixed> $signals
-     * @param array<int, string>   $keys
+     * @param array<int, string> $keys
      */
     private function resolveBooleanSignal(array $signals, array $keys, bool $fallback = false): bool
     {
@@ -260,7 +263,7 @@ final class EnvironmentResolver
 
     /**
      * @param array<string, mixed> $geo
-     * @param array<int, string>   $keys
+     * @param array<int, string> $keys
      */
     private function extractGeoValue(array $geo, array $keys): string
     {
@@ -281,7 +284,7 @@ final class EnvironmentResolver
 
     /**
      * @param array<string, mixed> $geo
-     * @param array<int, string>   $keys
+     * @param array<int, string> $keys
      */
     private function extractGeoFloat(array $geo, array $keys): ?float
     {
@@ -322,17 +325,17 @@ final class EnvironmentResolver
             $osInfo      = $dd->getOs();
 
             return [
-                'browser_name'    => isset($browserInfo['name']) && is_string($browserInfo['name']) ? $browserInfo['name'] : 'unknown',
+                'browser_name'    => isset($browserInfo['name'])    && is_string($browserInfo['name']) ? $browserInfo['name'] : 'unknown',
                 'browser_version' => isset($browserInfo['version']) && is_string($browserInfo['version']) ? $browserInfo['version'] : '',
-                'os'              => isset($osInfo['name']) && is_string($osInfo['name']) ? $osInfo['name'] : 'unknown',
-                'os_version'      => isset($osInfo['version']) && is_string($osInfo['version']) ? $osInfo['version'] : '',
-                'device_type'     => $dd->isSmartphone() ? 'smartphone'
-                    : ($dd->isTablet() ? 'tablet'
+                'os'              => isset($osInfo['name'])         && is_string($osInfo['name']) ? $osInfo['name'] : 'unknown',
+                'os_version'      => isset($osInfo['version'])      && is_string($osInfo['version']) ? $osInfo['version'] : '',
+                'device_type'     => (str_contains($ua, '(iPad;') || $dd->isTablet()) ? 'tablet'
+                    : ($dd->isSmartphone() ? 'smartphone'
                     : ($dd->isDesktop() ? 'desktop'
                     : ($dd->isBot() ? 'bot' : 'unknown'))),
-                'device_brand'    => is_string($dd->getBrandName()) ? $dd->getBrandName() : '',
-                'device_model'    => is_string($dd->getModel()) ? $dd->getModel() : '',
-                'is_bot'          => $dd->isBot(),
+                'device_brand' => is_string($dd->getBrandName()) ? $dd->getBrandName() : '',
+                'device_model' => is_string($dd->getModel()) ? $dd->getModel() : '',
+                'is_bot'       => $dd->isBot(),
             ];
         } catch (\Throwable) {
             return $this->resolveWithFallback($ua);
@@ -412,10 +415,11 @@ final class EnvironmentResolver
             }
         }
 
-        if (str_contains($ua, 'Mobile') || str_contains($ua, 'iPhone')) {
-            $resolved['device_type'] = 'smartphone';
-        } elseif (str_contains($ua, 'Tablet') || str_contains($ua, 'iPad')) {
+        if (str_contains($ua, '(iPad;') || str_contains($ua, 'Tablet')) {
+            // iPad UA contains 'Mobile/' suffix, so check tablet tokens first.
             $resolved['device_type'] = 'tablet';
+        } elseif (str_contains($ua, 'Mobile') || str_contains($ua, 'iPhone')) {
+            $resolved['device_type'] = 'smartphone';
         } elseif ($resolved['device_type'] !== 'bot' && $resolved['os'] !== 'unknown') {
             $resolved['device_type'] = 'desktop';
         }
@@ -480,6 +484,6 @@ final class EnvironmentResolver
             return '';
         }
 
-        return sanitize_text_field((string) ($matches[1] ?? ''));
+        return sanitize_text_field($matches[1] ?? '');
     }
 }

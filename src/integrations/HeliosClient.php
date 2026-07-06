@@ -84,8 +84,8 @@ final readonly class HeliosClient implements HeliosClientInterface
         $response = wp_remote_post(
             $url,
             [
-                'headers'     => [ 'Content-Type' => 'application/json' ],
-                'body'        => $body,
+                'headers' => [ 'Content-Type' => 'application/json' ],
+                'body'    => $body,
                 // phpcs:ignore WordPressVIPMinimum.Performance.RemoteRequestTimeout.timeout_timeout -- 5s is acceptable for this synchronous trust-service call on standard (non-VIP) hosting
                 'timeout'     => 5,
                 'redirection' => 0,
@@ -169,7 +169,7 @@ final readonly class HeliosClient implements HeliosClientInterface
      * Extracts the named key from $data as an array<int, string>, dropping non-string elements.
      *
      * @param array<string, mixed> $data Source data array.
-     * @param string               $key  Key to extract.
+     * @param string $key Key to extract.
      * @return array<int, string>
      */
     private function extractStringArray(array $data, string $key): array

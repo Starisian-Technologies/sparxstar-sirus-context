@@ -17,15 +17,15 @@ if (! defined('ABSPATH')) {
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
-use Starisian\Sparxstar\Sirus\core\ClientTelemetry;
+use Starisian\Sparxstar\Sirus\core\StepUpPolicy;
 use Starisian\Sparxstar\Sirus\core\ContextEngine;
+use Starisian\Sparxstar\Sirus\core\PulseGenerator;
+use Starisian\Sparxstar\Sirus\core\ClientTelemetry;
+use Starisian\Sparxstar\Sirus\helpers\IpAnonymizer;
 use Starisian\Sparxstar\Sirus\core\DeviceContinuity;
 use Starisian\Sparxstar\Sirus\core\IdentityResolver;
-use Starisian\Sparxstar\Sirus\core\PulseGenerator;
 use Starisian\Sparxstar\Sirus\core\ResourceSensitivity;
-use Starisian\Sparxstar\Sirus\core\StepUpPolicy;
 use Starisian\Sparxstar\Sirus\core\NetworkContextBroker;
-use Starisian\Sparxstar\Sirus\helpers\IpAnonymizer;
 use Starisian\Sparxstar\Sirus\services\SirusDeviceParser;
 
 /**
@@ -340,7 +340,7 @@ final class SirusRESTController
             return new WP_REST_Response($context->toPortablePayload(), 200);
         }
 
-        $context = ContextEngine::current();
+        $context         = ContextEngine::current();
         $device_mismatch = $this->validateRequestedDevice($request, $context->device_id);
         if ($device_mismatch instanceof WP_Error) {
             return $device_mismatch;
@@ -390,8 +390,8 @@ final class SirusRESTController
             );
         }
 
-        $pulse       = $this->pulse_generator->generate($context);
-        $step_up     = (new StepUpPolicy())->requiresStepUp($pulse, $sensitivity);
+        $pulse   = $this->pulse_generator->generate($context);
+        $step_up = (new StepUpPolicy())->requiresStepUp($pulse, $sensitivity);
 
         $trust_level_value = $pulse->trust_level instanceof \BackedEnum
             ? $pulse->trust_level->value
@@ -434,7 +434,7 @@ final class SirusRESTController
      */
     public function handle_get_identity(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
-        $context = ContextEngine::current();
+        $context         = ContextEngine::current();
         $device_mismatch = $this->validateRequestedDevice($request, $context->device_id);
         if ($device_mismatch instanceof WP_Error) {
             return $device_mismatch;
@@ -451,7 +451,7 @@ final class SirusRESTController
      */
     public function handle_get_session(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
-        $context = ContextEngine::current();
+        $context         = ContextEngine::current();
         $device_mismatch = $this->validateRequestedDevice($request, $context->device_id);
         if ($device_mismatch instanceof WP_Error) {
             return $device_mismatch;
@@ -600,15 +600,15 @@ final class SirusRESTController
         $device_info = $this->device_parser->parse($user_agent);
 
         $fallbacks = [
-            'browser_name'   => $device_info['browser'],
+            'browser_name'    => $device_info['browser'],
             'browser_version' => $device_info['browser_version'],
-            'os'             => $device_info['os'],
-            'os_version'     => $device_info['os_version'],
-            'device_type'    => $device_info['device_type'],
-            'device_brand'   => $device_info['brand'],
-            'device_model'   => $device_info['model'],
-            'is_bot'         => $device_info['is_bot'] ? '1' : '0',
-            'ip_address'     => IpAnonymizer::anonymize($raw_ip),
+            'os'              => $device_info['os'],
+            'os_version'      => $device_info['os_version'],
+            'device_type'     => $device_info['device_type'],
+            'device_brand'    => $device_info['brand'],
+            'device_model'    => $device_info['model'],
+            'is_bot'          => $device_info['is_bot'] ? '1' : '0',
+            'ip_address'      => IpAnonymizer::anonymize($raw_ip),
         ];
 
         foreach ($fallbacks as $key => $value) {
@@ -651,7 +651,7 @@ final class SirusRESTController
             '1', 'LEVEL_1' => ResourceSensitivity::LEVEL_1,
             '2', 'LEVEL_2' => ResourceSensitivity::LEVEL_2,
             '3', 'LEVEL_3' => ResourceSensitivity::LEVEL_3,
-            default => null,
+            default        => null,
         };
     }
 

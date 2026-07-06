@@ -1,10 +1,52 @@
-SPARXSTAR Sirus Context --- Agent Instructions
+# Agent Instructions
+
+## Platform governance
+
+Read `.github/instructions/governance/` for compiled ADRs, invariants, and open questions.
+These are the platform rules. Do not assume rules not in the governance reference.
+
+Platform repos (read these for full context when accessible):
+- Decisions: https://github.com/Starisian-Technologies/sparxstar-architecture-governance-registry
+- Specs: https://github.com/Starisian-Technologies/sparxstar-product-specification-registry
+- Standards: https://github.com/Starisian-Technologies/starisian-technologies-coding-standards
+- Enforcement: https://github.com/Starisian-Technologies/sparxstar-code-conformance
+- Contracts: https://github.com/Starisian-Technologies/sparxstar-contracts-registry
+- PR Review: https://github.com/Starisian-Technologies/sparxstar-claude-pr-review
+
+If no spec exists for what you're asked to build — STOP implementation.
+Draft or request the missing spec first. Do not invent product behavior in code.
+
+### Authority tiers for required-gate failures
+
+A required CI gate failure may be classified as out-of-scope only when a ratified ADR-### or
+OQ-### in the architecture governance registry explicitly names that failure and grants the
+deferral. Two requirements must both be met:
+
+1. The cited number must exist in the governance registry and be ratified by the owner.
+2. The cited number's actual subject in the registry must match the failure being deferred.
+   Citing a real OQ number whose registry content concerns a different topic is not authority
+   — it is a false citation, which is worse than citing nothing.
+
+Working documents in this repo (TRACKER.md, GATE-AUDIT-PAM003.md, sprint docs, this file)
+are not deferral authority. An entry there is a request for a deferral, never the deferral
+itself. Agents can write into those documents; the owner ratifies in the governance registry.
+
+If you cannot cite a ratified ADR or OQ whose subject matches the failure: report the failure
+verbatim, state the gate is "failing and unratified," stop, and ask the owner for a ruling.
+Do not label a failing gate "no action needed," "pre-existing," or "pending OQ-###" unless
+the OQ number is real, ratified, and on-subject.
+
+---
+
+## Repo-specific rules
+
+SPARXSTAR Sirus Context — Agent Instructions
 ============================================
 
 Who reads this file
 -------------------
 
-AI agents operating in this repository. Read this alongside `copilot-instructions.md`.
+AI agents operating in this repository. Read this alongside `.github/copilot-instructions.md`.
 
 Platform position
 -----------------
