@@ -14,11 +14,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-<<<<<<< HEAD
-use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
-=======
 use Starisian\Sparxstar\Infrastructure\DTOs\CredentialTier;
->>>>>>> origin/main
 
 /**
  * Maps the resolved trust level and WordPress capabilities to a named authority type.
@@ -53,11 +49,7 @@ final class AuthorityResolver
      */
     public function resolve(SirusContext $context): ?string
     {
-<<<<<<< HEAD
-        if ($context->trust_level !== TrustLevelPrimitive::NORMAL) {
-=======
         if ($context->credential_tier !== CredentialTier::AUTHORITY) {
->>>>>>> origin/main
             return null;
         }
 

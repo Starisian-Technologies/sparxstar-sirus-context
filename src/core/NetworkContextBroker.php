@@ -134,11 +134,7 @@ final class NetworkContextBroker
                 return null;
             }
         } else {
-<<<<<<< HEAD
-            $trust_level = TrustLevelPrimitive::from('LOCKED');
-=======
             $trust_level = TrustLevelPrimitive::STEP_UP_REQUIRED;
->>>>>>> origin/main
         }
 
         $credential_tier = CredentialTier::tryFrom((string) ($data['ct'] ?? '')) ?? CredentialTier::ANONYMOUS;

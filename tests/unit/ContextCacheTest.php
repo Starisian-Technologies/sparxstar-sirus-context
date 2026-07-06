@@ -45,12 +45,8 @@ final class ContextCacheTest extends TestCase
             authority_id:   null,
             role_set:       [],
             capabilities:   [],
-<<<<<<< HEAD
-            trust_level:    TrustLevelPrimitive::from('NORMAL'),
-=======
             credential_tier: CredentialTier::ANONYMOUS,
             trust_level:    TrustLevelPrimitive::STEP_UP_REQUIRED,
->>>>>>> origin/main
             trust_score:    1.0,
             issued_at:      time(),
             expires:        time() + 300,

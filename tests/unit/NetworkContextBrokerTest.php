@@ -44,12 +44,8 @@ final class NetworkContextBrokerTest extends TestCase
             authority_id:   'sparxstar',
             role_set:       [],
             capabilities:   ['read', 'publish'],
-<<<<<<< HEAD
-            trust_level:    TrustLevelPrimitive::from('NORMAL'),
-=======
             credential_tier: CredentialTier::USER,
             trust_level:    TrustLevelPrimitive::NORMAL,
->>>>>>> origin/main
             trust_score:    1.0,
             issued_at:      time(),
             expires:        time() + 300,
@@ -119,12 +115,8 @@ final class NetworkContextBrokerTest extends TestCase
             authority_id:   null,
             role_set:       [],
             capabilities:   [],
-<<<<<<< HEAD
-            trust_level:    TrustLevelPrimitive::from('NORMAL'),
-=======
             credential_tier: CredentialTier::USER,
             trust_level:    TrustLevelPrimitive::NORMAL,
->>>>>>> origin/main
             trust_score:    1.0,
             issued_at:      time(),
             expires:        time() + 300,
@@ -277,10 +269,7 @@ final class NetworkContextBrokerTest extends TestCase
             'auth' => null,
             'caps' => [],
             'ts'   => 0.85,
-<<<<<<< HEAD
-=======
             'ct'   => 'user',
->>>>>>> origin/main
             'tl'   => 'NORMAL',
             'iat'  => time(),
             'exp'  => time() + 300,
@@ -310,10 +299,7 @@ final class NetworkContextBrokerTest extends TestCase
             'auth' => null,
             'caps' => [],
             'ts'   => 0.85,
-<<<<<<< HEAD
-=======
             'ct'   => 'user',
->>>>>>> origin/main
             'tl'   => 'NORMAL',
             'iat'  => time(),
             'exp'  => time() + 300,
@@ -357,12 +343,8 @@ final class NetworkContextBrokerTest extends TestCase
         $result = $this->broker->verifyToken($payload_b64 . '.' . $sig_b64, self::TEST_SECRET);
 
         $this->assertNotNull($result);
-<<<<<<< HEAD
-        $this->assertSame('LOCKED', $result->trust_level->value);
-=======
         $this->assertSame('anonymous', $result->credential_tier->value);
         $this->assertSame(TrustLevelPrimitive::STEP_UP_REQUIRED, $result->trust_level);
->>>>>>> origin/main
         $this->assertLessThanOrEqual(0.50, $result->trust_score);
     }
 

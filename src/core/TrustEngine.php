@@ -69,11 +69,7 @@ final class TrustEngine
     /**
      * Trust level returned when trust_score = 0.0 (fully untrusted).
      */
-<<<<<<< HEAD
-    public const LEVEL_CRITICAL = 'LOCKED';
-=======
     public const LEVEL_CRITICAL = 'STEP_UP_REQUIRED';
->>>>>>> origin/main
 
     /**
      * Computes the trust score from a signal map and returns both score and level.

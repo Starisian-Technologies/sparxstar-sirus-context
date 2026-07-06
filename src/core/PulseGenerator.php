@@ -139,13 +139,8 @@ final class PulseGenerator
 
         if ($context->trust_level === TrustLevelPrimitive::STEP_UP_REQUIRED) {
             $flags[] = 'step_up_required';
-<<<<<<< HEAD
-        } elseif ($context->trust_level === TrustLevelPrimitive::LOCKED) {
-            $flags[] = 'trust_locked';
-=======
             $flags[] = 'trust_level_elevated';
             $flags[] = 'trust_level_critical';
->>>>>>> origin/main
         }
 
         if ($context->trust_score < TrustEngine::NORMAL_THRESHOLD) {

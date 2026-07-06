@@ -415,12 +415,8 @@ final class EnvironmentResolver
             }
         }
 
-<<<<<<< HEAD
-        if (str_contains($ua, 'iPad') || str_contains($ua, 'Tablet')) {
-=======
         if (str_contains($ua, '(iPad;') || str_contains($ua, 'Tablet')) {
             // iPad UA contains 'Mobile/' suffix, so check tablet tokens first.
->>>>>>> origin/main
             $resolved['device_type'] = 'tablet';
         } elseif (str_contains($ua, 'Mobile') || str_contains($ua, 'iPhone')) {
             $resolved['device_type'] = 'smartphone';
