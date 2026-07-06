@@ -301,6 +301,7 @@ Achieved in S-07. `tests/integration/RestApiTest.php` covers all six endpoints.
 - **OQ-005** — S-03 UEC legacy removal gated on 30-day production stabilization window post S-01 deployment; 12 legacy `SparxstarUEC*` files remain in codebase
 - **OQ-006** — Engineering Standards §6.2 citation in GATE-AUDIT-PAM003 references "GraphQL Resolver Rules" — citation needs correction or the actual PSR-4 naming standard document needs to be supplied
 - **[PENDING OQ NUMBER FROM GOVERNANCE REGISTRY]** — `TrustLevelPrimitive` enum drift: Sirus calls `TrustLevelPrimitive::ELEVATED` (in `PulseGenerator::deriveBehaviorFlags()`), `TrustLevelPrimitive::from('ELEVATED')` (via `ContextEngine` passing Helios-supplied strings), and `TrustLevelPrimitive::from('anonymous')` (in `NetworkContextBroker::verifyToken()`), but CI reports `ValueError` for both backing values at Ouroboros v2.0.0 commit `3529cb67`. This is a live-path defect. Awaiting owner to assign a ratified OQ number from the governance registry and determine resolution path. Gate is failing and unratified.
+- **OQ-009** — `CredentialTier` not exported by `sparxstar-ouroboros-integrity` v3.0.0 (commit `b7edd0d5`). Provisional definition lives at `src/Infrastructure/DTOs/CredentialTier.php` under the shared `Starisian\Sparxstar\Infrastructure\DTOs` namespace. Remove provisional file and the `"Starisian\\Sparxstar\\Infrastructure\\"` autoload entry in `composer.json` once Ouroboros publishes the type. Blocking 108 CI errors on `claude/tender-babbage-y2p8us` until provisional fix was applied 2026-07-06.
 
 ---
 
