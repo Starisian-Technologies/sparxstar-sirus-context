@@ -6,7 +6,8 @@
   "autoload": {
     "psr-4": {
       "Starisian\\SparxstarUEC\\": "src/",
-      "Starisian\\Sparxstar\\Sirus\\": "src/"
+      "Starisian\\Sparxstar\\Sirus\\": "src/",
+      "Starisian\\Sparxstar\\Infrastructure\\": "src/Infrastructure/"
     }
   },
   "authors": [
