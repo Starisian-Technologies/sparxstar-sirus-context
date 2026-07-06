@@ -46,7 +46,7 @@ if (! defined('SPX_ENV_CHECK_PLUGIN_PATH')) {
  * Current plugin version string.
  */
 if (! defined('SPX_ENV_CHECK_VERSION')) {
-    define('SPX_ENV_CHECK_VERSION', '0.5.0');
+    define('SPX_ENV_CHECK_VERSION', '0.9.6');
 }
 
 /**
@@ -139,11 +139,8 @@ add_action(
     'plugins_loaded',
     function () {
         try {
-            // Skip initialization for background/automated WordPress requests
-            if (
-                (defined('DOING_CRON') && DOING_CRON) ||
-                (defined('DOING_AJAX') && DOING_AJAX)
-            ) {
+            // Skip initialization for WP-Cron requests
+            if (defined('DOING_CRON') && DOING_CRON) {
                 return;
             }
 
