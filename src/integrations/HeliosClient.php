@@ -111,7 +111,7 @@ final readonly class HeliosClient implements HeliosClientInterface
         // Normalise the expected keys.
         $result = [
             'identity_id'           => isset($data['identity_id']) ? (string) $data['identity_id'] : null,
-            'trust_level'           => isset($data['trust_level']) ? (string) $data['trust_level'] : 'anonymous',
+            'trust_level'           => isset($data['trust_level']) ? (string) $data['trust_level'] : 'NORMAL',
             'verification_status'   => isset($data['verification_status']) ? (string) $data['verification_status'] : 'unverified',
             'authority_memberships' => isset($data['authority_memberships']) && is_array($data['authority_memberships'])
                 ? $data['authority_memberships']

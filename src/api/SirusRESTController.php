@@ -393,9 +393,7 @@ final class SirusRESTController
         $pulse   = $this->pulse_generator->generate($context);
         $step_up = (new StepUpPolicy())->requiresStepUp($pulse, $sensitivity);
 
-        $trust_level_value = $pulse->trust_level instanceof \BackedEnum
-            ? $pulse->trust_level->value
-            : (string) $pulse->trust_level;
+        $trust_level_value = $pulse->trust_level->value;
 
         // Normalize pulse vars to scalars before JSON encoding for the cookie.
         $pulse_vars = get_object_vars($pulse);

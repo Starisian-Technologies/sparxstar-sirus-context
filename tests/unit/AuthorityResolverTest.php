@@ -31,7 +31,7 @@ final class AuthorityResolverTest extends SirusTestCase
 
     // ── Resolution with capabilities ──────────────────────────────────────────
 
-    public function testManageNetworkWinsForAuthorityContext(): void
+    public function testManageNetworkWinsForNormalContext(): void
     {
         $GLOBALS['__current_user_id']              = 99;
         $GLOBALS['__user_can_map'][99]['manage_network'] = true;
@@ -41,7 +41,7 @@ final class AuthorityResolverTest extends SirusTestCase
 
         $this->assertSame(
             AuthorityResolver::SPARXSTAR_NETWORK,
-            $resolver->resolve($this->makeContext('authority'))
+            $resolver->resolve($this->makeContext('NORMAL'))
         );
     }
 
@@ -55,67 +55,51 @@ final class AuthorityResolverTest extends SirusTestCase
 
         $this->assertSame(
             AuthorityResolver::STARISIAN,
-            $resolver->resolve($this->makeContext('authority'))
+            $resolver->resolve($this->makeContext('NORMAL'))
         );
     }
 
     /**
-     * Capabilities are irrelevant for non-authority trust levels.
+     * Capabilities are irrelevant for non-NORMAL trust levels.
      */
-    public function testNonAuthorityTrustLevelReturnsNullEvenWithCapabilities(): void
+    public function testStepUpRequiredTrustLevelReturnsNullEvenWithCapabilities(): void
     {
         $GLOBALS['__current_user_id']              = 42;
         $GLOBALS['__user_can_map'][42]['manage_network'] = true;
 
         $resolver = new AuthorityResolver();
 
-        $this->assertNull($resolver->resolve($this->makeContext('user')));
+        $this->assertNull($resolver->resolve($this->makeContext('STEP_UP_REQUIRED')));
     }
 
-    // ── Non-authority trust levels always return null ─────────────────────────
+    // ── Non-NORMAL trust levels always return null ────────────────────────────
 
     /**
-     * anonymous trust level never resolves to an authority.
+     * LOCKED trust level never resolves to an authority.
      */
-    public function testAnonymousTrustLevelReturnsNull(): void
+    public function testLockedTrustLevelReturnsNull(): void
     {
-        $this->assertNull($this->resolver->resolve($this->makeContext('anonymous')));
+        $this->assertNull($this->resolver->resolve($this->makeContext('LOCKED')));
     }
 
     /**
-     * device trust level never resolves to an authority.
+     * STEP_UP_REQUIRED trust level never resolves to an authority.
      */
-    public function testDeviceTrustLevelReturnsNull(): void
+    public function testStepUpRequiredTrustLevelReturnsNull(): void
     {
-        $this->assertNull($this->resolver->resolve($this->makeContext('device')));
+        $this->assertNull($this->resolver->resolve($this->makeContext('STEP_UP_REQUIRED')));
     }
 
-    /**
-     * contributor trust level never resolves to an authority.
-     */
-    public function testContributorTrustLevelReturnsNull(): void
-    {
-        $this->assertNull($this->resolver->resolve($this->makeContext('contributor')));
-    }
+    // ── NORMAL trust level + user_id = 0 ─────────────────────────────────────
 
     /**
-     * user trust level never resolves to an authority.
-     */
-    public function testUserTrustLevelReturnsNull(): void
-    {
-        $this->assertNull($this->resolver->resolve($this->makeContext('user')));
-    }
-
-    // ── authority trust level + user_id = 0 ──────────────────────────────────
-
-    /**
-     * Even with authority trust level, if get_current_user_id() returns 0
+     * Even with NORMAL trust level, if get_current_user_id() returns 0
      * (no logged-in user), the resolver must return null.
      */
-    public function testAuthorityTrustLevelWithNoLoggedInUserReturnsNull(): void
+    public function testNormalTrustLevelWithNoLoggedInUserReturnsNull(): void
     {
         // __current_user_id is 0 from setUp — resolver must short-circuit.
-        $this->assertNull($this->resolver->resolve($this->makeContext('authority')));
+        $this->assertNull($this->resolver->resolve($this->makeContext('NORMAL')));
     }
 
     // ── Constant values are stable ────────────────────────────────────────────

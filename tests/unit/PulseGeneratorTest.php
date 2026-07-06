@@ -283,7 +283,7 @@ final class PulseGeneratorTest extends SirusTestCase
 
         $this->assertIsArray($pulse->behavior_flags);
         $this->assertNotSame([], $pulse->behavior_flags);
-        $this->assertContains('trust_level_elevated', $pulse->behavior_flags);
+        $this->assertContains('step_up_required', $pulse->behavior_flags);
         $this->assertContains('low_trust_score', $pulse->behavior_flags);
     }
 
