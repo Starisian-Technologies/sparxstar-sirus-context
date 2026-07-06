@@ -270,8 +270,8 @@ final readonly class SirusMitigationCoordinator
     {
         return match ($mode) {
             'degraded', 'safe_mode' => 'degraded',
-            'lightweight', 'lite' => 'lite',
-            default => 'normal',
+            'lightweight', 'lite'   => 'lite',
+            default                 => 'normal',
         };
     }
 

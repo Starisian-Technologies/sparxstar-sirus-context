@@ -18,6 +18,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
+use Starisian\Sparxstar\Infrastructure\DTOs\CredentialTier;
 use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
 
 /**
@@ -41,8 +42,8 @@ final class NetworkContextBroker
      * Issues a signed base64url-encoded context token.
      *
      * @param SirusContext $context The context to encode into the token.
-     * @param string       $secret  HMAC-SHA256 signing secret. Must not be empty.
-     *                              In WordPress contexts pass `wp_salt('auth')`.
+     * @param string $secret HMAC-SHA256 signing secret. Must not be empty.
+     *                       In WordPress contexts pass `wp_salt('auth')`.
      * @return string The signed token string.
      */
     public function issueToken(SirusContext $context, string $secret): string
@@ -56,10 +57,11 @@ final class NetworkContextBroker
         $payload['nbf'] = $now;
         $payload['exp'] = $now + self::TOKEN_TTL;
 
-        $json        = json_encode($payload);
+        $json = json_encode($payload);
         if ($json === false) {
             throw new \RuntimeException('[Sirus NetworkContextBroker] Failed to encode token payload as JSON.');
         }
+
         $payload_b64 = $this->base64url_encode($json);
         $signature   = hash_hmac('sha256', $payload_b64, $secret, true);
         $sig_b64     = $this->base64url_encode($signature);
@@ -70,7 +72,7 @@ final class NetworkContextBroker
     /**
      * Verifies a signed token and returns a reconstructed SirusContext, or null on failure.
      *
-     * @param string $token  The token string to verify.
+     * @param string $token The token string to verify.
      * @param string $secret HMAC-SHA256 signing secret. Must match the secret used in issueToken().
      *                       In WordPress contexts pass `wp_salt('auth')`.
      * @return SirusContext|null The reconstructed context, or null if invalid/expired.
@@ -123,21 +125,27 @@ final class NetworkContextBroker
             return null;
         }
 
-        // Least-privilege fallback: when tl/ts are absent (pre-v2 token), default to
-        // 'anonymous' rather than reconstructing a higher-trust context from partial data.
-        // If tl is present but unmappable, fail closed.
+        // Two-axis fail-closed defaults: absent tl → STEP_UP_REQUIRED (device trust axis),
+        // absent ct → ANONYMOUS (credential/identity axis). If tl is present but unmappable,
+        // fail closed rather than silently promoting trust.
         if (isset($data['tl'])) {
             $trust_level = TrustLevelPrimitive::tryFrom((string) $data['tl']);
             if ($trust_level === null) {
                 return null;
             }
         } else {
+<<<<<<< HEAD
             $trust_level = TrustLevelPrimitive::from('LOCKED');
+=======
+            $trust_level = TrustLevelPrimitive::STEP_UP_REQUIRED;
+>>>>>>> origin/main
         }
+
+        $credential_tier = CredentialTier::tryFrom((string) ($data['ct'] ?? '')) ?? CredentialTier::ANONYMOUS;
 
         $trust_score = max(0.0, min(1.0, isset($data['ts'])
             ? (float) $data['ts']
-            : self::trustScoreFromLevel($trust_level->value)));
+            : $this->trustScoreFromLevel($trust_level->value)));
 
         return new SirusContext(
             context_id:     $context_id,
@@ -152,6 +160,7 @@ final class NetworkContextBroker
             capabilities:   isset($data['caps']) && is_array($data['caps'])
                                 ? array_map(strval(...), $data['caps'])
                                 : [],
+            credential_tier: $credential_tier,
             trust_level:    $trust_level,
             trust_score:    $trust_score,
             issued_at:      (int) ($data['iat'] ?? 0),
@@ -190,16 +199,16 @@ final class NetworkContextBroker
      * @param string $trust_level Trust level string from the portable payload.
      * @return float Derived trust score in [0.0, 1.0].
      */
-    private static function trustScoreFromLevel(string $trust_level): float
+    private function trustScoreFromLevel(string $trust_level): float
     {
         return match (strtolower($trust_level)) {
-            'elder'       => 0.95,
-            'contributor' => 0.90,
+            'elder'          => 0.95,
+            'contributor'    => 0.90,
             'user', 'normal' => 0.85,
-            'device'      => 0.70,
-            'elevated'    => 0.60,
-            'critical'    => 0.10,
-            default       => 0.50,
+            'device'         => 0.70,
+            'elevated'       => 0.60,
+            'critical'       => 0.10,
+            default          => 0.50,
         };
     }
 }

@@ -1,8 +1,8 @@
-# SPARXSTAR Sirus — Implementation Tracker
+# SPARXSTAR Sirius — Implementation Tracker
 
 > **Scoreboard:** Does the implementation fully represent the spec layer it claims to align to?
 
-This document tracks every component defined in **Sirus Context Engine Spec v3.0** against its build state, assigns it to a sprint, and surfaces what work remains. Update this file as sprints close.
+This document tracks every component defined in **Sirius Context Engine Spec v3.0** against its build state, assigns it to a sprint, and surfaces what work remains. Update this file as sprints close.
 
 ---
 

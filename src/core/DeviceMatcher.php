@@ -91,7 +91,7 @@ final class DeviceMatcher
      * For opaque hashes, only exact equality is tested. Returns 1.0 for identical hashes,
      * 0.0 for any difference. When component-level scoring is needed, use scoreComponents().
      *
-     * @param string $stored  The stored fingerprint hash.
+     * @param string $stored The stored fingerprint hash.
      * @param string $current The candidate fingerprint hash from the current request.
      * @return float 1.0 if identical, 0.0 otherwise.
      */
@@ -111,13 +111,13 @@ final class DeviceMatcher
      * value to the total score. Components absent from either map are skipped (neutral).
      * The result is normalised to [0.0, 1.0] against the sum of present weights.
      *
-     * @param array<string, mixed> $stored  Component map from the device record.
+     * @param array<string, mixed> $stored Component map from the device record.
      * @param array<string, mixed> $current Component map from the current request.
      * @return float Similarity score in [0.0, 1.0].
      */
     public function scoreComponents(array $stored, array $current): float
     {
-        if (empty($stored) || empty($current)) {
+        if ($stored === [] || $current === []) {
             return 0.0;
         }
 
@@ -125,9 +125,14 @@ final class DeviceMatcher
         $total_weight   = 0.0;
 
         foreach (self::COMPONENT_WEIGHTS as $key => $weight) {
-            if (! array_key_exists($key, $stored) || ! array_key_exists($key, $current)) {
+            if (! array_key_exists($key, $stored)) {
                 continue;
             }
+
+            if (! array_key_exists($key, $current)) {
+                continue;
+            }
+
             $total_weight += $weight;
             if ($stored[$key] === $current[$key]) {
                 $matched_weight += $weight;

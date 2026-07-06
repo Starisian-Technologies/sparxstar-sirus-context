@@ -16,11 +16,11 @@ if (! defined('ABSPATH')) {
 
 use Starisian\Sparxstar\Sirus\core\ContextEngine;
 use Starisian\Sparxstar\Sirus\core\SirusDatabase;
+use Starisian\Sparxstar\Sirus\core\PulseGenerator;
 use Starisian\Sparxstar\Sirus\core\ClientTelemetry;
 use Starisian\Sparxstar\Sirus\core\DeviceContinuity;
 use Starisian\Sparxstar\Sirus\core\DeviceRepository;
 use Starisian\Sparxstar\Sirus\core\IdentityResolver;
-use Starisian\Sparxstar\Sirus\core\PulseGenerator;
 use Starisian\Sparxstar\Sirus\helpers\SirusRateLimit;
 use Starisian\Sparxstar\Sirus\api\SirusRESTController;
 use Starisian\Sparxstar\Sirus\admin\SirusDashboardPage;
@@ -29,6 +29,8 @@ use Starisian\Sparxstar\Sirus\core\NetworkContextBroker;
 use Starisian\Sparxstar\Sirus\core\SirusEventAggregator;
 use Starisian\Sparxstar\Sirus\core\SirusEventRepository;
 use Starisian\Sparxstar\Sirus\helpers\SirusImpactScorer;
+use Starisian\Sparxstar\Sirus\integrations\HeliosClient;
+use Starisian\Sparxstar\Sirus\services\SirusDeviceParser;
 use Starisian\Sparxstar\Sirus\core\SirusRuleHitRepository;
 use Starisian\Sparxstar\Sirus\helpers\SirusPriorityScorer;
 use Starisian\Sparxstar\Sirus\api\SirusDirectiveController;
@@ -36,9 +38,7 @@ use Starisian\Sparxstar\Sirus\helpers\SirusSignalEvaluator;
 use Starisian\Sparxstar\Sirus\admin\SirusNetworkSettingsPage;
 use Starisian\Sparxstar\Sirus\helpers\SirusMitigationRuleEngine;
 use Starisian\Sparxstar\Sirus\services\SirusMitigationCoordinator;
-use Starisian\Sparxstar\Sirus\services\SirusDeviceParser;
 use Starisian\Sparxstar\Sirus\core\SirusMitigationActionRepository;
-use Starisian\Sparxstar\Sirus\integrations\HeliosClient;
 
 /**
  * Singleton orchestrator for the Sirus Context Engine plugin.

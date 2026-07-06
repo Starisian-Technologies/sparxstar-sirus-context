@@ -28,8 +28,8 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
 use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
+use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
 
 /**
  * Evaluates whether a step-up authentication challenge should be issued for
@@ -64,7 +64,7 @@ final class StepUpPolicy
      *   3. ResourceSensitivity::LEVEL_2     → require when trust_score < threshold
      *   4. ResourceSensitivity::LEVEL_1     → never require
      *
-     * @param ContextPulse        $pulse The signed context pulse carrying trust state.
+     * @param ContextPulse $pulse The signed context pulse carrying trust state.
      * @param ResourceSensitivity $level The resource sensitivity level.
      * @return bool True if step-up is required.
      */
@@ -95,7 +95,7 @@ final class StepUpPolicy
      * Callers may use this to communicate the challenge level to Helios.
      * A null return means no challenge is needed — Helios should not prompt for step-up.
      *
-     * @param ContextPulse        $pulse The signed context pulse carrying trust state.
+     * @param ContextPulse $pulse The signed context pulse carrying trust state.
      * @param ResourceSensitivity $level The resource sensitivity level.
      * @return ResourceSensitivity|null The required step-up level, or null (no step-up needed).
      */

@@ -27,11 +27,11 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-use Starisian\Sparxstar\Infrastructure\Constants\Platform;
 use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
+use Starisian\Sparxstar\Infrastructure\Constants\Platform;
+use Starisian\Sparxstar\Sirus\services\EnvironmentResolver;
 use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
 use Starisian\Sparxstar\Infrastructure\Utils\ContextPulseSigningMaterial;
-use Starisian\Sparxstar\Sirus\services\EnvironmentResolver;
 
 /**
  * Issues signed ContextPulse instances from a resolved SirusContext.
@@ -57,11 +57,11 @@ final class PulseGenerator
     /**
      * Generates a signed ContextPulse from the given SirusContext.
      *
-     * @param SirusContext $context    The fully resolved context to pulse.
-     * @param int          $now        Unix timestamp to use as issued_at. Pass 0 (default) to use time().
-     * @param int          $ttlSeconds Pulse TTL in seconds. Defaults to PULSE_TTL (60).
-     * @return ContextPulse The signed pulse, ready for transmission to Helios.
+     * @param SirusContext $context The fully resolved context to pulse.
+     * @param int $now Unix timestamp to use as issued_at. Pass 0 (default) to use time().
+     * @param int $ttlSeconds Pulse TTL in seconds. Defaults to PULSE_TTL (60).
      * @throws \RuntimeException If SIRUS_PULSE_SIGNING_KEY is not defined or too short.
+     * @return ContextPulse The signed pulse, ready for transmission to Helios.
      */
     public function generate(SirusContext $context, int $now = 0, int $ttlSeconds = self::PULSE_TTL): ContextPulse
     {
@@ -75,13 +75,13 @@ final class PulseGenerator
 
         $key = $this->resolveSigningKey();
 
-        $pulse_id  = wp_generate_uuid4();
-        $issued_at = $now > 0 ? $now : time();
-        $expires   = $issued_at + $ttlSeconds;
-        $behavior_flags = $this->deriveBehaviorFlags($context);
+        $pulse_id               = wp_generate_uuid4();
+        $issued_at              = $now > 0 ? $now : time();
+        $expires                = $issued_at + $ttlSeconds;
+        $behavior_flags         = $this->deriveBehaviorFlags($context);
         $geo_zone               = $this->environmentResolver->getGeoZone();
         $network_effective_type = $this->environmentResolver->getNetworkEffectiveType();
-        $session_duration = $this->resolveSessionDuration($context->issued_at, $issued_at);
+        $session_duration       = $this->resolveSessionDuration($context->issued_at, $issued_at);
 
         // Build a provisional pulse (sig is the empty string — excluded from the signing payload).
         // ContextPulseSigningMaterial::build() is the canonical source for the format;
@@ -139,8 +139,13 @@ final class PulseGenerator
 
         if ($context->trust_level === TrustLevelPrimitive::STEP_UP_REQUIRED) {
             $flags[] = 'step_up_required';
+<<<<<<< HEAD
         } elseif ($context->trust_level === TrustLevelPrimitive::LOCKED) {
             $flags[] = 'trust_locked';
+=======
+            $flags[] = 'trust_level_elevated';
+            $flags[] = 'trust_level_critical';
+>>>>>>> origin/main
         }
 
         if ($context->trust_score < TrustEngine::NORMAL_THRESHOLD) {
@@ -156,14 +161,14 @@ final class PulseGenerator
     private function resolveSessionDuration(int $session_start, int $issued_at): int
     {
         $duration = $issued_at - $session_start;
-        return $duration > 0 ? $duration : 0;
+        return max($duration, 0);
     }
 
     /**
      * Resolves the HMAC signing key from the SIRUS_PULSE_SIGNING_KEY constant.
      *
-     * @return string The signing key.
      * @throws \RuntimeException If the constant is missing or the key is too short.
+     * @return string The signing key.
      */
     private function resolveSigningKey(): string
     {

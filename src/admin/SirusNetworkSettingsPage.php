@@ -319,9 +319,9 @@ final class SirusNetworkSettingsPage
                                 <td>
                                     <?php
                                     $blog_details = get_blog_details($blog_id);
-                                    $blog_name            = ($blog_details && isset($blog_details->blogname)) ? (string) $blog_details->blogname : (string) $blog_id;
-                                    $blog_url             = ($blog_details && isset($blog_details->siteurl)) ? (string) $blog_details->siteurl : '';
-                                    ?>
+                            $blog_name            = ($blog_details && isset($blog_details->blogname)) ? (string) $blog_details->blogname : (string) $blog_id;
+                            $blog_url             = ($blog_details && isset($blog_details->siteurl)) ? (string) $blog_details->siteurl : '';
+                            ?>
                                     <strong><?php echo esc_html($blog_name); ?></strong>
                                     <br><small><?php echo esc_html($blog_url); ?></small>
                                 </td>

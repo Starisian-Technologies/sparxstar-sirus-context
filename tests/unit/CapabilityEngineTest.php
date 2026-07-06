@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 
+use Starisian\Sparxstar\Infrastructure\DTOs\CredentialTier;
 use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
 use Starisian\Sparxstar\Sirus\core\CapabilityEngine;
 use Starisian\Sparxstar\Sirus\core\SirusContext;
@@ -34,7 +35,7 @@ final class CapabilityEngineTest extends SirusTestCase
 
     // ── Helper ────────────────────────────────────────────────────────────────
 
-    private function makeContext(string $trust_level): SirusContext
+    private function makeContext(string $credential_tier): SirusContext
     {
         return new SirusContext(
             context_id:     'ctx-cap-test',
@@ -47,7 +48,8 @@ final class CapabilityEngineTest extends SirusTestCase
             authority_id:   null,
             role_set:       [],
             capabilities:   [],
-            trust_level:    TrustLevelPrimitive::from($trust_level),
+            credential_tier: CredentialTier::from($credential_tier),
+            trust_level:    TrustLevelPrimitive::NORMAL,
             trust_score:    1.0,
             issued_at:      1_700_000_000,
             expires:        1_700_000_300,

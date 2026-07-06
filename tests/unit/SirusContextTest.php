@@ -11,6 +11,7 @@ declare(strict_types=1);
 namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use Starisian\Sparxstar\Infrastructure\DTOs\CredentialTier;
 use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
 use Starisian\Sparxstar\Sirus\core\SirusContext;
 
@@ -26,7 +27,11 @@ final class SirusContextTest extends TestCase
         ?string $identity_id = null,
         ?string $authority_id = null,
         array $capabilities = [],
+<<<<<<< HEAD
         string $trust_level = 'NORMAL',
+=======
+        string $credential_tier = 'anonymous',
+>>>>>>> origin/main
         array $role_set = [],
     ): SirusContext {
         return new SirusContext(
@@ -40,7 +45,8 @@ final class SirusContextTest extends TestCase
             authority_id:   $authority_id,
             role_set:       $role_set,
             capabilities:   $capabilities,
-            trust_level:    TrustLevelPrimitive::from($trust_level),
+            credential_tier: CredentialTier::from($credential_tier),
+            trust_level:    TrustLevelPrimitive::NORMAL,
             trust_score:    1.0,
             issued_at:      1000,
             expires:        1300,
@@ -67,7 +73,12 @@ final class SirusContextTest extends TestCase
             device_id:      'dev', session_id: 'sess',
             identity_id:    null, authority_id: null,
             role_set:       [], capabilities: [],
+<<<<<<< HEAD
             trust_level:    TrustLevelPrimitive::from('NORMAL'),
+=======
+            credential_tier: CredentialTier::ANONYMOUS,
+            trust_level:    TrustLevelPrimitive::NORMAL,
+>>>>>>> origin/main
             trust_score:    1.0,
             issued_at:      time(),
             expires:        time() + 300,
@@ -86,7 +97,12 @@ final class SirusContextTest extends TestCase
             device_id:      'dev', session_id: 'sess',
             identity_id:    null, authority_id: null,
             role_set:       [], capabilities: [],
+<<<<<<< HEAD
             trust_level:    TrustLevelPrimitive::from('NORMAL'),
+=======
+            credential_tier: CredentialTier::ANONYMOUS,
+            trust_level:    TrustLevelPrimitive::NORMAL,
+>>>>>>> origin/main
             trust_score:    1.0,
             issued_at:      1000,
             expires:        1001, // well in the past
@@ -105,7 +121,12 @@ final class SirusContextTest extends TestCase
             device_id:      'dev', session_id: 'sess',
             identity_id:    null, authority_id: null,
             role_set:       [], capabilities: [],
+<<<<<<< HEAD
             trust_level:    TrustLevelPrimitive::from('NORMAL'),
+=======
+            credential_tier: CredentialTier::ANONYMOUS,
+            trust_level:    TrustLevelPrimitive::NORMAL,
+>>>>>>> origin/main
             trust_score:    1.0,
             issued_at:      1000,
             expires:        0,
@@ -120,11 +141,19 @@ final class SirusContextTest extends TestCase
     public function testConstructorPropertyAccess(): void
     {
         $ctx = $this->makeContext(
+<<<<<<< HEAD
             identity_id:  'user-42',
             authority_id: 'starisian',
             capabilities: ['read', 'write'],
             trust_level:  'NORMAL',
             role_set:     ['editor'],
+=======
+            identity_id:     'user-42',
+            authority_id:    'starisian',
+            capabilities:    ['read', 'write'],
+            credential_tier: 'user',
+            role_set:        ['editor'],
+>>>>>>> origin/main
         );
 
         $this->assertSame('ctx-1234', $ctx->context_id);
@@ -137,6 +166,10 @@ final class SirusContextTest extends TestCase
         $this->assertSame('starisian', $ctx->authority_id);
         $this->assertSame(['editor'], $ctx->role_set);
         $this->assertSame(['read', 'write'], $ctx->capabilities);
+<<<<<<< HEAD
+=======
+        $this->assertSame('user', $ctx->credential_tier->value);
+>>>>>>> origin/main
         $this->assertSame('NORMAL', $ctx->trust_level->value);
         $this->assertSame(1.0, $ctx->trust_score);
         $this->assertSame(1000, $ctx->issued_at);
@@ -217,6 +250,9 @@ final class SirusContextTest extends TestCase
         $this->assertArrayHasKey('dev', $payload);
         $this->assertArrayHasKey('auth', $payload);
         $this->assertArrayHasKey('caps', $payload);
+        $this->assertArrayHasKey('ct', $payload);
+        $this->assertArrayHasKey('ts', $payload);
+        $this->assertArrayHasKey('tl', $payload);
         $this->assertArrayHasKey('iat', $payload);
         $this->assertArrayHasKey('exp', $payload);
 

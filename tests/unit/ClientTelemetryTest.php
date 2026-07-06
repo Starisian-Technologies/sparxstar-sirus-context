@@ -65,6 +65,10 @@ final class ClientTelemetryTest extends SirusTestCase
     {
         $this->telemetry->record('js_error', 'Something broke', ['component' => 'collector'], 'dev-1');
 
+<<<<<<< HEAD
+=======
+        // queries[0] = INSERT reports, queries[1] = SELECT get_var (existing stats check), queries[2] = INSERT stats
+>>>>>>> origin/main
         $this->assertCount(3, $this->wpdb->queries);
         $this->assertSame('wp_sparxstar_client_reports', $this->wpdb->queries[0]['table']);
         $this->assertSame('wp_sparxstar_client_error_stats', $this->wpdb->queries[2]['table']);

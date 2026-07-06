@@ -43,8 +43,13 @@ final class CapabilityEngine
      */
     public function resolve(SirusContext $context): array
     {
+<<<<<<< HEAD
         $capabilities = self::BASE_CAPABILITIES[ $context->trust_level->value ]
             ?? self::BASE_CAPABILITIES['LOCKED'];
+=======
+        $capabilities = self::BASE_CAPABILITIES[ $context->credential_tier->value ]
+            ?? self::BASE_CAPABILITIES['anonymous'];
+>>>>>>> origin/main
 
         /** @var list<string> $capabilities */
         $capabilities = apply_filters('sparxstar_sirus_capabilities', $capabilities, $context);

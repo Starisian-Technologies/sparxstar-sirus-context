@@ -50,25 +50,23 @@ final readonly class EnvironmentRecord
 
     public string $time_zone;
 
-    public bool $is_bot;
-
     public int $captured_at;
 
     /**
-     * @param string               $environment_id         Stable identifier for the captured environment.
-     * @param string               $browser_name           Client-first browser name.
-     * @param string               $browser_version        Browser version when available.
-     * @param string               $os                     Client-first operating system name.
-     * @param string               $os_version             Operating system version when available.
-     * @param string               $device_type            Device class (desktop/tablet/smartphone/etc).
-     * @param string               $device_brand           Device brand when available.
-     * @param string               $device_model           Device model when available.
-     * @param string               $network_effective_type Effective network type signal.
-     * @param string               $ip_address             Raw or anonymized IP; anonymized at construction.
-     * @param array<string, mixed> $location               Region-level location payload only.
-     * @param string               $time_zone              Client time zone string.
-     * @param bool                 $is_bot                 Whether the environment appears to be automated.
-     * @param int                  $captured_at            Unix timestamp when captured.
+     * @param string $environment_id Stable identifier for the captured environment.
+     * @param string $browser_name Client-first browser name.
+     * @param string $browser_version Browser version when available.
+     * @param string $os Client-first operating system name.
+     * @param string $os_version Operating system version when available.
+     * @param string $device_type Device class (desktop/tablet/smartphone/etc).
+     * @param string $device_brand Device brand when available.
+     * @param string $device_model Device model when available.
+     * @param string $network_effective_type Effective network type signal.
+     * @param string $ip_address Raw or anonymized IP; anonymized at construction.
+     * @param array<string, mixed> $location Region-level location payload only.
+     * @param string $time_zone Client time zone string.
+     * @param bool $is_bot Whether the environment appears to be automated.
+     * @param int $captured_at Unix timestamp when captured.
      */
     public function __construct(
         string $environment_id,
@@ -83,7 +81,7 @@ final readonly class EnvironmentRecord
         string $ip_address,
         array $location,
         string $time_zone,
-        bool $is_bot,
+        public bool $is_bot,
         int $captured_at,
     ) {
         $this->environment_id         = $this->sanitizeString($environment_id);
@@ -98,7 +96,6 @@ final readonly class EnvironmentRecord
         $this->ip_address             = IpAnonymizer::anonymize($ip_address);
         $this->location               = $this->normalizeLocation($location);
         $this->time_zone              = $this->sanitizeString($time_zone);
-        $this->is_bot                 = $is_bot;
         $this->captured_at            = $captured_at > 0 ? $captured_at : time();
     }
 
@@ -160,7 +157,11 @@ final readonly class EnvironmentRecord
         $normalized = [];
 
         foreach ([ 'country', 'region' ] as $key) {
-            if (! isset($location[$key]) || ! is_scalar($location[$key])) {
+            if (! isset($location[$key])) {
+                continue;
+            }
+
+            if (! is_scalar($location[$key])) {
                 continue;
             }
 
@@ -171,7 +172,11 @@ final readonly class EnvironmentRecord
         }
 
         foreach ([ 'approx_lat', 'approx_lng' ] as $key) {
-            if (! isset($location[$key]) || ! is_numeric($location[$key])) {
+            if (! isset($location[$key])) {
+                continue;
+            }
+
+            if (! is_numeric($location[$key])) {
                 continue;
             }
 
