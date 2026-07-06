@@ -294,6 +294,6 @@ final class HeliosClientTest extends SirusTestCase
         $client = new HeliosClient('https://helios.example.com');
         $result = $client->getIdentityContext('dev-4', 'sess-4');
 
-        $this->assertSame('none', $result['verification_status'] ?? null);
+        $this->assertSame('unverified', $result['verification_status'] ?? null);
     }
 }

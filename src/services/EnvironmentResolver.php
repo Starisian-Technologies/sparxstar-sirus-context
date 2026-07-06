@@ -329,8 +329,8 @@ final class EnvironmentResolver
                 'browser_version' => isset($browserInfo['version']) && is_string($browserInfo['version']) ? $browserInfo['version'] : '',
                 'os'              => isset($osInfo['name'])         && is_string($osInfo['name']) ? $osInfo['name'] : 'unknown',
                 'os_version'      => isset($osInfo['version'])      && is_string($osInfo['version']) ? $osInfo['version'] : '',
-                'device_type'     => $dd->isSmartphone() ? 'smartphone'
-                    : ($dd->isTablet() ? 'tablet'
+                'device_type'     => $dd->isTablet() ? 'tablet'
+                    : ($dd->isSmartphone() ? 'smartphone'
                     : ($dd->isDesktop() ? 'desktop'
                     : ($dd->isBot() ? 'bot' : 'unknown'))),
                 'device_brand' => is_string($dd->getBrandName()) ? $dd->getBrandName() : '',
