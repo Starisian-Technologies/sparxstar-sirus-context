@@ -308,6 +308,7 @@ Achieved in S-07. `tests/integration/RestApiTest.php` covers all six endpoints.
 
 | Version | Date | Notes |
 |---|---|---|
+| 3.0.1 | 2026-07-06 | Requires `sparxstar-ouroboros-integrity` ≥ v3.0.0 (introduces `CredentialTier` enum and two-field trust/credential split). Sirus is first platform repo on Ouroboros 3.x; Helios, Sky, Mehns, Dheghom tracking separately. |
 | 3.0.0 | 2026-07-01 | Initial governance spec submission; reflects S-07 implementation state |
 | — | 2026-06-12 | TRACKER.md last updated; S-07 merged to main |
 | — | 2026-06-09 | `/context` `device_id` mismatch enforcement added |
