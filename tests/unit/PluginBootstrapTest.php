@@ -33,7 +33,9 @@ final class PluginBootstrapTest extends TestCase
         $this->assertTrue(defined('SPX_ENV_CHECK_PLUGIN_FILE'));
         $this->assertTrue(defined('SPX_ENV_CHECK_PLUGIN_PATH'));
         $this->assertTrue(defined('SPX_ENV_CHECK_VERSION'));
-        $this->assertSame('0.9.6', SPX_ENV_CHECK_VERSION);
+        $bootstrap = file_get_contents(dirname(__DIR__, 2) . '/sparxstar-user-environment-check.php');
+        $this->assertNotFalse($bootstrap);
+        $this->assertMatchesRegularExpression("/define\('SPX_ENV_CHECK_VERSION',\\s*'0\\.9\\.6'\\s*\\);/", $bootstrap);
         $this->assertTrue(defined('SPX_ENV_CHECK_TEXT_DOMAIN'));
         $this->assertTrue(defined('SPX_ENV_CHECK_DB_TABLE_NAME'));
     }
