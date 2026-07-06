@@ -5,10 +5,11 @@ name: Update Composer Lock
 # Triggered manually or when composer.json changes on a PR branch.
 
 on:
-  workflow_dispatch:
-  pull_request:
-    paths:
-      - 'composer.json'
+  push:
+    branches-ignore:
+      - main
+      - universe
+      - develop
 
 permissions:
   contents: write
