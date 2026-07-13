@@ -35,7 +35,7 @@
     "globals": "^17.6.0",
     "postcss": "^8.5.15",
     "postcss-cli": "^11.0.1",
-    "prettier": "^3.8.3",
+    "prettier": "^3.9.5",
     "rollup": "^4.62.0",
     "stylelint": "^16.26.1",
     "stylelint-config-standard": "^39.0.1"
