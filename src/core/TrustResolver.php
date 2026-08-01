@@ -9,7 +9,7 @@
  * drift and new-session conditions.
  *
  * Credential base scores:
- *   elder       = 0.95
+ *   authority   = 0.95
  *   contributor = 0.90
  *   user        = 0.85
  *   device      = 0.70
@@ -51,7 +51,7 @@ final class TrustResolver
      * @var array<string, float>
      */
     private const CREDENTIAL_BASE = [
-        'elder'       => 0.95,
+        'authority'   => 0.95,
         'contributor' => 0.90,
         'user'        => 0.85,
         'device'      => 0.70,

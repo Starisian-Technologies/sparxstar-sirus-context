@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 
+use Starisian\Sparxstar\Infrastructure\DTOs\CredentialTier;
 use Starisian\Sparxstar\Sirus\core\DeviceRecord;
 use Starisian\Sparxstar\Sirus\core\TrustEngine;
 use Starisian\Sparxstar\Sirus\core\TrustResolver;
@@ -26,13 +27,26 @@ final class TrustResolverTest extends SirusTestCase
     // ── Credential base scores (no deductions) ────────────────────────────────
 
     /**
-     * 'elder' trust_level → base 0.95.
+     * 'authority' trust_level → base 0.95 (highest CredentialTier, scored above 'user').
      */
-    public function testElderBaseScore(): void
+    public function testAuthorityBaseScore(): void
+    {
+        $device = $this->makeDevice(trust_level: 'authority');
+
+        $this->assertEqualsWithDelta(0.95, TrustResolver::evaluate($device), 0.0001);
+    }
+
+    /**
+     * 'elder' is not a CredentialTier case (it belongs to the separate AuthorityLevel
+     * enum) and must not resolve to a score — it falls through to DEFAULT_BASE like
+     * any other unrecognised value. This guards against 'elder' dead code being
+     * reintroduced into CREDENTIAL_BASE.
+     */
+    public function testElderIsNotACredentialTierAndFallsToDefaultBase(): void
     {
         $device = $this->makeDevice(trust_level: 'elder');
 
-        $this->assertEqualsWithDelta(0.95, TrustResolver::evaluate($device), 0.0001);
+        $this->assertEqualsWithDelta(0.50, TrustResolver::evaluate($device), 0.0001);
     }
 
     /**
@@ -210,9 +224,66 @@ final class TrustResolverTest extends SirusTestCase
      */
     public function testScoreNeverExceedsOne(): void
     {
-        $device = $this->makeDevice(trust_level: 'elder');
+        $device = $this->makeDevice(trust_level: 'authority');
 
         $this->assertLessThanOrEqual(1.0, TrustResolver::evaluate($device));
+    }
+
+    // ── CredentialTier coverage / ordering ──────────────────────────────────────
+
+    /**
+     * No real CredentialTier case may resolve to DEFAULT_BASE (0.50) unless it is
+     * 'anonymous' itself, which is defined at exactly that score. This makes it
+     * impossible to silently reintroduce the B-4 bug class (a valid tier falling
+     * through to the lowest score in the table because it is missing an entry).
+     */
+    public function testNoCredentialTierFallsThroughToDefaultBaseExceptAnonymous(): void
+    {
+        foreach (CredentialTier::cases() as $tier) {
+            $device = $this->makeDevice(trust_level: $tier->value);
+            $score  = TrustResolver::evaluate($device);
+
+            if ($tier === CredentialTier::ANONYMOUS) {
+                // Anonymous is intentionally defined at the same value as DEFAULT_BASE.
+                $this->assertEqualsWithDelta(0.50, $score, 0.0001);
+                continue;
+            }
+
+            $this->assertNotEqualsWithDelta(
+                0.50,
+                $score,
+                0.0001,
+                "CredentialTier::{$tier->name} must not fall through to DEFAULT_BASE."
+            );
+        }
+    }
+
+    /**
+     * Credential base scores are monotonically ordered by tier severity, per
+     * the CREDENTIAL_BASE table: anonymous < device < user < contributor < authority.
+     */
+    public function testCredentialTierScoresAreMonotonicallyOrdered(): void
+    {
+        $ordered = [
+            CredentialTier::ANONYMOUS,
+            CredentialTier::DEVICE,
+            CredentialTier::USER,
+            CredentialTier::CONTRIBUTOR,
+            CredentialTier::AUTHORITY,
+        ];
+
+        $scores = array_map(
+            fn (CredentialTier $tier): float => TrustResolver::evaluate($this->makeDevice(trust_level: $tier->value)),
+            $ordered
+        );
+
+        for ($i = 1; $i < count($scores); $i++) {
+            $this->assertGreaterThan(
+                $scores[$i - 1],
+                $scores[$i],
+                "Expected {$ordered[$i]->value} ({$scores[$i]}) to score higher than {$ordered[$i - 1]->value} ({$scores[$i - 1]})."
+            );
+        }
     }
 
     // ── Return type ───────────────────────────────────────────────────────────
