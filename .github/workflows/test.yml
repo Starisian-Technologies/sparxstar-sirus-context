@@ -49,3 +49,40 @@ jobs:
 
       - name: Run PHPUnit tests
         run: composer run test:unit
+
+  ouroboros-stub-drift:
+    name: Ouroboros stub-drift check
+    needs: php-tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@ec406be512d7077f68eed36e63f4d91bc006edc4
+        with:
+          php-version: "8.3"
+          # Composer >= 2.9.8 closes CVE-2026-45793 (GitHub App token leak to logs)
+          tools: composer:2.9.8
+
+      - name: Mint Composer resolver token
+        id: composer-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.COMPOSER_RESOLVER_CLIENT_ID }}
+          private-key: ${{ secrets.COMPOSER_RESOLVER_PRIVATE_KEY }}
+          owner: Starisian-Technologies
+          repositories: sparxstar-ouroboros-integrity
+
+      - name: Wire git to use Composer resolver token for Ouroboros
+        env:
+          TOKEN: ${{ steps.composer-token.outputs.token }}
+        run: git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
+
+      - name: Install PHP dependencies
+        env:
+          COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ steps.composer-token.outputs.token }}"}}'
+        run: composer install --no-interaction
+
+      - name: Check installed Ouroboros primitives for signature drift
+        run: composer run check:ouroboros-drift
