@@ -167,7 +167,7 @@ PulseGenerator::generate(SirusContext $context, int $now = 0, int $ttlSeconds = 
 ```
 
 **Requirements:**
-- PHP constant `SIRUS_PULSE_SIGNING_KEY` must be defined and ≥ 32 bytes. Throws `\RuntimeException` otherwise.
+- PHP constant `SPARXSTAR_PULSE_SIGNING_KEY` must be defined and ≥ 32 bytes. Throws `\RuntimeException` otherwise.
 - Signing algorithm: HMAC-SHA256.
 - `ContextPulse` NEVER contains `identity_id`.
 - `$now = 0` means use `time()`. Pass an explicit timestamp for deterministic testing.
@@ -412,7 +412,7 @@ Required at plugin load time:
 
 | Constant | Required | Purpose |
 |---|---|---|
-| `SIRUS_PULSE_SIGNING_KEY` | Only when `PulseGenerator` is called | HMAC-SHA256 signing key. Minimum 32 bytes. |
+| `SPARXSTAR_PULSE_SIGNING_KEY` | Only when `PulseGenerator` is called | HMAC-SHA256 signing key. Minimum 32 bytes. |
 | `ABSPATH` | Always | WordPress bootstrap guard. |
 | `SIRUS_VERSION` | Auto-defined by entry point | Plugin version string. |
 | `SIRUS_PLUGIN_PATH` | Auto-defined by entry point | Absolute path to plugin root. |

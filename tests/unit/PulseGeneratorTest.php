@@ -3,7 +3,7 @@
 /**
  * Tests for PulseGenerator – HMAC-SHA256 signed ContextPulse generation.
  *
- * Test ordering note: SIRUS_PULSE_SIGNING_KEY is a PHP constant that can only be
+ * Test ordering note: SPARXSTAR_PULSE_SIGNING_KEY is a PHP constant that can only be
  * defined once per process. This test class:
  *   1. Runs the "key not defined" assertion first (before the constant exists).
  *   2. Defines the constant via setUpBeforeClass() for all subsequent tests.
@@ -37,15 +37,15 @@ final class PulseGeneratorTest extends SirusTestCase
     private PulseGenerator $generator;
 
     /**
-     * Define SIRUS_PULSE_SIGNING_KEY once for the lifetime of this test class.
+     * Define SPARXSTAR_PULSE_SIGNING_KEY once for the lifetime of this test class.
      * Runs before any test methods in this class.
      */
     public static function setUpBeforeClass(): void
     {
         parent::setUpBeforeClass();
 
-        if (! defined('SIRUS_PULSE_SIGNING_KEY')) {
-            define('SIRUS_PULSE_SIGNING_KEY', self::TEST_SIGNING_KEY);
+        if (! defined('SPARXSTAR_PULSE_SIGNING_KEY')) {
+            define('SPARXSTAR_PULSE_SIGNING_KEY', self::TEST_SIGNING_KEY);
         }
     }
 
@@ -398,14 +398,14 @@ final class PulseGeneratorTest extends SirusTestCase
      * This test documents the contract floor without reaching into private implementation details.
      *
      * Full "too short key throws" and "key not defined throws" tests cannot be exercised
-     * once SIRUS_PULSE_SIGNING_KEY is defined. They are verified by code review of the
+     * once SPARXSTAR_PULSE_SIGNING_KEY is defined. They are verified by code review of the
      * resolveSigningKey() implementation.
      */
     public function testSigningKeyMeetsCurrentOuroborosMinimumLength(): void
     {
         $this->assertGreaterThanOrEqual(
             Platform::PULSE_MIN_SIGNING_KEY_BYTES,
-            strlen(constant('SIRUS_PULSE_SIGNING_KEY'))
+            strlen(constant('SPARXSTAR_PULSE_SIGNING_KEY'))
         );
     }
 

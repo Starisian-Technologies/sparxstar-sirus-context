@@ -196,8 +196,8 @@ $ctx = \Starisian\Sparxstar\Sirus\core\ContextEngine::buildFromDevice($device_re
 ## PulseGenerator Usage
 
 ```php
-// Requires SIRUS_PULSE_SIGNING_KEY constant in wp-config.php (min 32 bytes).
-define( 'SIRUS_PULSE_SIGNING_KEY', 'your-32-char-minimum-key' );
+// Requires SPARXSTAR_PULSE_SIGNING_KEY constant in wp-config.php (min 32 bytes).
+define( 'SPARXSTAR_PULSE_SIGNING_KEY', 'your-32-char-minimum-key' );
 
 $generator = new \Starisian\Sparxstar\Sirus\core\PulseGenerator();
 $pulse     = $generator->generate(ContextEngine::current());
@@ -349,7 +349,7 @@ The following are imported from, or reserved for, Ouroboros. Do not redefine the
 1. Place the plugin in `/wp-content/mu-plugins/` (mu-plugin — cannot be deactivated)
 2. Requires **WordPress 6.8+** and **PHP 8.2+**
 3. Loads automatically — no activation step
-4. Add `SIRUS_PULSE_SIGNING_KEY` to `wp-config.php` (required for `PulseGenerator`)
+4. Add `SPARXSTAR_PULSE_SIGNING_KEY` to `wp-config.php` (required for `PulseGenerator`)
 
 ---
 

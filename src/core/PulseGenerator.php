@@ -13,7 +13,7 @@
  * maintain its own copy of the format — see that class for the canonical
  * field order and encoding rules.
  *
- * The signing key is read exclusively from the SIRUS_PULSE_SIGNING_KEY constant.
+ * The signing key is read exclusively from the SPARXSTAR_PULSE_SIGNING_KEY constant.
  * It MUST NOT be read from WordPress options, the database, or user input.
  *
  * @package Starisian\Sparxstar\Sirus
@@ -60,7 +60,7 @@ final class PulseGenerator
      * @param SirusContext $context The fully resolved context to pulse.
      * @param int $now Unix timestamp to use as issued_at. Pass 0 (default) to use time().
      * @param int $ttlSeconds Pulse TTL in seconds. Defaults to PULSE_TTL (60).
-     * @throws \RuntimeException If SIRUS_PULSE_SIGNING_KEY is not defined or too short.
+     * @throws \RuntimeException If SPARXSTAR_PULSE_SIGNING_KEY is not defined or too short.
      * @return ContextPulse The signed pulse, ready for transmission to Helios.
      */
     public function generate(SirusContext $context, int $now = 0, int $ttlSeconds = self::PULSE_TTL): ContextPulse
@@ -160,28 +160,28 @@ final class PulseGenerator
     }
 
     /**
-     * Resolves the HMAC signing key from the SIRUS_PULSE_SIGNING_KEY constant.
+     * Resolves the HMAC signing key from the SPARXSTAR_PULSE_SIGNING_KEY constant.
      *
      * @throws \RuntimeException If the constant is missing or the key is too short.
      * @return string The signing key.
      */
     private function resolveSigningKey(): string
     {
-        if (! defined('SIRUS_PULSE_SIGNING_KEY')) {
+        if (! defined('SPARXSTAR_PULSE_SIGNING_KEY')) {
             throw new \RuntimeException(
-                '[Sirus] PulseGenerator: SIRUS_PULSE_SIGNING_KEY constant is not defined. '
+                '[Sirus] PulseGenerator: SPARXSTAR_PULSE_SIGNING_KEY constant is not defined. '
                 . 'Define it in wp-config.php before using PulseGenerator.'
             );
         }
 
-        $key = (string) constant('SIRUS_PULSE_SIGNING_KEY');
+        $key = (string) constant('SPARXSTAR_PULSE_SIGNING_KEY');
 
         $minimum_key_length = Platform::PULSE_MIN_SIGNING_KEY_BYTES;
 
         if (strlen($key) < $minimum_key_length) {
             // phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- developer-facing exception message interpolating an integer; not echoed as HTML
             throw new \RuntimeException(
-                '[Sirus] PulseGenerator: SIRUS_PULSE_SIGNING_KEY must be at least '
+                '[Sirus] PulseGenerator: SPARXSTAR_PULSE_SIGNING_KEY must be at least '
                 . $minimum_key_length . ' bytes.'
             );
             // phpcs:enable WordPress.Security.EscapeOutput.ExceptionNotEscaped
