@@ -294,6 +294,27 @@ final class PulseGeneratorTest extends SirusTestCase
         $this->assertSame(999, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_2));
     }
 
+    /**
+     * A misbehaving filter callback returning zero must not propagate --
+     * generate() throws on $ttlSeconds <= 0, so a bad filter would otherwise
+     * turn into an uncaught 500 on every REST-issued pulse. resolveTtl()
+     * falls back to the sensitivity's own default instead.
+     */
+    public function testResolveTtlFallsBackToDefaultWhenFilterReturnsZero(): void
+    {
+        add_filter('sparxstar_sirus_pulse_ttl_seconds', static fn (): int => 0);
+        $this->assertSame(60, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_2));
+    }
+
+    /**
+     * Same as above, for a negative filter return value.
+     */
+    public function testResolveTtlFallsBackToDefaultWhenFilterReturnsNegative(): void
+    {
+        add_filter('sparxstar_sirus_pulse_ttl_seconds', static fn (): int => -5);
+        $this->assertSame(30, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_3));
+    }
+
     // ── resolveTtl() — low-connectivity extension (LEVEL_1 only) ────────────────
 
     /**

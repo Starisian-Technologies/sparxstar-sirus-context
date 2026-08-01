@@ -39,7 +39,7 @@ This document tracks every component defined in **Sirius Context Engine Spec v3.
 | `TrustEngine` | `src/core/TrustEngine.php` | ✅ | S-01/S-02 | Frozen algorithm; 18 unit tests in `TrustEngineTest` |
 | `TrustResolver` | `src/core/TrustResolver.php` | ✅ | S-01/S-02 | Credential-level base + drift/session deductions; 19 unit tests in `TrustResolverTest`; `CREDENTIAL_BASE` fixed 2026-08-01 — removed dead `elder` entry (not a `CredentialTier` case), added missing `authority` entry (0.95, above `user` 0.85); added exhaustive-coverage and monotonic-ordering tests |
 | `StepUpPolicy` | `src/core/StepUpPolicy.php` | ✅ | S-01/S-02 | Frozen policy; `requiresStepUp()` + `TRUST_LEVEL_STEP_UP_REQUIRED` pre-flag check; fails closed on `LOCKED` (checked before `STEP_UP_REQUIRED`, added 2026-08-01); 21 unit tests |
-| `PulseGenerator` | `src/core/PulseGenerator.php` | ✅ | S-01/S-02 | HMAC-SHA256 only; consumes enum-backed `SirusContext::trust_level`; PAM-002-P2 fields wired (`behavior_flags`, `geo_zone`, `network_effective_type`, `session_duration`); 36 unit tests in `PulseGeneratorTest`; `$now`/`$ttlSeconds` explicit params; signing key constant renamed `SIRUS_PULSE_SIGNING_KEY` → `SPARXSTAR_PULSE_SIGNING_KEY` (2026-08-01, matches Helios); `resolveTtl(ResourceSensitivity)` implements the sensitivity/connectivity TTL strategy (2026-08-01) |
+| `PulseGenerator` | `src/core/PulseGenerator.php` | ✅ | S-01/S-02 | HMAC-SHA256 only; consumes enum-backed `SirusContext::trust_level`; PAM-002-P2 fields wired (`behavior_flags`, `geo_zone`, `network_effective_type`, `session_duration`); 36 unit tests in `PulseGeneratorTest`; `$now`/`$ttlSeconds` explicit params; signing key constant renamed from its old `SIRUS_`-prefixed name to `SPARXSTAR_PULSE_SIGNING_KEY` (2026-08-01, matches Helios); `resolveTtl(ResourceSensitivity)` implements the sensitivity/connectivity TTL strategy (2026-08-01) |
 
 ### Device and Identity
 
@@ -159,7 +159,7 @@ Static spec-conformance audit against Sirus Context Engine Spec v3.0 found and f
 (B-1 through B-6) plus a stub-drift CI gap (D-4). Full detail per-component is recorded in the
 Scoreboard rows above; this note records the cross-cutting decisions.
 
-- **B-1 (🔴 platform-breaking):** `SIRUS_PULSE_SIGNING_KEY` renamed to `SPARXSTAR_PULSE_SIGNING_KEY`
+- **B-1 (🔴 platform-breaking):** the old `SIRUS_`-prefixed signing-key constant renamed to `SPARXSTAR_PULSE_SIGNING_KEY`
   everywhere (code, tests, `PUBLIC_API.md`, `README.md`) to match Helios's already-renamed side.
   Every pulse was failing Helios's signature verification until this landed.
 - **B-2 (🔴 platform-breaking):** see the `SirusDatabase` schema boot row above. Sirus tables were

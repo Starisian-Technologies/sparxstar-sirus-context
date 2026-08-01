@@ -145,7 +145,7 @@ Client-submitted signals take precedence over server-side UA parsing. Matomo Dev
 
 ### Pulse generation
 
-Sirus signs pulses via HMAC-SHA256 using Ouroboros `ContextPulseSigningMaterial::build()`. Pulse fields include the four PAM-002-P2 fields: `behavior_flags`, `geo_zone`, `network_effective_type`, `session_duration`. Sirus never verifies pulses at runtime — that is Helios. The HMAC signing key is read exclusively from the `SPARXSTAR_PULSE_SIGNING_KEY` PHP constant (renamed from `SIRUS_PULSE_SIGNING_KEY` to match Helios's side of the shared secret — the two names never matched, so every pulse previously failed Helios's signature verification).
+Sirus signs pulses via HMAC-SHA256 using Ouroboros `ContextPulseSigningMaterial::build()`. Pulse fields include the four PAM-002-P2 fields: `behavior_flags`, `geo_zone`, `network_effective_type`, `session_duration`. Sirus never verifies pulses at runtime — that is Helios. The HMAC signing key is read exclusively from the `SPARXSTAR_PULSE_SIGNING_KEY` PHP constant (renamed from its old `SIRUS_`-prefixed name to match Helios's side of the shared secret — the two names never matched, so every pulse previously failed Helios's signature verification).
 
 ### Pulse TTL strategy (provisional pending field testing)
 
@@ -356,7 +356,7 @@ Achieved in S-07. `tests/integration/RestApiTest.php` covers all six endpoints.
 
 | Version | Date | Notes |
 |---|---|---|
-| 3.0.2 | 2026-08-01 | Spec-conformance audit fixes: renamed `SIRUS_PULSE_SIGNING_KEY` → `SPARXSTAR_PULSE_SIGNING_KEY` (matches Helios); schema creation/cron scheduling moved from the never-fired activation hook to a boot-time idempotent check (`SirusDatabase::maybe_upgrade_schema()`); legacy `sparxstar-user-environment-check.php` is now a guarded no-op when Sirus is loaded; `TrustResolver::CREDENTIAL_BASE` fixed (removed dead `elder` entry, added missing `authority` entry scored above `user`); `StepUpPolicy` now fails closed on `LOCKED` (checked before `STEP_UP_REQUIRED`); `PulseGenerator::resolveTtl()` implements the sensitivity-driven pulse TTL strategy (§ Pulse TTL strategy); added `bin/check-ouroboros-stub-drift.php` CI check. |
+| 3.0.2 | 2026-08-01 | Spec-conformance audit fixes: renamed the old `SIRUS_`-prefixed signing-key constant to `SPARXSTAR_PULSE_SIGNING_KEY` (matches Helios); schema creation/cron scheduling moved from the never-fired activation hook to a boot-time idempotent check (`SirusDatabase::maybe_upgrade_schema()`); legacy `sparxstar-user-environment-check.php` is now a guarded no-op when Sirus is loaded; `TrustResolver::CREDENTIAL_BASE` fixed (removed dead `elder` entry, added missing `authority` entry scored above `user`); `StepUpPolicy` now fails closed on `LOCKED` (checked before `STEP_UP_REQUIRED`); `PulseGenerator::resolveTtl()` implements the sensitivity-driven pulse TTL strategy (§ Pulse TTL strategy); added `bin/check-ouroboros-stub-drift.php` CI check. |
 | 3.0.1 | 2026-07-06 | Requires `sparxstar-ouroboros-integrity` ≥ v3.0.0 (introduces `CredentialTier` enum and two-field trust/credential split). Sirus is first platform repo on Ouroboros 3.x; Helios, Sky, Mehns, Dheghom tracking separately. |
 | 3.0.0 | 2026-07-01 | Initial governance spec submission; reflects S-07 implementation state |
 | — | 2026-06-12 | TRACKER.md last updated; S-07 merged to main |

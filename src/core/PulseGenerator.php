@@ -113,6 +113,15 @@ final class PulseGenerator
 
         $ttl = (int) apply_filters('sparxstar_sirus_pulse_ttl_seconds', $default, $sensitivity, $default);
 
+        if ($ttl <= 0) {
+            // A misbehaving filter callback must not be able to produce a
+            // pulse TTL that trips generate()'s $ttlSeconds > 0 guard --
+            // that would turn a filter bug into an uncaught exception (500)
+            // on every REST-issued pulse. Fall back to the sensitivity's
+            // own default instead.
+            $ttl = $default;
+        }
+
         if ($sensitivity === ResourceSensitivity::LEVEL_1) {
             $network_type = $this->environmentResolver->getNetworkEffectiveType();
             if (in_array($network_type, self::LOW_CONNECTIVITY_NETWORK_TYPES, true)) {
