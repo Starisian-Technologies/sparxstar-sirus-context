@@ -390,8 +390,9 @@ final class SirusRESTController
             );
         }
 
-        $pulse   = $this->pulse_generator->generate($context);
-        $step_up = (new StepUpPolicy())->requiresStepUp($pulse, $sensitivity);
+        $ttl_seconds = $this->pulse_generator->resolveTtl($sensitivity);
+        $pulse       = $this->pulse_generator->generate($context, 0, $ttl_seconds);
+        $step_up     = (new StepUpPolicy())->requiresStepUp($pulse, $sensitivity);
 
         $trust_level_value = $pulse->trust_level->value;
 

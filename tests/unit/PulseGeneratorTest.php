@@ -20,6 +20,7 @@ namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 use Starisian\Sparxstar\Infrastructure\Constants\Platform;
 use Starisian\Sparxstar\Infrastructure\DTOs\CredentialTier;
 use Starisian\Sparxstar\Sirus\core\PulseGenerator;
+use Starisian\Sparxstar\Sirus\core\ResourceSensitivity;
 use Starisian\Sparxstar\Sirus\core\SirusContext;
 use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
 use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
@@ -52,6 +53,10 @@ final class PulseGeneratorTest extends SirusTestCase
     protected function setUp(): void
     {
         $this->generator = new PulseGenerator();
+
+        // Reset filter globals to avoid cross-test contamination (matches
+        // EnvironmentResolverTest's convention for the same global).
+        $GLOBALS['registered_filters'] = [];
     }
 
     // ── Return type and shape ─────────────────────────────────────────────────
@@ -237,6 +242,93 @@ final class PulseGeneratorTest extends SirusTestCase
 
         $this->assertGreaterThanOrEqual($before, $pulse->issued_at);
         $this->assertLessThanOrEqual($after, $pulse->issued_at);
+    }
+
+    // ── resolveTtl() — sensitivity-mapped defaults ──────────────────────────────
+
+    /**
+     * resolveTtl(LEVEL_1) returns the working default of 120 seconds.
+     * The test-environment EnvironmentResolver reports 'cli' (not low-connectivity),
+     * so no extension applies here.
+     */
+    public function testResolveTtlForLevel1ReturnsDefault(): void
+    {
+        $this->assertSame(120, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_1));
+    }
+
+    /**
+     * resolveTtl(LEVEL_2) returns the working default of 60 seconds.
+     */
+    public function testResolveTtlForLevel2ReturnsDefault(): void
+    {
+        $this->assertSame(60, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_2));
+    }
+
+    /**
+     * resolveTtl(LEVEL_3) returns the working default of 30 seconds.
+     */
+    public function testResolveTtlForLevel3ReturnsDefault(): void
+    {
+        $this->assertSame(30, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_3));
+    }
+
+    // ── resolveTtl() — filter override ───────────────────────────────────────────
+
+    /**
+     * The sparxstar_sirus_pulse_ttl_seconds filter can override the default TTL,
+     * and receives the sensitivity and default as additional arguments.
+     */
+    public function testResolveTtlFilterOverridesDefault(): void
+    {
+        add_filter(
+            'sparxstar_sirus_pulse_ttl_seconds',
+            static function (int $ttl, ResourceSensitivity $sensitivity, int $default): int {
+                self::assertSame(ResourceSensitivity::LEVEL_2, $sensitivity);
+                self::assertSame(60, $default);
+                return 999;
+            },
+            10,
+            3
+        );
+
+        $this->assertSame(999, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_2));
+    }
+
+    // ── resolveTtl() — low-connectivity extension (LEVEL_1 only) ────────────────
+
+    /**
+     * A low-connectivity network extends the TTL to 600s, but only at LEVEL_1.
+     * LEVEL_2 and LEVEL_3 are unaffected by connectivity.
+     */
+    public function testLowConnectivityExtensionAppliesOnlyAtLevel1(): void
+    {
+        add_filter('sparxstar_env_network_effective_type', static fn (): string => 'slow-2g');
+
+        $this->assertSame(600, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_1));
+        $this->assertSame(60, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_2));
+        $this->assertSame(30, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_3));
+    }
+
+    /**
+     * A normal-connectivity network does not trigger the LEVEL_1 extension.
+     */
+    public function testNormalConnectivityDoesNotExtendLevel1(): void
+    {
+        add_filter('sparxstar_env_network_effective_type', static fn (): string => '4g');
+
+        $this->assertSame(120, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_1));
+    }
+
+    /**
+     * The low-connectivity extension is a hard cap: even if the TTL filter tries
+     * to set a LEVEL_1 default above 600s, low connectivity forces it back to 600.
+     */
+    public function testLowConnectivityCapsAt600EvenIfFilterExceedsIt(): void
+    {
+        add_filter('sparxstar_env_network_effective_type', static fn (): string => '2g');
+        add_filter('sparxstar_sirus_pulse_ttl_seconds', static fn (): int => 5000);
+
+        $this->assertSame(600, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_1));
     }
 
     // ── Signature ─────────────────────────────────────────────────────────────

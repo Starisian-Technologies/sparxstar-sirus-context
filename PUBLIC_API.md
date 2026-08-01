@@ -164,6 +164,7 @@ Derives trust score from `DeviceRecord::$trust_level` as a base, then applies Tr
 namespace Starisian\Sparxstar\Sirus\core;
 
 PulseGenerator::generate(SirusContext $context, int $now = 0, int $ttlSeconds = PulseGenerator::PULSE_TTL): ContextPulse
+PulseGenerator::resolveTtl(ResourceSensitivity $sensitivity): int
 ```
 
 **Requirements:**
@@ -171,7 +172,7 @@ PulseGenerator::generate(SirusContext $context, int $now = 0, int $ttlSeconds = 
 - Signing algorithm: HMAC-SHA256.
 - `ContextPulse` NEVER contains `identity_id`.
 - `$now = 0` means use `time()`. Pass an explicit timestamp for deterministic testing.
-- `$ttlSeconds` defaults to `PULSE_TTL` (60). Callers that resolve TTL from governance context (sovereign window, low-connectivity, etc.) must pass the correct value — `PulseGenerator` is policy-agnostic and does not read TTL from SirusContext.
+- `$ttlSeconds` defaults to `PULSE_TTL` (60). Callers that want the spec's sensitivity-driven TTL strategy should resolve a value via `resolveTtl(ResourceSensitivity $sensitivity)` first and pass it through — see the `sparxstar_sirus_pulse_ttl_seconds` filter below. `PulseGenerator` itself remains policy-agnostic and does not read TTL from SirusContext.
 
 ---
 
@@ -384,6 +385,7 @@ All stable filters. Do not remove.
 | `sparxstar_env_geolocation_lookup` | `null` | `EnvironmentResolver` / `StarUserEnv` — custom geolocation provider |
 | `sparxstar_env_geolocation_ttl` | `DAY_IN_SECONDS` | GeoIP service — geolocation cache duration |
 | `sparxstar_env_network_effective_type` | `'unknown'` | `EnvironmentResolver` — override network type |
+| `sparxstar_sirus_pulse_ttl_seconds` | `120`/`60`/`30` by `ResourceSensitivity` level | `PulseGenerator::resolveTtl()` — override the pulse TTL (seconds) before the LEVEL_1 low-connectivity extension is applied; receives `($ttl, $sensitivity, $default)` |
 
 ---
 
