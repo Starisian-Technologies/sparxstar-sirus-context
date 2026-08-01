@@ -30,15 +30,16 @@ This document tracks every component defined in **Sirius Context Engine Spec v3.
 | `ContextCache` | `src/core/ContextCache.php` | ✅ | S-01 | Cache + TTL eviction |
 | `ContextBootException` | `packages/sparxstar-ouroboros-integrity/src/Exceptions/ContextBootException.php` | ✅ | S-04 | Migrated to Ouroboros CO-001 — `Starisian\Sparxstar\Infrastructure\Exceptions` |
 | `ContextPulse` DTO | `packages/sparxstar-ouroboros-integrity/src/DTOs/ContextPulse.php` | ✅ | S-04 | Migrated to Ouroboros CO-001 — `Starisian\Sparxstar\Infrastructure\DTOs` |
+| `SirusDatabase` schema boot | `src/core/SirusDatabase.php`, `src/SirusPlugin.php` | ✅ | **S-08** (fixed 2026-08-01) | **Platform-breaking bug fixed:** as a must-use plugin, Sirus never fires `register_activation_hook()`, so `ensure_schema()` was never called in a real deployment (only wired to `SirusPlugin::onActivation()`). Replaced with `SirusDatabase::maybe_upgrade_schema()` (public `SCHEMA_VERSION` int constant, one cheap `get_option()` read, `ensure_schema()` only on mismatch) called from `SirusPlugin::bootSchemaAndCron()` on an early `init` hook. Cron scheduling moved the same way, reusing the existing `wp_next_scheduled()`-guarded `schedule_cron()` pattern. `onActivation()`/`onDeactivation()` and the lifecycle hook registrations in `sparxstar-sirus-context.php` are removed. No table/column/index definitions changed — only *when* schema creation runs. Multisite: no explicit per-site loop needed (mirrors `SparxstarUECInstaller::activate_site()`'s "never loop over sites" rule) — each request already executes in its own site's `$wpdb`/option context. |
 
 ### Trust and Security
 
 | Component | File | Status | Sprint | Notes |
 |---|---|---|---|---|
 | `TrustEngine` | `src/core/TrustEngine.php` | ✅ | S-01/S-02 | Frozen algorithm; 18 unit tests in `TrustEngineTest` |
-| `TrustResolver` | `src/core/TrustResolver.php` | ✅ | S-01/S-02 | Credential-level base + drift/session deductions; 15 unit tests in `TrustResolverTest` |
-| `StepUpPolicy` | `src/core/StepUpPolicy.php` | ✅ | S-01/S-02 | Frozen policy; `requiresStepUp()` + `TRUST_LEVEL_STEP_UP_REQUIRED` pre-flag check; 17 unit tests |
-| `PulseGenerator` | `src/core/PulseGenerator.php` | ✅ | S-01/S-02 | HMAC-SHA256 only; consumes enum-backed `SirusContext::trust_level`; PAM-002-P2 fields wired (`behavior_flags`, `geo_zone`, `network_effective_type`, `session_duration`); 20 unit tests in `PulseGeneratorTest`; `$now`/`$ttlSeconds` explicit params |
+| `TrustResolver` | `src/core/TrustResolver.php` | ✅ | S-01/S-02 | Credential-level base + drift/session deductions; 19 unit tests in `TrustResolverTest`; `CREDENTIAL_BASE` fixed 2026-08-01 — removed dead `elder` entry (not a `CredentialTier` case), added missing `authority` entry (0.95, above `user` 0.85); added exhaustive-coverage and monotonic-ordering tests |
+| `StepUpPolicy` | `src/core/StepUpPolicy.php` | ✅ | S-01/S-02 | Frozen policy; `requiresStepUp()` + `TRUST_LEVEL_STEP_UP_REQUIRED` pre-flag check; fails closed on `LOCKED` (checked before `STEP_UP_REQUIRED`, added 2026-08-01); 21 unit tests |
+| `PulseGenerator` | `src/core/PulseGenerator.php` | ✅ | S-01/S-02 | HMAC-SHA256 only; consumes enum-backed `SirusContext::trust_level`; PAM-002-P2 fields wired (`behavior_flags`, `geo_zone`, `network_effective_type`, `session_duration`); 36 unit tests in `PulseGeneratorTest`; `$now`/`$ttlSeconds` explicit params; signing key constant renamed `SIRUS_PULSE_SIGNING_KEY` → `SPARXSTAR_PULSE_SIGNING_KEY` (2026-08-01, matches Helios); `resolveTtl(ResourceSensitivity)` implements the sensitivity/connectivity TTL strategy (2026-08-01) |
 
 ### Device and Identity
 
@@ -151,6 +152,58 @@ This document tracks every component defined in **Sirius Context Engine Spec v3.
 
 ---
 
+
+## Current Review Notes — 2026-08-01 (spec-conformance audit fixes)
+
+Static spec-conformance audit against Sirus Context Engine Spec v3.0 found and fixed six defects
+(B-1 through B-6) plus a stub-drift CI gap (D-4). Full detail per-component is recorded in the
+Scoreboard rows above; this note records the cross-cutting decisions.
+
+- **B-1 (🔴 platform-breaking):** `SIRUS_PULSE_SIGNING_KEY` renamed to `SPARXSTAR_PULSE_SIGNING_KEY`
+  everywhere (code, tests, `PUBLIC_API.md`, `README.md`) to match Helios's already-renamed side.
+  Every pulse was failing Helios's signature verification until this landed.
+- **B-2 (🔴 platform-breaking):** see the `SirusDatabase` schema boot row above. Sirus tables were
+  never created in a real deployment because must-use plugins never fire activation hooks.
+- **B-3 (🟠) — table-name reconciliation:** `sparxstar-user-environment-check.php` and
+  `sparxstar-sirus-context.php` defined `SPX_ENV_CHECK_DB_TABLE_NAME` to two different values
+  (`sparxstar_uec_snapshots` vs `sparxstar_env_snapshots`) with behavior depending on mu-plugin
+  load order. **Decision:** keep `sparxstar_env_snapshots` — the value already defined (guarded,
+  "define if not already defined") by `sparxstar-sirus-context.php`, which is the live/active
+  orchestrator entry point. Reasoning: WordPress loads mu-plugins in filename-alphabetical order;
+  `sparxstar-sirus-context.php` sorts before `sparxstar-user-environment-check.php` ('s' < 'u'), so
+  it always defines the constant first in practice even without the new guard. The new guard added
+  in `sparxstar-user-environment-check.php` (`if (defined('SIRUS_VERSION')) { return; }`) makes this
+  outcome unconditional rather than order-dependent: the legacy file's own conflicting definition of
+  `SPX_ENV_CHECK_DB_TABLE_NAME` (`sparxstar_uec_snapshots`) is now unreachable whenever Sirus is
+  loaded. In practice this also means the legacy `SparxstarUECDatabase`/`SparxstarUECSnapshotRepository`
+  code path (the only consumer of that constant) no longer runs at all when Sirus is active — it was
+  already superseded by `SirusDatabase`/`SirusEventRepository` per the UEC Legacy Scoreboard below.
+  `sparxstar-user-environment-check.php` was also added to `.distignore`. Neither legacy file was
+  deleted — full removal remains S-03, blocked on the stabilization window.
+- **B-4 (🟠):** see the `TrustResolver` row above.
+- **B-5 (🟠):** see the `StepUpPolicy` row above.
+- **B-6 (🟠):** see the `PulseGenerator` row above (pulse TTL strategy).
+- **B-7 — known pending follow-up:** a parallel Ouroboros-side effort is adding a canonical
+  `CredentialTier` to `sparxstar-ouroboros-integrity` (tracked here as OQ-009 in
+  `docs/sirus-tech-spec.md`). This repo's local provisional `src/Infrastructure/DTOs/CredentialTier.php`
+  and the `"Starisian\\Sparxstar\\Infrastructure\\": "src/Infrastructure/"` autoload entry in
+  `composer.json` were deliberately **not** touched in this pass — they cannot be removed until the
+  promoted Ouroboros version actually ships in a released Composer version. Follow-up: once that
+  ships, delete the local stub, drop the autoload entry, and add `CredentialTier` to
+  `bin/check-ouroboros-stub-drift.php`'s coverage.
+- **D-4 (🟠):** added `bin/check-ouroboros-stub-drift.php` (composer script `check:ouroboros-drift`)
+  and a new `ouroboros-stub-drift` CI job in `.github/workflows/test.yml` (runs after `php-tests`).
+  Reflects the real installed Ouroboros package and checks `TrustLevelPrimitive`, `ContextPulse`,
+  `Platform`, `ContextPulseSigningMaterial`, and `ContextBootException` against the shapes this
+  repo's code assumes — the automated version of the check that would have caught the historical
+  drift in `docs/DRAFT-OQ-016-trustlevelprimitive-drift.md` before it reached CI as 94 failures.
+- **Pre-existing failures observed while running the full suite (not caused by this pass, not
+  fixed — out of scope):** `AuthorityResolverTest`/`CapabilityEngineTest` (6 + 8 tests) call a test
+  helper (`makeContext(string $credentialTier)`) that passes `TrustLevelPrimitive` string values
+  (`'NORMAL'`, `'STEP_UP_REQUIRED'`, `'LOCKED'`) into `CredentialTier::from()`, which throws
+  `ValueError` since those are not valid `CredentialTier` backing values — a test-authoring bug
+  confusing the two enums. `RestApiTest` (2 tests) calls `WP_REST_Request::set_body_params()`,
+  which the test bootstrap's `WP_REST_Request` stub does not implement. Both predate this branch.
 
 ## Current Review Notes — 2026-06-09
 
@@ -467,4 +520,4 @@ With the gate trustworthy, run the suite and flip 🟡 → ✅ in this tracker f
 
 ---
 
-*Last updated: 2026-06-12 | Spec version: Sirus Context Engine Spec v3.0 + PAM-002*
+*Last updated: 2026-08-01 | Spec version: Sirus Context Engine Spec v3.0 + PAM-002*
