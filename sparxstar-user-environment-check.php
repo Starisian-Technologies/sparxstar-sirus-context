@@ -15,6 +15,17 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
+// Sirus wins: if the sparxstar-sirus-context mu-plugin has already loaded
+// (it defines SIRUS_VERSION), this legacy entry point becomes a no-op.
+// Both files historically bootstrapped competing orchestrators on
+// plugins_loaded priority 10 and defined SPX_ENV_CHECK_DB_TABLE_NAME to
+// different values, making behavior depend on load order. Removal of this
+// file entirely is a separately-scheduled item blocked on a stabilization
+// window (see TRACKER.md) — this guard neutralizes it in the meantime.
+if (defined('SIRUS_VERSION')) {
+    return;
+}
+
 // 1. Define Constants
 // =========================================================================
 //  1. BOOTSTRAP GUARD & CORE CONSTANTS

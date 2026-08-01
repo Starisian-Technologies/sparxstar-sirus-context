@@ -41,11 +41,17 @@ final class PluginBootstrapTest extends TestCase
     }
 
     /**
-     * The bootstrap should register activation and deactivation hooks.
+     * B-3: sparxstar-user-environment-check.php is a no-op once
+     * sparxstar-sirus-context.php has loaded (it defines SIRUS_VERSION) —
+     * "Sirus wins". This test suite's shared bootstrap (tests/bootstrap-unit.php)
+     * always defines SIRUS_VERSION up front, so the legacy file's guard fires
+     * before it reaches its activation/deactivation hook registrations, and
+     * they must NOT be registered.
      */
-    public function testActivationHooksAreRegistered(): void
+    public function testActivationHooksAreNotRegisteredWhenSirusIsLoaded(): void
     {
-        $this->assertArrayHasKey('callback', $GLOBALS['registered_activation_hook'] ?? []);
-        $this->assertArrayHasKey('callback', $GLOBALS['registered_deactivation_hook'] ?? []);
+        $this->assertTrue(defined('SIRUS_VERSION'), 'Test bootstrap is expected to pre-define SIRUS_VERSION.');
+        $this->assertArrayNotHasKey('callback', $GLOBALS['registered_activation_hook'] ?? []);
+        $this->assertArrayNotHasKey('callback', $GLOBALS['registered_deactivation_hook'] ?? []);
     }
 }
