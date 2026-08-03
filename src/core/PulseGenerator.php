@@ -112,7 +112,6 @@ final class PulseGenerator
         $default = self::TTL_BY_SENSITIVITY[$sensitivity->value] ?? self::PULSE_TTL;
 
         $ttl = (int) apply_filters('sparxstar_sirus_pulse_ttl_seconds', $default, $sensitivity, $default);
-        $ttl = max(1, $ttl);
 
         if ($ttl <= 0) {
             // A misbehaving filter callback must not be able to produce a
