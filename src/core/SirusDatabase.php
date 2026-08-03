@@ -40,8 +40,15 @@ if (! defined('ABSPATH')) {
  */
 final readonly class SirusDatabase
 {
-    /** Current schema version. Bump this when table definitions change. */
+    /**
+     * Current schema version. Bump this when table definitions change.
+     *
+     * MUST stay a string (semver, e.g. '1.5.0'), never a plain int -- see
+     * SirusDatabaseEventsTableTest::testSchemaVersionIsStringNotInt() for
+     * why this is a regression test, not just a style preference.
+     */
     public const SCHEMA_VERSION = '1.5.0';
+
     /** Option key used to track the installed schema version. */
     private const VERSION_OPTION = 'sirus_db_version';
 
@@ -61,16 +68,14 @@ final readonly class SirusDatabase
      */
     public function maybe_upgrade_schema(): void
     {
-        // Compared as strings deliberately, not (int): older releases stored
-        // SCHEMA_VERSION as a semver string (e.g. '1.5.0') in this exact
-        // option. (int) '1.5.0' casts to 1, which would collide with this
-        // scheme's SCHEMA_VERSION = 1 and cause any site already on the old
-        // scheme to be silently treated as up to date, skipping the schema
-        // check this method exists to run. String comparison guarantees no
-        // value from the old scheme can ever equal a value from this one.
+        // get_option() returns mixed, so the (string) cast here is load-bearing
+        // (guards against a non-string stored value comparing loosely-true
+        // against SCHEMA_VERSION); SCHEMA_VERSION itself is already declared
+        // as a string, so no cast is needed on that side. Never switch either
+        // side to an (int) comparison -- SCHEMA_VERSION must stay a string.
         $installed = (string) get_option(self::VERSION_OPTION, '');
 
-        if ($installed === (string) self::SCHEMA_VERSION) {
+        if ($installed === self::SCHEMA_VERSION) {
             return;
         }
 
@@ -82,16 +87,15 @@ final readonly class SirusDatabase
      */
     public function ensure_schema(): void
     {
-        // See the comment in maybe_upgrade_schema() -- string comparison is
-        // deliberate, not an oversight.
+        // See the comment in maybe_upgrade_schema().
         $installed = (string) get_option(self::VERSION_OPTION, '');
 
-        if ($installed === (string) self::SCHEMA_VERSION) {
+        if ($installed === self::SCHEMA_VERSION) {
             return;
         }
 
         $this->create_or_update_tables();
-        update_option(self::VERSION_OPTION, (string) self::SCHEMA_VERSION, true);
+        update_option(self::VERSION_OPTION, self::SCHEMA_VERSION, true);
     }
 
     /**
