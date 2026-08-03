@@ -97,7 +97,8 @@
       "@phpfix",
       "@comments:fix"
     ],
-    "smoke:api-contract": "php tests/smoke/sirus-api-contract-smoke.php"
+    "smoke:api-contract": "php tests/smoke/sirus-api-contract-smoke.php",
+    "check:ouroboros-drift": "php bin/check-ouroboros-stub-drift.php"
   },
   "extra": {
     "installer-paths": {

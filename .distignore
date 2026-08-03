@@ -4,6 +4,12 @@ tests/
 docs/
 scripts/
 tools/
+
+# Legacy plugin entry point superseded by sparxstar-sirus-context.php.
+# Removal is a separately-scheduled item blocked on a stabilization window
+# (see TRACKER.md); until then it ships as a no-op guarded by SIRUS_VERSION
+# but is excluded from distribution builds.
+sparxstar-user-environment-check.php
 .github/
 .phpdoc/
 .vscode/

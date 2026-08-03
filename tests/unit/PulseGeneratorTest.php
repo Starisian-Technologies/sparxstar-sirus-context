@@ -3,7 +3,7 @@
 /**
  * Tests for PulseGenerator – HMAC-SHA256 signed ContextPulse generation.
  *
- * Test ordering note: SIRUS_PULSE_SIGNING_KEY is a PHP constant that can only be
+ * Test ordering note: SPARXSTAR_PULSE_SIGNING_KEY is a PHP constant that can only be
  * defined once per process. This test class:
  *   1. Runs the "key not defined" assertion first (before the constant exists).
  *   2. Defines the constant via setUpBeforeClass() for all subsequent tests.
@@ -20,6 +20,7 @@ namespace Starisian\Sparxstar\Sirus\Tests\Unit;
 use Starisian\Sparxstar\Infrastructure\Constants\Platform;
 use Starisian\Sparxstar\Infrastructure\DTOs\CredentialTier;
 use Starisian\Sparxstar\Sirus\core\PulseGenerator;
+use Starisian\Sparxstar\Sirus\core\ResourceSensitivity;
 use Starisian\Sparxstar\Sirus\core\SirusContext;
 use Starisian\Sparxstar\Infrastructure\DTOs\ContextPulse;
 use Starisian\Sparxstar\Infrastructure\DTOs\TrustLevelPrimitive;
@@ -37,21 +38,25 @@ final class PulseGeneratorTest extends SirusTestCase
     private PulseGenerator $generator;
 
     /**
-     * Define SIRUS_PULSE_SIGNING_KEY once for the lifetime of this test class.
+     * Define SPARXSTAR_PULSE_SIGNING_KEY once for the lifetime of this test class.
      * Runs before any test methods in this class.
      */
     public static function setUpBeforeClass(): void
     {
         parent::setUpBeforeClass();
 
-        if (! defined('SIRUS_PULSE_SIGNING_KEY')) {
-            define('SIRUS_PULSE_SIGNING_KEY', self::TEST_SIGNING_KEY);
+        if (! defined('SPARXSTAR_PULSE_SIGNING_KEY')) {
+            define('SPARXSTAR_PULSE_SIGNING_KEY', self::TEST_SIGNING_KEY);
         }
     }
 
     protected function setUp(): void
     {
         $this->generator = new PulseGenerator();
+
+        // Reset filter globals to avoid cross-test contamination (matches
+        // EnvironmentResolverTest's convention for the same global).
+        $GLOBALS['registered_filters'] = [];
     }
 
     // ── Return type and shape ─────────────────────────────────────────────────
@@ -239,6 +244,114 @@ final class PulseGeneratorTest extends SirusTestCase
         $this->assertLessThanOrEqual($after, $pulse->issued_at);
     }
 
+    // ── resolveTtl() — sensitivity-mapped defaults ──────────────────────────────
+
+    /**
+     * resolveTtl(LEVEL_1) returns the working default of 120 seconds.
+     * The test-environment EnvironmentResolver reports 'cli' (not low-connectivity),
+     * so no extension applies here.
+     */
+    public function testResolveTtlForLevel1ReturnsDefault(): void
+    {
+        $this->assertSame(120, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_1));
+    }
+
+    /**
+     * resolveTtl(LEVEL_2) returns the working default of 60 seconds.
+     */
+    public function testResolveTtlForLevel2ReturnsDefault(): void
+    {
+        $this->assertSame(60, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_2));
+    }
+
+    /**
+     * resolveTtl(LEVEL_3) returns the working default of 30 seconds.
+     */
+    public function testResolveTtlForLevel3ReturnsDefault(): void
+    {
+        $this->assertSame(30, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_3));
+    }
+
+    // ── resolveTtl() — filter override ───────────────────────────────────────────
+
+    /**
+     * The sparxstar_sirus_pulse_ttl_seconds filter can override the default TTL,
+     * and receives the sensitivity and default as additional arguments.
+     */
+    public function testResolveTtlFilterOverridesDefault(): void
+    {
+        add_filter(
+            'sparxstar_sirus_pulse_ttl_seconds',
+            static function (int $ttl, ResourceSensitivity $sensitivity, int $default): int {
+                self::assertSame(ResourceSensitivity::LEVEL_2, $sensitivity);
+                self::assertSame(60, $default);
+                return 999;
+            },
+            10,
+            3
+        );
+
+        $this->assertSame(999, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_2));
+    }
+
+    /**
+     * A misbehaving filter callback returning zero must not propagate --
+     * generate() throws on $ttlSeconds <= 0, so a bad filter would otherwise
+     * turn into an uncaught 500 on every REST-issued pulse. resolveTtl()
+     * falls back to the sensitivity's own default instead.
+     */
+    public function testResolveTtlFallsBackToDefaultWhenFilterReturnsZero(): void
+    {
+        add_filter('sparxstar_sirus_pulse_ttl_seconds', static fn (): int => 0);
+        $this->assertSame(60, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_2));
+    }
+
+    /**
+     * Same as above, for a negative filter return value.
+     */
+    public function testResolveTtlFallsBackToDefaultWhenFilterReturnsNegative(): void
+    {
+        add_filter('sparxstar_sirus_pulse_ttl_seconds', static fn (): int => -5);
+        $this->assertSame(30, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_3));
+    }
+
+    // ── resolveTtl() — low-connectivity extension (LEVEL_1 only) ────────────────
+
+    /**
+     * A low-connectivity network extends the TTL to 600s, but only at LEVEL_1.
+     * LEVEL_2 and LEVEL_3 are unaffected by connectivity.
+     */
+    public function testLowConnectivityExtensionAppliesOnlyAtLevel1(): void
+    {
+        add_filter('sparxstar_env_network_effective_type', static fn (): string => 'slow-2g');
+
+        $this->assertSame(600, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_1));
+        $this->assertSame(60, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_2));
+        $this->assertSame(30, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_3));
+    }
+
+    /**
+     * A normal-connectivity network does not trigger the LEVEL_1 extension.
+     */
+    public function testNormalConnectivityDoesNotExtendLevel1(): void
+    {
+        add_filter('sparxstar_env_network_effective_type', static fn (): string => '4g');
+
+        $this->assertSame(120, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_1));
+    }
+
+    /**
+     * The low-connectivity extension is a hard cap: even if the TTL filter tries
+     * to set a LEVEL_1 default above 600s, low connectivity forces it back to 600.
+     */
+    public function testLowConnectivityCapsAt600EvenIfFilterExceedsIt(): void
+    {
+        add_filter('sparxstar_env_network_effective_type', static fn (): string => '2g');
+        add_filter('sparxstar_sirus_pulse_ttl_seconds', static fn (): int => 5000);
+
+        $this->assertSame(600, $this->generator->resolveTtl(ResourceSensitivity::LEVEL_1));
+    }
+
     // ── Signature ─────────────────────────────────────────────────────────────
 
     /**
@@ -398,14 +511,14 @@ final class PulseGeneratorTest extends SirusTestCase
      * This test documents the contract floor without reaching into private implementation details.
      *
      * Full "too short key throws" and "key not defined throws" tests cannot be exercised
-     * once SIRUS_PULSE_SIGNING_KEY is defined. They are verified by code review of the
+     * once SPARXSTAR_PULSE_SIGNING_KEY is defined. They are verified by code review of the
      * resolveSigningKey() implementation.
      */
     public function testSigningKeyMeetsCurrentOuroborosMinimumLength(): void
     {
         $this->assertGreaterThanOrEqual(
             Platform::PULSE_MIN_SIGNING_KEY_BYTES,
-            strlen(constant('SIRUS_PULSE_SIGNING_KEY'))
+            strlen(constant('SPARXSTAR_PULSE_SIGNING_KEY'))
         );
     }
 

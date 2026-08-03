@@ -289,10 +289,14 @@ final class RestApiTest extends SirusTestCase
     {
         $method  = strtoupper($method);
         $request = new \WP_REST_Request($method, $route);
-        if (in_array($method, ['POST', 'PUT', 'PATCH'], true)) {
-            $request->set_body_params($params);
-        } else {
-            $request->set_query_params($params);
+        // The WP_REST_Request stub in tests/bootstrap-unit.php only implements
+        // get_param()/set_param() (not set_body_params()/set_query_params(),
+        // which real WordPress core provides but this minimal stub doesn't) --
+        // and SirusRESTController reads exclusively via get_param() for both
+        // body and query params, matching real WP_REST_Request's unified
+        // accessor behavior. set_param() is correct for every HTTP method here.
+        foreach ($params as $key => $value) {
+            $request->set_param((string) $key, $value);
         }
         $request->set_header('X-WP-Nonce', wp_create_nonce('wp_rest'));
 

@@ -4,6 +4,7 @@
  * Tests for StepUpPolicy – frozen authentication step-up boundary.
  *
  * StepUpPolicy encodes a governance-sensitive frozen decision boundary per spec §15 / Helios §11:
+ *   trust_level === LOCKED             — step-up always required (administratively locked; most severe)
  *   trust_level === STEP_UP_REQUIRED   — step-up always required (pre-flagged context)
  *   ResourceSensitivity::LEVEL_3       — step-up always required (regardless of trust score)
  *   ResourceSensitivity::LEVEL_2       — step-up required when trust_score < 0.7
@@ -35,6 +36,60 @@ final class StepUpPolicyTest extends SirusTestCase
     protected function setUp(): void
     {
         $this->policy = new StepUpPolicy();
+    }
+
+    // ── LOCKED trust level — administratively locked; most severe override ────
+
+    /**
+     * A pulse with trust_level === LOCKED always requires step-up, even for
+     * LEVEL_1 sensitivity and a perfect trust score of 1.0. LOCKED is the most
+     * severe trust state and must never fall through to a less restrictive
+     * branch (e.g. LEVEL_1's unconditional false).
+     */
+    public function testLockedTrustLevelAlwaysRequiresStepUpAtLevel1(): void
+    {
+        $pulse = $this->makePulse(trust_score: 1.0, trust_level: 'LOCKED');
+
+        $this->assertTrue(
+            $this->policy->requiresStepUp($pulse, ResourceSensitivity::LEVEL_1)
+        );
+    }
+
+    /**
+     * A pulse with trust_level === LOCKED always requires step-up for LEVEL_2,
+     * regardless of trust score.
+     */
+    public function testLockedTrustLevelAlwaysRequiresStepUpAtLevel2(): void
+    {
+        $pulse = $this->makePulse(trust_score: 0.9, trust_level: 'LOCKED');
+
+        $this->assertTrue(
+            $this->policy->requiresStepUp($pulse, ResourceSensitivity::LEVEL_2)
+        );
+    }
+
+    /**
+     * A pulse with trust_level === LOCKED always requires step-up for LEVEL_3.
+     */
+    public function testLockedTrustLevelAlwaysRequiresStepUpAtLevel3(): void
+    {
+        $pulse = $this->makePulse(trust_score: 1.0, trust_level: 'LOCKED');
+
+        $this->assertTrue(
+            $this->policy->requiresStepUp($pulse, ResourceSensitivity::LEVEL_3)
+        );
+    }
+
+    /**
+     * getRequiredLevel returns LEVEL_3 for a LOCKED pulse at LEVEL_1 sensitivity.
+     */
+    public function testGetRequiredLevelForLockedAtLevel1ReturnsLevel3(): void
+    {
+        $pulse = $this->makePulse(trust_score: 1.0, trust_level: 'LOCKED');
+
+        $level = $this->policy->getRequiredLevel($pulse, ResourceSensitivity::LEVEL_1);
+
+        $this->assertSame(ResourceSensitivity::LEVEL_3, $level);
     }
 
     // ── STEP_UP_REQUIRED trust level — pre-flagged override ────────────────────

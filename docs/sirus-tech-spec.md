@@ -79,6 +79,21 @@ mu-plugins/00-sparxstar-loader.php
       → ContextCache::set()             TTL eviction
 ```
 
+Because Sirus is deployed as a must-use plugin, WordPress never fires `register_activation_hook()`
+or `register_deactivation_hook()` for it. Schema creation and cron scheduling therefore run from
+`SirusPlugin::bootSchemaAndCron()` on an early `init` hook instead of an activation hook:
+`SirusDatabase::maybe_upgrade_schema()` does a single cheap `get_option()` read of a stored schema
+version and only runs `dbDelta()` on a version mismatch, and cron registration reuses the existing
+idempotent `schedule_cron()` (`wp_next_scheduled()` guarded) pattern already used by
+`ClientTelemetry`/`SirusEventAggregator`. `SirusPlugin::onActivation()`/`onDeactivation()` and the
+`sparxstar-sirus-context.php` lifecycle hook registrations have been removed as unreferenced.
+
+The legacy `sparxstar-user-environment-check.php` entry point is still shipped alongside
+`sparxstar-sirus-context.php` (removal is a separately-scheduled item blocked on a stabilization
+window — see OQ-005) but is now a guarded no-op: it returns immediately if `SIRUS_VERSION` is
+already defined, so "Sirus wins" whenever both are present instead of behavior depending on mu-plugin
+load order. It is excluded from distribution builds via `.distignore`.
+
 ### Trust score algorithm (frozen)
 
 ```
@@ -90,15 +105,22 @@ recent failures:   -0.3
 clamped to [0.0, 1.0]
 ```
 
-Trust score maps to trust level:
+`trust_level` is carried as the Ouroboros `TrustLevelPrimitive` enum (PAM-003 Decision 7):
+`NORMAL`, `STEP_UP_REQUIRED` (pre-flagged anomaly), `LOCKED` (administratively locked — most
+severe). This supersedes the older `NORMAL`/`ELEVATED`/`CRITICAL` score-band language; see
+OQ-002's resolved `TrustLevelPrimitive` drift item below.
 
-| Score | Level |
-|---|---|
-| ≥ 0.7 | NORMAL |
-| > 0.0 | ELEVATED |
-| = 0.0 | CRITICAL |
+Step-up policy (`StepUpPolicy`, frozen, first match wins):
 
-Step-up policy: Level 3 always; Level 2 (step-up required) when `trust_score < 0.7`.
+1. `trust_level === LOCKED` → step-up always required, unconditionally (most severe; checked
+   before the pre-flagged case below so it can never fall through to a less restrictive branch).
+2. `trust_level === STEP_UP_REQUIRED` → step-up always required (pre-flagged context).
+3. `ResourceSensitivity::LEVEL_3` → step-up always required.
+4. `ResourceSensitivity::LEVEL_2` → step-up required when `trust_score < 0.7`.
+5. `ResourceSensitivity::LEVEL_1` → no step-up required.
+
+Sirus only *handles* `LOCKED` correctly if it is ever received on a pulse — this repository does
+not decide when to emit it; that is a separate, larger governance decision not yet made.
 
 ### CLI context
 
@@ -123,7 +145,19 @@ Client-submitted signals take precedence over server-side UA parsing. Matomo Dev
 
 ### Pulse generation
 
-Sirus signs pulses via HMAC-SHA256 using Ouroboros `ContextPulseSigningMaterial::build()`. Pulse fields include the four PAM-002-P2 fields: `behavior_flags`, `geo_zone`, `network_effective_type`, `session_duration`. Sirus never verifies pulses at runtime — that is Helios.
+Sirus signs pulses via HMAC-SHA256 using Ouroboros `ContextPulseSigningMaterial::build()`. Pulse fields include the four PAM-002-P2 fields: `behavior_flags`, `geo_zone`, `network_effective_type`, `session_duration`. Sirus never verifies pulses at runtime — that is Helios. The HMAC signing key is read exclusively from the `SPARXSTAR_PULSE_SIGNING_KEY` PHP constant (renamed from its old `SIRUS_`-prefixed name to match Helios's side of the shared secret — the two names never matched, so every pulse previously failed Helios's signature verification).
+
+### Pulse TTL strategy (provisional pending field testing)
+
+`PulseGenerator::resolveTtl(ResourceSensitivity $sensitivity): int` maps resource sensitivity to a working-default TTL, configurable via the `sparxstar_sirus_pulse_ttl_seconds` filter (receives `$ttl, $sensitivity, $default`) rather than being hardcoded:
+
+| Sensitivity | Default TTL |
+|---|---|
+| `LEVEL_1` | 120s |
+| `LEVEL_2` | 60s |
+| `LEVEL_3` | 30s |
+
+At `LEVEL_1` only, a low-connectivity network (`EnvironmentResolver::getNetworkEffectiveType()` returning `slow-2g`/`2g`/`slow-3g`) extends the TTL to a flat 600s (10 minutes) cap, applied after the filter. `LEVEL_2`/`LEVEL_3` are never extended for connectivity. `PulseGenerator::PULSE_TTL` (60s) remains the fallback default when `generate()` is called with no explicit TTL. `SirusRESTController::handle_generate_pulse()` is the production call site: it resolves the TTL via `resolveTtl()` before calling `generate()`. The specific second values above are provisional pending field testing and may change.
 
 ---
 
@@ -136,7 +170,7 @@ Sirus signs pulses via HMAC-SHA256 using Ouroboros `ContextPulseSigningMaterial:
 | `identity_id` | `?string` | Resolved identity; `"SYSTEM"` for CLI; null if unresolved |
 | `device_id` | `string` | Server-issued; never JS-only |
 | `trust_score` | `float` | [0.0, 1.0] |
-| `trust_level` | `TrustLevelPrimitive` | Enum: NORMAL / ELEVATED / CRITICAL |
+| `trust_level` | `TrustLevelPrimitive` | Enum: NORMAL / STEP_UP_REQUIRED / LOCKED |
 | `authority_id` | `?string` | Governance scope; `"GLOBAL"` for CLI; null if unresolved |
 | `environment` | `EnvironmentRecord` | Client-first environment record |
 | `consent` | `ConsentRecord` | Three-level cascade result |
@@ -191,6 +225,7 @@ sparxstar_env_geolocation_ttl
 sparxstar_env_geolocation_lookup
 sparxstar_env_retention_days
 sparxstar_sirus_device_ttl_days
+sparxstar_sirus_pulse_ttl_seconds
 ```
 
 **StarUserEnv facade (frozen — signatures never change):**
@@ -221,6 +256,17 @@ StarUserEnv::get_location()
 - REST surface — consumed by Helios, Dheghom, Sky, compatibility callers
 - `StarUserEnv` facade — consumed by all existing WordPress site code
 
+### Stub-drift CI check
+
+`bin/check-ouroboros-stub-drift.php` (composer script `check:ouroboros-drift`) reflects the real
+installed `starisian/sparxstar-ouroboros-integrity` package and verifies that the primitives Sirus
+actually consumes from it (`TrustLevelPrimitive` cases, `ContextPulse` constructor parameters,
+`Platform` constants, `ContextPulseSigningMaterial::build()`, `ContextBootException`) still match
+the shape Sirus's code assumes. It runs as a dedicated CI job (`.github/workflows/test.yml`,
+`ouroboros-stub-drift`) after the main `php-tests` job. This is the automated version of the manual
+process that would have caught the historical drift documented in
+`docs/DRAFT-OQ-016-trustlevelprimitive-drift.md` before it reached 94 CI failures.
+
 ### OQ-001 — Ouroboros v2.0 availability
 
 `sparxstar-ouroboros-integrity` v2.0.0 `shared-test-vectors.json` is blocked by a `repository not authorized` CI gate error. Ten Ouroboros-coupled tests remain at 🟡 until this resolves.
@@ -233,7 +279,7 @@ StarUserEnv::get_location()
 
 | Package | Version | Purpose |
 |---|---|---|
-| `starisian/sparxstar-ouroboros-integrity` | `^2.0` | Shared contracts and infrastructure types |
+| `starisian/sparxstar-ouroboros-integrity` | `^3.0` | Shared contracts and infrastructure types |
 | `geoip2/geoip2` | `^3.2` | GeoIP resolution |
 
 ### Optional
@@ -251,6 +297,7 @@ PHPUnit `^11.5.50`, PHPStan `^2.1` (currently Level 5 → target Level 7 via S-0
 ## REQ-009 — Security and privacy
 
 - **Trust score** — frozen algorithm; deductions clamped to [0.0, 1.0]; no identity in pulse
+- **Credential-tier base scores** (`TrustResolver::CREDENTIAL_BASE`) — `anonymous` 0.50 < `device` 0.70 < `user` 0.85 < `contributor` 0.90 < `authority` 0.95. Every real `CredentialTier` case must resolve above `DEFAULT_BASE` (0.50, `anonymous`'s own value) so a valid tier can never silently score worse than an anonymous device by falling through to the default.
 - **IP anonymization** — last octet zeroed at `EnvironmentRecord` construction; enforced at construction, not caller-side
 - **Telemetry** — `ClientTelemetry` reports never stored in post meta (§23); aggregated only
 - **Cookies** — pulse cookie is HttpOnly + SameSite=Strict
@@ -300,7 +347,7 @@ Achieved in S-07. `tests/integration/RestApiTest.php` covers all six endpoints.
 - **OQ-004** — `VerificationResult`, `AgreementResult`, `ValidationHelper` imports deferred pending Ouroboros v2.0 publication
 - **OQ-005** — S-03 UEC legacy removal gated on 30-day production stabilization window post S-01 deployment; 12 legacy `SparxstarUEC*` files remain in codebase
 - **OQ-006** — Engineering Standards §6.2 citation in GATE-AUDIT-PAM003 references "GraphQL Resolver Rules" — citation needs correction or the actual PSR-4 naming standard document needs to be supplied
-- **[PENDING OQ NUMBER FROM GOVERNANCE REGISTRY]** — `TrustLevelPrimitive` enum drift: Sirus calls `TrustLevelPrimitive::ELEVATED` (in `PulseGenerator::deriveBehaviorFlags()`), `TrustLevelPrimitive::from('ELEVATED')` (via `ContextEngine` passing Helios-supplied strings), and `TrustLevelPrimitive::from('anonymous')` (in `NetworkContextBroker::verifyToken()`), but CI reports `ValueError` for both backing values at Ouroboros v2.0.0 commit `3529cb67`. This is a live-path defect. Awaiting owner to assign a ratified OQ number from the governance registry and determine resolution path. Gate is failing and unratified.
+- **[PENDING OQ NUMBER FROM GOVERNANCE REGISTRY]** — `TrustLevelPrimitive` enum drift (`docs/DRAFT-OQ-016-trustlevelprimitive-drift.md`): historically, Sirus called `TrustLevelPrimitive::ELEVATED`/`::from('ELEVATED')`/`::from('anonymous')`, none of which exist on the current `TrustLevelPrimitive` enum (`NORMAL`, `STEP_UP_REQUIRED`, `LOCKED`). **Status: the live call sites now use the correct cases** (`PulseGenerator::deriveBehaviorFlags()` checks `STEP_UP_REQUIRED`; `StepUpPolicy` handles `NORMAL`/`STEP_UP_REQUIRED`/`LOCKED` fail-closed per the spec-conformance pass that added the missing `LOCKED` branch). The `bin/check-ouroboros-stub-drift.php` CI check (see above) now guards against this class of drift recurring silently. This entry is left as a historical record; the DRAFT-OQ-016 document itself should still be formally ratified/closed by the owner in the governance registry.
 - **OQ-009** — `CredentialTier` not exported by `sparxstar-ouroboros-integrity` v3.0.0 (commit `b7edd0d5`). Provisional definition lives at `src/Infrastructure/DTOs/CredentialTier.php` under the shared `Starisian\Sparxstar\Infrastructure\DTOs` namespace. Remove provisional file and the `"Starisian\\Sparxstar\\Infrastructure\\"` autoload entry in `composer.json` once Ouroboros publishes the type. Blocking 108 CI errors on `claude/tender-babbage-y2p8us` until provisional fix was applied 2026-07-06.
 
 ---
@@ -309,6 +356,7 @@ Achieved in S-07. `tests/integration/RestApiTest.php` covers all six endpoints.
 
 | Version | Date | Notes |
 |---|---|---|
+| 3.0.2 | 2026-08-01 | Spec-conformance audit fixes: renamed the old `SIRUS_`-prefixed signing-key constant to `SPARXSTAR_PULSE_SIGNING_KEY` (matches Helios); schema creation/cron scheduling moved from the never-fired activation hook to a boot-time idempotent check (`SirusDatabase::maybe_upgrade_schema()`); legacy `sparxstar-user-environment-check.php` is now a guarded no-op when Sirus is loaded; `TrustResolver::CREDENTIAL_BASE` fixed (removed dead `elder` entry, added missing `authority` entry scored above `user`); `StepUpPolicy` now fails closed on `LOCKED` (checked before `STEP_UP_REQUIRED`); `PulseGenerator::resolveTtl()` implements the sensitivity-driven pulse TTL strategy (§ Pulse TTL strategy); added `bin/check-ouroboros-stub-drift.php` CI check. |
 | 3.0.1 | 2026-07-06 | Requires `sparxstar-ouroboros-integrity` ≥ v3.0.0 (introduces `CredentialTier` enum and two-field trust/credential split). Sirus is first platform repo on Ouroboros 3.x; Helios, Sky, Mehns, Dheghom tracking separately. |
 | 3.0.0 | 2026-07-01 | Initial governance spec submission; reflects S-07 implementation state |
 | — | 2026-06-12 | TRACKER.md last updated; S-07 merged to main |

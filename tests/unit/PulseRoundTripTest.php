@@ -31,8 +31,8 @@ final class PulseRoundTripTest extends SirusTestCase
     {
         parent::setUpBeforeClass();
 
-        if (! defined('SIRUS_PULSE_SIGNING_KEY')) {
-            define('SIRUS_PULSE_SIGNING_KEY', self::TEST_SIGNING_KEY);
+        if (! defined('SPARXSTAR_PULSE_SIGNING_KEY')) {
+            define('SPARXSTAR_PULSE_SIGNING_KEY', self::TEST_SIGNING_KEY);
         }
     }
 

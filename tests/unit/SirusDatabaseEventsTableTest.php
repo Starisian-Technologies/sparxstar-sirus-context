@@ -119,4 +119,40 @@ final class SirusDatabaseEventsTableTest extends SirusTestCase
 
         $this->assertSame($queriesAfterFirst, $queriesAfterSecond, 'ensure_schema() should be a no-op when version matches.');
     }
+
+    /**
+     * SCHEMA_VERSION must stay a string (semver, e.g. '1.5.0'), and the
+     * version-option comparisons in maybe_upgrade_schema()/ensure_schema()
+     * must keep comparing it as a string, never (int)-casting it.
+     *
+     * History: an earlier revision of this class bumped SCHEMA_VERSION to
+     * a plain int (1) while comparing via (int) get_option(...). Since
+     * (int) '1.5.0' evaluates to 1 in PHP, any site that had already
+     * recorded the string '1.5.0' in this option (i.e. anywhere the old
+     * activation-hook-triggered path had ever actually run) would have
+     * been silently treated as already up to date under that scheme,
+     * permanently skipping the schema check. Reverted before merge, but
+     * this test exists so the int-cast version of the bug can't quietly
+     * come back.
+     */
+    public function testSchemaVersionIsStringNotInt(): void
+    {
+        $this->assertIsString(
+            SirusDatabase::SCHEMA_VERSION,
+            'SCHEMA_VERSION must be a string, not an int -- see class history for why.'
+        );
+
+        // A pre-existing site with '1.5.0' already recorded (the only value
+        // this constant has ever held) must be treated as already migrated,
+        // not re-triggered on every boot.
+        update_option('sirus_db_version', '1.5.0');
+
+        $db = new SirusDatabase($GLOBALS['wpdb']);
+        $db->ensure_schema();
+
+        $this->assertEmpty(
+            $GLOBALS['dbDelta_queries'],
+            'A site already on the current SCHEMA_VERSION must not re-run dbDelta().'
+        );
+    }
 }

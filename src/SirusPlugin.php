@@ -83,6 +83,28 @@ final class SirusPlugin
         // 5-minute event aggregation cron.
         add_action(SirusEventAggregator::CRON_HOOK, [ $this, 'runEventAggregation' ]);
         add_filter('cron_schedules', [ $this, 'addCronSchedules' ]);
+
+        // Must-use plugins never fire register_activation_hook(), so schema
+        // creation and cron scheduling are performed on an early boot hook
+        // instead. See SirusDatabase::maybe_upgrade_schema() for why this is
+        // safe to run on every request.
+        add_action('init', [ $this, 'bootSchemaAndCron' ], 1);
+    }
+
+    /**
+     * Boot-time replacement for the activation hook this must-use plugin
+     * never receives: brings the database schema up to date and ensures the
+     * recurring crons are scheduled. Safe to call on every request.
+     */
+    public function bootSchemaAndCron(): void
+    {
+        global $wpdb;
+
+        $db = new SirusDatabase($wpdb);
+        $db->maybe_upgrade_schema();
+
+        ClientTelemetry::schedule_cron();
+        SirusEventAggregator::schedule_cron();
     }
 
     /**
@@ -272,26 +294,4 @@ final class SirusPlugin
         $aggregator->compile();
     }
 
-    /**
-     * Activation hook: ensures all Sirus database tables exist and schedules cron.
-     */
-    public static function onActivation(): void
-    {
-        global $wpdb;
-
-        $db = new SirusDatabase($wpdb);
-        $db->ensure_schema();
-
-        ClientTelemetry::schedule_cron();
-        SirusEventAggregator::schedule_cron();
-    }
-
-    /**
-     * Deactivation hook: removes scheduled cron events for this plugin.
-     */
-    public static function onDeactivation(): void
-    {
-        ClientTelemetry::unschedule_cron();
-        SirusEventAggregator::unschedule_cron();
-    }
 }

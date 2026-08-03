@@ -22,11 +22,32 @@ if (! defined('ABSPATH')) {
 /**
  * Handles creation and migration of all Sirus database tables.
  * Uses dbDelta() for safe, idempotent schema management.
+ *
+ * As a must-use plugin, Sirus never receives an activation hook, so schema
+ * creation cannot be gated behind register_activation_hook(). Instead,
+ * maybe_upgrade_schema() is called on an early boot hook on every request;
+ * it is safe to call repeatedly because the happy path is a single cheap
+ * option read that returns immediately when the installed version already
+ * matches SCHEMA_VERSION.
+ *
+ * Multisite note: this class never loops over sites (mirroring the
+ * "Database Loop Integrity Rule" documented on
+ * SparxstarUECInstaller::activate_site()). Each request already executes in
+ * the context of a single site — $wpdb and get_option()/update_option() are
+ * scoped to the current blog — so calling maybe_upgrade_schema() on every
+ * request naturally provisions each site's tables the first time that site
+ * is visited, without any explicit switch_to_blog() loop.
  */
 final readonly class SirusDatabase
 {
-    /** Current schema version. */
-    private const SCHEMA_VERSION = '1.5.0';
+    /**
+     * Current schema version. Bump this when table definitions change.
+     *
+     * MUST stay a string (semver, e.g. '1.5.0'), never a plain int -- see
+     * SirusDatabaseEventsTableTest::testSchemaVersionIsStringNotInt() for
+     * why this is a regression test, not just a style preference.
+     */
+    public const SCHEMA_VERSION = '1.5.0';
 
     /** Option key used to track the installed schema version. */
     private const VERSION_OPTION = 'sirus_db_version';
@@ -39,10 +60,34 @@ final readonly class SirusDatabase
     }
 
     /**
+     * Boot-time schema check. Safe to call on every request.
+     *
+     * Reads the stored schema-version option and compares it to
+     * SCHEMA_VERSION; calls ensure_schema() only when they differ, which
+     * performs the actual dbDelta() run and records the new version.
+     */
+    public function maybe_upgrade_schema(): void
+    {
+        // get_option() returns mixed, so the (string) cast here is load-bearing
+        // (guards against a non-string stored value comparing loosely-true
+        // against SCHEMA_VERSION); SCHEMA_VERSION itself is already declared
+        // as a string, so no cast is needed on that side. Never switch either
+        // side to an (int) comparison -- SCHEMA_VERSION must stay a string.
+        $installed = (string) get_option(self::VERSION_OPTION, '');
+
+        if ($installed === self::SCHEMA_VERSION) {
+            return;
+        }
+
+        $this->ensure_schema();
+    }
+
+    /**
      * Ensures the schema is at the current version, running an update only if needed.
      */
     public function ensure_schema(): void
     {
+        // See the comment in maybe_upgrade_schema().
         $installed = (string) get_option(self::VERSION_OPTION, '');
 
         if ($installed === self::SCHEMA_VERSION) {

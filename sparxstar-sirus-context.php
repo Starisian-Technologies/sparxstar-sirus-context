@@ -43,9 +43,10 @@ if (file_exists(SIRUS_PLUGIN_PATH . 'vendor/autoload.php')) {
     require_once SIRUS_PLUGIN_PATH . 'vendor/autoload.php';
 }
 
-register_activation_hook(__FILE__, [\Starisian\Sparxstar\Sirus\SirusPlugin::class, 'onActivation']);
-register_deactivation_hook(__FILE__, [\Starisian\Sparxstar\Sirus\SirusPlugin::class, 'onDeactivation']);
-
+// This file is loaded as a must-use plugin, which never fires
+// register_activation_hook()/register_deactivation_hook(). Schema creation
+// and cron scheduling instead happen on an early boot hook — see
+// SirusPlugin::bootSchemaAndCron().
 add_action(
     'plugins_loaded',
     static function (): void {

@@ -13,7 +13,7 @@
  * maintain its own copy of the format — see that class for the canonical
  * field order and encoding rules.
  *
- * The signing key is read exclusively from the SIRUS_PULSE_SIGNING_KEY constant.
+ * The signing key is read exclusively from the SPARXSTAR_PULSE_SIGNING_KEY constant.
  * It MUST NOT be read from WordPress options, the database, or user input.
  *
  * @package Starisian\Sparxstar\Sirus
@@ -40,11 +40,45 @@ use Starisian\Sparxstar\Infrastructure\Utils\ContextPulseSigningMaterial;
  * operational modes (sovereign/high-connectivity/low-connectivity) can supply
  * the appropriate window without the generator making a policy decision.
  * The default of 60 seconds applies when no TTL is specified.
+ *
+ * Callers that want the spec's sensitivity-driven TTL strategy should first
+ * resolve a value via resolveTtl(ResourceSensitivity) and pass it through as
+ * $ttlSeconds — see SirusRESTController::handle_generate_pulse() for the
+ * production call site.
  */
 final class PulseGenerator
 {
     /** Default pulse TTL in seconds. Used when no $ttlSeconds is supplied. */
     public const PULSE_TTL = 60;
+
+    /**
+     * Default pulse TTL (seconds) mapped by ResourceSensitivity level.
+     * Provisional pending field testing per spec — subject to change, but
+     * implemented as-given for now. Keyed by ResourceSensitivity::value.
+     *
+     * @var array<int, int>
+     */
+    private const TTL_BY_SENSITIVITY = [
+        1 => 120, // LEVEL_1
+        2 => 60,  // LEVEL_2
+        3 => 30,  // LEVEL_3
+    ];
+
+    /**
+     * Network effective types treated as low-connectivity, matching the
+     * SLOW_NETWORKS convention used by SirusImpactScorer/SirusSignalEvaluator.
+     *
+     * @var array<int, string>
+     */
+    private const LOW_CONNECTIVITY_NETWORK_TYPES = ['slow-2g', '2g', 'slow-3g'];
+
+    /**
+     * TTL (seconds) applied to LEVEL_1 resources on a low-connectivity network.
+     * This is a hard cap, not an additive extension: the resolved TTL is set
+     * to exactly this value when the condition applies, whether the
+     * pre-extension TTL (default or filtered) was above or below it.
+     */
+    private const LOW_CONNECTIVITY_LEVEL_1_TTL = 600;
 
     private readonly EnvironmentResolver $environmentResolver;
 
@@ -55,12 +89,56 @@ final class PulseGenerator
     }
 
     /**
+     * Resolves the pulse TTL (seconds) for a given resource sensitivity.
+     *
+     * Working defaults: LEVEL_1 → 120s, LEVEL_2 → 60s, LEVEL_3 → 30s.
+     * These are provisional pending field testing per spec and are exposed
+     * for override via the `sparxstar_sirus_pulse_ttl_seconds` filter.
+     *
+     * For LEVEL_1 only, a low-connectivity network (per
+     * EnvironmentResolver::getNetworkEffectiveType()) extends the TTL to a
+     * flat 600 seconds (10 minutes) — a hard cap, applied after the filter.
+     * LEVEL_2 and LEVEL_3 are never extended for low connectivity.
+     *
+     * Filter: sparxstar_sirus_pulse_ttl_seconds (int $ttl, ResourceSensitivity $sensitivity, int $default)
+     *   – Overrides the default TTL for $sensitivity before the low-connectivity
+     *     extension (if any) is applied. Return an integer from this filter.
+     *
+     * @param ResourceSensitivity $sensitivity The resource sensitivity level.
+     * @return int Resolved TTL in seconds.
+     */
+    public function resolveTtl(ResourceSensitivity $sensitivity): int
+    {
+        $default = self::TTL_BY_SENSITIVITY[$sensitivity->value] ?? self::PULSE_TTL;
+
+        $ttl = (int) apply_filters('sparxstar_sirus_pulse_ttl_seconds', $default, $sensitivity, $default);
+
+        if ($ttl <= 0) {
+            // A misbehaving filter callback must not be able to produce a
+            // pulse TTL that trips generate()'s $ttlSeconds > 0 guard --
+            // that would turn a filter bug into an uncaught exception (500)
+            // on every REST-issued pulse. Fall back to the sensitivity's
+            // own default instead.
+            $ttl = $default;
+        }
+
+        if ($sensitivity === ResourceSensitivity::LEVEL_1) {
+            $network_type = $this->environmentResolver->getNetworkEffectiveType();
+            if (in_array($network_type, self::LOW_CONNECTIVITY_NETWORK_TYPES, true)) {
+                $ttl = self::LOW_CONNECTIVITY_LEVEL_1_TTL;
+            }
+        }
+
+        return $ttl;
+    }
+
+    /**
      * Generates a signed ContextPulse from the given SirusContext.
      *
      * @param SirusContext $context The fully resolved context to pulse.
      * @param int $now Unix timestamp to use as issued_at. Pass 0 (default) to use time().
      * @param int $ttlSeconds Pulse TTL in seconds. Defaults to PULSE_TTL (60).
-     * @throws \RuntimeException If SIRUS_PULSE_SIGNING_KEY is not defined or too short.
+     * @throws \RuntimeException If SPARXSTAR_PULSE_SIGNING_KEY is not defined or too short.
      * @return ContextPulse The signed pulse, ready for transmission to Helios.
      */
     public function generate(SirusContext $context, int $now = 0, int $ttlSeconds = self::PULSE_TTL): ContextPulse
@@ -160,28 +238,28 @@ final class PulseGenerator
     }
 
     /**
-     * Resolves the HMAC signing key from the SIRUS_PULSE_SIGNING_KEY constant.
+     * Resolves the HMAC signing key from the SPARXSTAR_PULSE_SIGNING_KEY constant.
      *
      * @throws \RuntimeException If the constant is missing or the key is too short.
      * @return string The signing key.
      */
     private function resolveSigningKey(): string
     {
-        if (! defined('SIRUS_PULSE_SIGNING_KEY')) {
+        if (! defined('SPARXSTAR_PULSE_SIGNING_KEY')) {
             throw new \RuntimeException(
-                '[Sirus] PulseGenerator: SIRUS_PULSE_SIGNING_KEY constant is not defined. '
+                '[Sirus] PulseGenerator: SPARXSTAR_PULSE_SIGNING_KEY constant is not defined. '
                 . 'Define it in wp-config.php before using PulseGenerator.'
             );
         }
 
-        $key = (string) constant('SIRUS_PULSE_SIGNING_KEY');
+        $key = (string) constant('SPARXSTAR_PULSE_SIGNING_KEY');
 
         $minimum_key_length = Platform::PULSE_MIN_SIGNING_KEY_BYTES;
 
         if (strlen($key) < $minimum_key_length) {
             // phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- developer-facing exception message interpolating an integer; not echoed as HTML
             throw new \RuntimeException(
-                '[Sirus] PulseGenerator: SIRUS_PULSE_SIGNING_KEY must be at least '
+                '[Sirus] PulseGenerator: SPARXSTAR_PULSE_SIGNING_KEY must be at least '
                 . $minimum_key_length . ' bytes.'
             );
             // phpcs:enable WordPress.Security.EscapeOutput.ExceptionNotEscaped

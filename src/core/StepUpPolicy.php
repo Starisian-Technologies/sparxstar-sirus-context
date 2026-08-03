@@ -4,10 +4,16 @@
  * StepUpPolicy - Determines whether step-up authentication is required.
  *
  * Policy is FROZEN per the Sirus Context Engine Spec v3.0 §15 / Helios Spec §11:
+ *   trust_level === 'LOCKED'           — step-up always required (administratively locked; most severe)
  *   trust_level === 'STEP_UP_REQUIRED' — step-up always required (pre-flagged context)
  *   ResourceSensitivity::LEVEL_3       — step-up always required
  *   ResourceSensitivity::LEVEL_2       — step-up required when trust_score < 0.7
  *   ResourceSensitivity::LEVEL_1       — no step-up required
+ *
+ * LOCKED is checked first (before STEP_UP_REQUIRED) because it is the more
+ * severe of the two sentinel trust levels and must never fall through to a
+ * less restrictive branch. Sirus only handles LOCKED here if it is ever
+ * received on a pulse — this class does not decide when Sirus emits it.
  *
  * StepUpPolicy operates on ContextPulse (not SirusContext) so that the same
  * evaluation can run identically on the edge (Cloudflare Worker) and at the
@@ -59,10 +65,11 @@ final class StepUpPolicy
      * Returns true if step-up authentication is required.
      *
      * Evaluation order (first match wins):
-     *   1. trust_level === STEP_UP_REQUIRED → always require (pre-flagged)
-     *   2. ResourceSensitivity::LEVEL_3     → always require
-     *   3. ResourceSensitivity::LEVEL_2     → require when trust_score < threshold
-     *   4. ResourceSensitivity::LEVEL_1     → never require
+     *   1. trust_level === LOCKED           → always require (administratively locked; most severe)
+     *   2. trust_level === STEP_UP_REQUIRED → always require (pre-flagged)
+     *   3. ResourceSensitivity::LEVEL_3     → always require
+     *   4. ResourceSensitivity::LEVEL_2     → require when trust_score < threshold
+     *   5. ResourceSensitivity::LEVEL_1     → never require
      *
      * @param ContextPulse $pulse The signed context pulse carrying trust state.
      * @param ResourceSensitivity $level The resource sensitivity level.
@@ -70,6 +77,11 @@ final class StepUpPolicy
      */
     public function requiresStepUp(ContextPulse $pulse, ResourceSensitivity $level): bool
     {
+        // Locked: most severe trust state. Always require step-up, unconditionally.
+        if ($pulse->trust_level === TrustLevelPrimitive::LOCKED) {
+            return true;
+        }
+
         // Pre-flagged step-up: pulse trust_level already signals step-up required.
         if ($pulse->trust_level === TrustLevelPrimitive::STEP_UP_REQUIRED) {
             return true;
@@ -101,6 +113,11 @@ final class StepUpPolicy
      */
     public function getRequiredLevel(ContextPulse $pulse, ResourceSensitivity $level): ?ResourceSensitivity
     {
+        // Locked: most severe trust state. Enforce a LEVEL_3 challenge level unconditionally.
+        if ($pulse->trust_level === TrustLevelPrimitive::LOCKED) {
+            return ResourceSensitivity::LEVEL_3;
+        }
+
         // Pre-flagged step-up: enforce a LEVEL_3 challenge level for safety.
         if ($pulse->trust_level === TrustLevelPrimitive::STEP_UP_REQUIRED) {
             return ResourceSensitivity::LEVEL_3;
