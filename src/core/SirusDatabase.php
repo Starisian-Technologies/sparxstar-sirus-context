@@ -41,8 +41,7 @@ if (! defined('ABSPATH')) {
 final readonly class SirusDatabase
 {
     /** Current schema version. Bump this when table definitions change. */
-    public const SCHEMA_VERSION = 1;
-
+    public const SCHEMA_VERSION = '1.5.0';
     /** Option key used to track the installed schema version. */
     private const VERSION_OPTION = 'sirus_db_version';
 
