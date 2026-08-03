@@ -253,16 +253,16 @@
         },
         {
             "name": "starisian/sparxstar-ouroboros-integrity",
-            "version": "v3.0.0",
+            "version": "v3.1.0",
             "source": {
                 "type": "git",
                 "url": "git@github.com:Starisian-Technologies/sparxstar-ouroboros-integrity.git",
-                "reference": "b7edd0d56b09cc9f0d292577ee63ba3f8d264b20"
+                "reference": "513f67ad3b6544cc8261f423031f19f30f4aeefe"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Starisian-Technologies/sparxstar-ouroboros-integrity/zipball/b7edd0d56b09cc9f0d292577ee63ba3f8d264b20",
-                "reference": "b7edd0d56b09cc9f0d292577ee63ba3f8d264b20",
+                "url": "https://api.github.com/repos/Starisian-Technologies/sparxstar-ouroboros-integrity/zipball/513f67ad3b6544cc8261f423031f19f30f4aeefe",
+                "reference": "513f67ad3b6544cc8261f423031f19f30f4aeefe",
                 "shasum": ""
             },
             "require": {
@@ -324,10 +324,10 @@
             ],
             "description": "SPARXSTAR execution substrate — shared exceptions, contracts, DTOs, loader",
             "support": {
-                "source": "https://github.com/Starisian-Technologies/sparxstar-ouroboros-integrity/tree/v3.0.0",
+                "source": "https://github.com/Starisian-Technologies/sparxstar-ouroboros-integrity/tree/v3.1.0",
                 "issues": "https://github.com/Starisian-Technologies/sparxstar-ouroboros-integrity/issues"
             },
-            "time": "2026-07-04T18:22:13+00:00"
+            "time": "2026-08-03T19:07:33+00:00"
         }
     ],
     "packages-dev": [
