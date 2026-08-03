@@ -119,4 +119,42 @@ final class SirusDatabaseEventsTableTest extends SirusTestCase
 
         $this->assertSame($queriesAfterFirst, $queriesAfterSecond, 'ensure_schema() should be a no-op when version matches.');
     }
+
+    /**
+     * A site still carrying the old semver-string schema version (e.g.
+     * '1.5.0', from before SCHEMA_VERSION became an int) must still run the
+     * schema update. (int) '1.5.0' collapses to 1, which would collide with
+     * this scheme's SCHEMA_VERSION = 1 under an int comparison and cause the
+     * update to be silently skipped -- exactly the bug this test guards
+     * against.
+     */
+    public function testEnsureSchemaRunsWhenStoredVersionIsOldSemverString(): void
+    {
+        update_option('sirus_db_version', '1.5.0');
+
+        $db = new SirusDatabase($GLOBALS['wpdb']);
+        $db->ensure_schema();
+
+        $this->assertNotEmpty(
+            $GLOBALS['dbDelta_queries'],
+            'ensure_schema() must not treat an old semver-string version as up to date.'
+        );
+        $this->assertSame((string) SirusDatabase::SCHEMA_VERSION, get_option('sirus_db_version'));
+    }
+
+    /**
+     * Same guard via maybe_upgrade_schema(), the actual boot-time entry point.
+     */
+    public function testMaybeUpgradeSchemaRunsWhenStoredVersionIsOldSemverString(): void
+    {
+        update_option('sirus_db_version', '1.5.0');
+
+        $db = new SirusDatabase($GLOBALS['wpdb']);
+        $db->maybe_upgrade_schema();
+
+        $this->assertNotEmpty(
+            $GLOBALS['dbDelta_queries'],
+            'maybe_upgrade_schema() must not treat an old semver-string version as up to date.'
+        );
+    }
 }
