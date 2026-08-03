@@ -31,6 +31,8 @@ jobs:
           sed -i -E 's/("version":\s*").*(")/'\\1'${{ env.VERSION }}'\\2'/' package.json
           sed -i -E "s/^(\\s*\\* Version:\\s*).*/\\1${{ env.VERSION }}/" sparxstar-user-environment-check.php
           sed -i "s/define( 'SPX_UEC_VERSION', '[^']*' );/define( 'SPX_UEC_VERSION', '${{ env.VERSION }}' );/" sparxstar-user-environment-check.php
+          sed -i -E "s/^(\\s*\\* Version:\\s*).*/\\1${{ env.VERSION }}/" sparxstar-sirus-context.php
+          sed -i -E "s/define\\(\\s*'SIRUS_VERSION'\\s*,\\s*'[^']*'\\s*\\);/define('SIRUS_VERSION', '${{ env.VERSION }}');/" sparxstar-sirus-context.php
           find . -type f -name "*.php" -not -path "./vendor/*" -print0 | xargs -0 sed -i "s/@version\\s\\+[0-9.]\\+/@version ${{ env.VERSION }}/g"
 
       - name: Commit version bump and update tag
