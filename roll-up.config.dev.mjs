@@ -6,7 +6,7 @@ export default {
     input: 'src/js/sparxstar-bootstrap.js',
 
     output: {
-        file: 'assets/js/sparxstar-user-environment-check-app.bundle.min.js',
+        file: 'assets/js/sirus-context.js',
         format: 'iife',
         name: 'SparxstarUserEnvironmentCheckApp',
         sourcemap: true
