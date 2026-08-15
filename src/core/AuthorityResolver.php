@@ -49,7 +49,7 @@ final class AuthorityResolver
      */
     public function resolve(SirusContext $context): ?string
     {
-        if ($context->credential_tier !== CredentialTier::AUTHORITY) {
+        if ($context->credential_tier !== CredentialTier::NORMAL && $context->credential_tier !== CredentialTier::AUTHORITY) {
             return null;
         }
 

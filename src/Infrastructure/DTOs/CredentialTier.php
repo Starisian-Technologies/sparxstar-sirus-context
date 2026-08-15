@@ -12,9 +12,15 @@ namespace Starisian\Sparxstar\Infrastructure\DTOs;
  */
 enum CredentialTier: string
 {
+    // ── Identity/role-axis tiers (lowercase backing values) ───────────────────
     case ANONYMOUS   = 'anonymous';
     case DEVICE      = 'device';
     case CONTRIBUTOR = 'contributor';
     case USER        = 'user';
     case AUTHORITY   = 'authority';
+
+    // ── Trust-level-axis tiers (uppercase backing values, match TrustLevelPrimitive) ──
+    case LOCKED           = 'LOCKED';
+    case STEP_UP_REQUIRED = 'STEP_UP_REQUIRED';
+    case NORMAL           = 'NORMAL';
 }
