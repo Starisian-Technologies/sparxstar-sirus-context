@@ -22,11 +22,21 @@ final class CapabilityEngine
 {
     /** @var array<string, list<string>> Capabilities granted per trust level. */
     private const BASE_CAPABILITIES = [
-        'anonymous'   => [ 'read_context' ],
-        'device'      => [ 'read_context', 'submit_environment' ],
-        'contributor' => [ 'read_context', 'submit_environment', 'submit_content' ],
-        'user'        => [ 'read_context', 'submit_environment', 'submit_content', 'read_profile' ],
-        'authority'   => [
+        'anonymous'        => [ 'read_context' ],
+        'device'           => [ 'read_context', 'submit_environment' ],
+        'contributor'      => [ 'read_context', 'submit_environment', 'submit_content' ],
+        'user'             => [ 'read_context', 'submit_environment', 'submit_content', 'read_profile' ],
+        'authority'        => [
+            'read_context',
+            'submit_environment',
+            'submit_content',
+            'read_profile',
+            'manage_context',
+            'resolve_authority',
+        ],
+        'LOCKED'           => [],
+        'STEP_UP_REQUIRED' => [ 'read_context' ],
+        'NORMAL'           => [
             'read_context',
             'submit_environment',
             'submit_content',

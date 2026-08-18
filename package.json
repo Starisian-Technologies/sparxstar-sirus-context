@@ -2,6 +2,7 @@
   "name": "sparxstar-user-environment-check",
   "version": "0.9.6",
   "private": true,
+  "type": "module",
   "description": "WordPress plugin for browser, device, and environment diagnostics using a modern ES Module architecture.",
   "license": "SEE LICENSE IN LICENSE.md",
   "author": "Starisian Technologies",
