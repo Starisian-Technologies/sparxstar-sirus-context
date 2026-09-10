@@ -239,7 +239,15 @@ final class TrustResolverTest extends SirusTestCase
      */
     public function testNoCredentialTierFallsThroughToDefaultBaseExceptAnonymous(): void
     {
-        foreach (CredentialTier::cases() as $tier) {
+        $tiers = [
+            CredentialTier::ANONYMOUS,
+            CredentialTier::DEVICE,
+            CredentialTier::USER,
+            CredentialTier::CONTRIBUTOR,
+            CredentialTier::AUTHORITY,
+        ];
+
+        foreach ($tiers as $tier) {
             $device = $this->makeDevice(trust_level: $tier->value);
             $score  = TrustResolver::evaluate($device);
 

@@ -20,7 +20,11 @@ if (! defined('ABSPATH')) {
  */
 final class CapabilityEngine
 {
-    /** @var array<string, list<string>> Capabilities granted per trust level. */
+    /**
+     * Capabilities granted per trust level.
+     *
+     * @var array<string, list<string>>
+     */
     private const BASE_CAPABILITIES = [
         'anonymous'        => [ 'read_context' ],
         'device'           => [ 'read_context', 'submit_environment' ],

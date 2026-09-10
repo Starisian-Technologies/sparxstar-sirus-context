@@ -12,9 +12,15 @@ permissions:
   contents: read
 
 jobs:
+  skip-public-repo:
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Skipping governance registry fetch jobs because the upstream workflow only supports private caller repositories."
 
   # ─── STEP 1: PULL SPEC ────────────────────────────────────
   pull-spec:
+    if: ${{ github.event.repository.private }}
     uses: Starisian-Technologies/sparxstar-product-specification-registry/.github/workflows/fetch-specs.yml@v1.0.0
     with:
       specs: "sirus"
@@ -29,6 +35,7 @@ jobs:
   # masking PHPStan behind a PHPCS short-circuit.
 
   smoke:
+    if: ${{ github.event.repository.private }}
     needs: [pull-spec]
     runs-on: ubuntu-latest
     permissions:
@@ -46,6 +53,7 @@ jobs:
         run: composer run smoke:api-contract
 
   test:
+    if: ${{ github.event.repository.private }}
     needs: [pull-spec]
     runs-on: ubuntu-latest
     permissions:
