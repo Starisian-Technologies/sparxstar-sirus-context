@@ -14,8 +14,8 @@ use WP_REST_Request;
 use WP_REST_Response;
 use Starisian\SparxstarUEC\StarUserEnv;
 use Starisian\SparxstarUEC\helpers\StarLogger;
-use Starisian\SparxstarUEC\core\SparxstarUECDatabase;
 use Starisian\Sparxstar\Sirus\helpers\IpAnonymizer;
+use Starisian\SparxstarUEC\core\SparxstarUECDatabase;
 use Starisian\SparxstarUEC\services\SparxstarUECGeoIPService;
 
 if (! defined('ABSPATH')) {

@@ -26,11 +26,11 @@ final class CapabilityEngine
      * @var array<string, list<string>>
      */
     private const BASE_CAPABILITIES = [
-        'anonymous'        => [ 'read_context' ],
-        'device'           => [ 'read_context', 'submit_environment' ],
-        'contributor'      => [ 'read_context', 'submit_environment', 'submit_content' ],
-        'user'             => [ 'read_context', 'submit_environment', 'submit_content', 'read_profile' ],
-        'authority'        => [
+        'anonymous'   => [ 'read_context' ],
+        'device'      => [ 'read_context', 'submit_environment' ],
+        'contributor' => [ 'read_context', 'submit_environment', 'submit_content' ],
+        'user'        => [ 'read_context', 'submit_environment', 'submit_content', 'read_profile' ],
+        'authority'   => [
             'read_context',
             'submit_environment',
             'submit_content',
