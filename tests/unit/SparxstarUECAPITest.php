@@ -25,6 +25,9 @@ final class SparxstarUECAPITest extends TestCase
     {
         parent::setUp();
         $GLOBALS['spx_registered_routes'] = [];
+        $GLOBALS['transients']            = [];
+        $GLOBALS['wp_nonce_overrides']    = [];
+        $_SERVER['REMOTE_ADDR']           = '198.51.100.42';
     }
 
     /**
@@ -137,5 +140,40 @@ final class SparxstarUECAPITest extends TestCase
         $this->assertSame('203.0.113.0', $normalized['fingerprint']);
         $this->assertSame('192.168.1.0', $normalized['data']['client_side_data']['identifiers_extra']['custom_ip']);
         $this->assertSame('10.0.0.0', $normalized['data']['server_side_data']['ipAddress']);
+    }
+
+    /**
+     * Verify that a valid REST nonce is accepted while the public-ingestion budget remains available.
+     */
+    public function test_check_permissions_accepts_valid_nonce_within_rate_limit(): void
+    {
+        $GLOBALS['wp_nonce_overrides']['wp_rest']['valid-public-ingest-nonce'] = true;
+
+        $controller = new SparxstarUECRESTController(new SparxstarUECDatabase($GLOBALS['wpdb']));
+        $request    = new \WP_REST_Request('POST', '/star-uec/v1/log');
+        $request->set_header('X-WP-Nonce', 'valid-public-ingest-nonce');
+
+        $this->assertTrue($controller->check_permissions($request));
+    }
+
+    /**
+     * Verify that repeated anonymous public-ingestion requests are rate limited.
+     */
+    public function test_check_permissions_rejects_requests_after_rate_limit_is_exceeded(): void
+    {
+        $GLOBALS['wp_nonce_overrides']['wp_rest']['valid-public-ingest-nonce'] = true;
+
+        $controller = new SparxstarUECRESTController(new SparxstarUECDatabase($GLOBALS['wpdb']));
+        $request    = new \WP_REST_Request('POST', '/star-uec/v1/log');
+        $request->set_header('X-WP-Nonce', 'valid-public-ingest-nonce');
+
+        for ($attempt = 0; $attempt < 30; $attempt++) {
+            $this->assertTrue($controller->check_permissions($request));
+        }
+
+        $result = $controller->check_permissions($request);
+
+        $this->assertInstanceOf(\WP_Error::class, $result);
+        $this->assertSame('rate_limited', $result->get_error_code());
     }
 }

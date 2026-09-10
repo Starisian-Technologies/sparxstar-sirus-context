@@ -24,6 +24,10 @@ if (! defined('ABSPATH')) {
 
 final readonly class SparxstarUECRESTController
 {
+    private const RATE_LIMIT_TRANSIENT_PREFIX = 'spx_uec_public_ingest_';
+    private const RATE_LIMIT_WINDOW_SECONDS   = 60;
+    private const RATE_LIMIT_MAX_REQUESTS     = 30;
+
     public function __construct(private SparxstarUECDatabase $database)
     {
     }
@@ -226,6 +230,26 @@ final readonly class SparxstarUECRESTController
             StarLogger::warning('REST', 'Permission check failed: Invalid Nonce.');
             return new WP_Error('invalid_nonce', 'Invalid security token.', [ 'status' => 403 ]);
         }
+
+        if (! $this->allow_public_ingestion_request()) {
+            StarLogger::warning('REST', 'Permission check failed: Rate limit exceeded.');
+            return new WP_Error('rate_limited', 'Too many requests. Please try again later.', [ 'status' => 429 ]);
+        }
+
+        return true;
+    }
+
+    private function allow_public_ingestion_request(): bool
+    {
+        $ip_subnet = IpAnonymizer::ipSubnet(StarUserEnv::get_current_visitor_ip());
+        $key       = self::RATE_LIMIT_TRANSIENT_PREFIX . md5($ip_subnet);
+        $count     = (int) get_transient($key);
+
+        if ($count >= self::RATE_LIMIT_MAX_REQUESTS) {
+            return false;
+        }
+
+        set_transient($key, $count + 1, self::RATE_LIMIT_WINDOW_SECONDS);
 
         return true;
     }
