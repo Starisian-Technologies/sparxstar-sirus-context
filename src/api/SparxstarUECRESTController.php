@@ -144,6 +144,7 @@ final readonly class SparxstarUECRESTController
      */
     private function map_and_normalize_snapshot(array $payload): array
     {
+        $payload     = $this->sanitize_snapshot_payload($payload);
         $client      = $payload['client_side_data']  ?? [];
         $identifiers = $client['identifiers']        ?? [];
         $hints       = $payload['client_hints_data'] ?? [];
@@ -171,6 +172,43 @@ final readonly class SparxstarUECRESTController
             'data'        => $payload,
             'updated_at'  => gmdate('Y-m-d H:i:s'),
         ];
+    }
+
+    /**
+     * Replace any raw IP values before the snapshot is persisted.
+     *
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    private function sanitize_snapshot_payload(array $payload): array
+    {
+        foreach ($payload as $key => $value) {
+            $payload[ $key ] = $this->sanitize_snapshot_value($value);
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @param mixed $value
+     * @return mixed
+     */
+    private function sanitize_snapshot_value(mixed $value): mixed
+    {
+        if (is_string($value)) {
+            $anonymized = IpAnonymizer::anonymize($value);
+            return $anonymized !== '' ? $anonymized : $value;
+        }
+
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        foreach ($value as $key => $item) {
+            $value[ $key ] = $this->sanitize_snapshot_value($item);
+        }
+
+        return $value;
     }
 
     // --- Helper Methods ---

@@ -107,4 +107,35 @@ final class SparxstarUECAPITest extends TestCase
 
         $this->assertTrue($result);
     }
+
+    /**
+     * Raw IP addresses in client-provided fields must be anonymized before storage.
+     */
+    public function testMapAndNormalizeSnapshotAnonymizesClientProvidedIpValues(): void
+    {
+        $controller = new SparxstarUECRESTController(new SparxstarUECDatabase($GLOBALS['wpdb']));
+        $method = new \ReflectionMethod($controller, 'map_and_normalize_snapshot');
+        $method->setAccessible(true);
+
+        $normalized = $method->invoke($controller, [
+            'client_side_data' => [
+                'identifiers' => [
+                    'fingerprint' => '203.0.113.42',
+                    'session_id'  => 'session-123',
+                ],
+                'identifiers_extra' => [
+                    'custom_ip' => '192.168.1.42',
+                ],
+            ],
+            'server_side_data' => [
+                'ipAddress' => '10.0.0.42',
+            ],
+            'client_hints_data' => [],
+            'user_id' => 7,
+        ]);
+
+        $this->assertSame('203.0.113.0', $normalized['fingerprint']);
+        $this->assertSame('192.168.1.0', $normalized['data']['client_side_data']['identifiers_extra']['custom_ip']);
+        $this->assertSame('10.0.0.0', $normalized['data']['server_side_data']['ipAddress']);
+    }
 }
