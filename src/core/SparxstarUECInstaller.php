@@ -69,6 +69,7 @@ class SparxstarUECInstaller
                         }
                     );
                 }
+
                 $offset += count($sites);
             } while (count($sites) === self::NETWORK_BATCH_SIZE);
 

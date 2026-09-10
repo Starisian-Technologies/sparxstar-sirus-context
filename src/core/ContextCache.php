@@ -20,7 +20,6 @@ if (! defined('ABSPATH')) {
  */
 final class ContextCache
 {
-    /** @var SirusContext|null */
     private static ?SirusContext $context = null;
 
     /** Prevent instantiation. */
