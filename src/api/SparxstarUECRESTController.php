@@ -64,7 +64,7 @@ final readonly class SparxstarUECRESTController
     public function handle_log_request(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
         $payload = $request->get_json_params();
-        if (! is_array($payload) || $payload === []) {
+        if (! is_array($payload) || ! $this->has_valid_snapshot_payload($payload)) {
             StarLogger::warning('REST', 'Received empty or invalid JSON payload.');
             return new WP_Error('invalid_data', 'Invalid JSON payload.', [ 'status' => 400 ]);
         }
@@ -176,6 +176,23 @@ final readonly class SparxstarUECRESTController
             'data'        => $payload,
             'updated_at'  => gmdate('Y-m-d H:i:s'),
         ];
+    }
+
+    /**
+     * @param mixed $payload
+     */
+    private function has_valid_snapshot_payload(mixed $payload): bool
+    {
+        if (! is_array($payload) || $payload === []) {
+            return false;
+        }
+
+        $client_side_data = $payload['client_side_data'] ?? null;
+        if (! is_array($client_side_data)) {
+            return false;
+        }
+
+        return is_array($client_side_data['identifiers'] ?? null);
     }
 
     /**

@@ -13,6 +13,25 @@ use PHPUnit\Framework\TestCase;
 use Starisian\SparxstarUEC\api\SparxstarUECRESTController;
 use Starisian\SparxstarUEC\core\SparxstarUECDatabase;
 
+final class TestUECRESTRequestWithJsonParams extends \WP_REST_Request
+{
+    /**
+     * @param mixed $json_params
+     */
+    public function __construct(private readonly mixed $json_params)
+    {
+        parent::__construct('POST', '/star-uec/v1/log');
+    }
+
+    /**
+     * @return mixed
+     */
+    public function get_json_params(): mixed
+    {
+        return $this->json_params;
+    }
+}
+
 /**
  * Validates that the REST controller registers the expected routes.
  */
@@ -140,6 +159,40 @@ final class SparxstarUECAPITest extends TestCase
         $this->assertSame('203.0.113.0', $normalized['fingerprint']);
         $this->assertSame('192.168.1.0', $normalized['data']['client_side_data']['identifiers_extra']['custom_ip']);
         $this->assertSame('10.0.0.0', $normalized['data']['server_side_data']['ipAddress']);
+    }
+
+    /**
+     * @dataProvider invalidNestedSnapshotPayloadProvider
+     */
+    public function test_handle_log_request_rejects_invalid_nested_snapshot_shape(mixed $payload): void
+    {
+        $controller = new SparxstarUECRESTController(new SparxstarUECDatabase($GLOBALS['wpdb']));
+        $response   = $controller->handle_log_request(new TestUECRESTRequestWithJsonParams($payload));
+
+        $this->assertInstanceOf(\WP_Error::class, $response);
+        $this->assertSame('invalid_data', $response->get_error_code());
+        $this->assertSame('Invalid JSON payload.', $response->get_error_message());
+    }
+
+    /**
+     * @return array<string, array{0: array<string, mixed>}>
+     */
+    public static function invalidNestedSnapshotPayloadProvider(): array
+    {
+        return [
+            'client_side_data must be array' => [
+                [
+                    'client_side_data' => 'invalid',
+                ],
+            ],
+            'identifiers must be array' => [
+                [
+                    'client_side_data' => [
+                        'identifiers' => 'invalid',
+                    ],
+                ],
+            ],
+        ];
     }
 
     /**
