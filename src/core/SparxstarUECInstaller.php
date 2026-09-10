@@ -31,14 +31,21 @@ class SparxstarUECInstaller
                 return;
             }
 
-            $sites = get_sites([ 'number' => 0 ]);
-            foreach ($sites as $site) {
-                $blog_id = (int) $site->blog_id;
+            $offset = 0;
+            do {
+                $sites = get_sites([ 'number' => 100, 'offset' => $offset ]);
+                foreach ($sites as $site) {
+                    $blog_id = (int) $site->blog_id;
 
-                switch_to_blog($blog_id);
-                self::activate_site($wpdb);
-                restore_current_blog();
-            }
+                    switch_to_blog($blog_id);
+                    try {
+                        self::activate_site($wpdb);
+                    } finally {
+                        restore_current_blog();
+                    }
+                }
+                $offset += count($sites);
+            } while (count($sites) === 100);
 
             return;
         }
@@ -60,13 +67,20 @@ class SparxstarUECInstaller
                 return;
             }
 
-            $sites = get_sites([ 'number' => 0 ]);
-            foreach ($sites as $site) {
-                $blog_id = (int) $site->blog_id;
-                switch_to_blog($blog_id);
-                self::deactivate_site();
-                restore_current_blog();
-            }
+            $offset = 0;
+            do {
+                $sites = get_sites([ 'number' => 100, 'offset' => $offset ]);
+                foreach ($sites as $site) {
+                    $blog_id = (int) $site->blog_id;
+                    switch_to_blog($blog_id);
+                    try {
+                        self::deactivate_site();
+                    } finally {
+                        restore_current_blog();
+                    }
+                }
+                $offset += count($sites);
+            } while (count($sites) === 100);
 
             return;
         }
@@ -90,8 +104,11 @@ class SparxstarUECInstaller
         $blog_id = $new_site instanceof \WP_Site ? (int) $new_site->blog_id : $new_site;
 
         switch_to_blog($blog_id);
-        self::activate_site($wpdb);
-        restore_current_blog();
+        try {
+            self::activate_site($wpdb);
+        } finally {
+            restore_current_blog();
+        }
     }
 
     /**

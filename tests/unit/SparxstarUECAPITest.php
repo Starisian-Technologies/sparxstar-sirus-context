@@ -63,4 +63,18 @@ final class SparxstarUECAPITest extends TestCase
         $routes = array_column($GLOBALS['spx_registered_routes'], 'route');
         $this->assertContains('/recorder-log', $routes);
     }
+
+    /**
+     * Verify that every registered mutation route uses an explicit permission callback.
+     */
+    public function test_registered_routes_do_not_use_unrestricted_permission_callback(): void
+    {
+        $controller = new SparxstarUECRESTController(new SparxstarUECDatabase($GLOBALS['wpdb']));
+        $controller->register_routes();
+
+        foreach ($GLOBALS['spx_registered_routes'] as $route) {
+            $this->assertIsCallable($route['args']['permission_callback']);
+            $this->assertNotSame('__return_true', $route['args']['permission_callback']);
+        }
+    }
 }

@@ -16,6 +16,7 @@ use Starisian\SparxstarUEC\StarUserEnv;
 use Starisian\SparxstarUEC\helpers\StarLogger;
 use Starisian\SparxstarUEC\core\SparxstarUECDatabase;
 use Starisian\SparxstarUEC\services\SparxstarUECGeoIPService;
+use Starisian\Sparxstar\Sirus\helpers\IpAnonymizer;
 
 // Import Logger
 
@@ -50,7 +51,7 @@ final readonly class SparxstarUECRESTController
             [
                 'methods'             => 'POST',
                 'callback'            => $this->handle_recorder_log(...),
-                'permission_callback' => '__return_true', // Open endpoint - passive telemetry, no nonce required
+                'permission_callback' => $this->check_permissions(...),
             ]
         );
     }
@@ -61,7 +62,7 @@ final readonly class SparxstarUECRESTController
     public function handle_log_request(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
         $payload = $request->get_json_params();
-        if ($payload === []) {
+        if (! is_array($payload) || $payload === []) {
             StarLogger::warning('REST', 'Received empty or invalid JSON payload.');
             return new WP_Error('invalid_data', 'Invalid JSON payload.', [ 'status' => 400 ]);
         }
@@ -127,14 +128,11 @@ final readonly class SparxstarUECRESTController
                 'RecorderEvent',
                 'External plugin event received',
                 [
-                    'event_type'   => $data['type'] ?? 'unknown',
-                    'timestamp'    => $data['ts']   ?? '',
-                    'has_env_data' => isset($data['env']),
-                    'event_data'   => $data['event'] ?? [],
+                    'event_type'   => sanitize_text_field((string) ($data['type'] ?? 'unknown')),
+                    'timestamp'    => sanitize_text_field((string) ($data['ts'] ?? '')),
+                    'has_env_data' => array_key_exists('env', $data),
                 ]
             );
-            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional diagnostic logging, reached only inside the WP_DEBUG-guarded branch above
-            error_log('[SparxstarUEC Recorder] ' . wp_json_encode($data));
         }
 
         return new WP_REST_Response([ 'status' => 'ok' ], 200);
@@ -182,7 +180,13 @@ final readonly class SparxstarUECRESTController
     public function check_permissions(WP_REST_Request $request): bool|WP_Error
     {
         $nonce = $request->get_header('X-WP-Nonce');
-        if (! $nonce || ! wp_verify_nonce($nonce, 'wp_rest')) {
+        if (! is_string($nonce) || $nonce === '') {
+            $nonce = sanitize_text_field(
+                wp_unslash((string) ($request->get_param('_wpnonce') ?? ''))
+            );
+        }
+
+        if ($nonce === '' || ! wp_verify_nonce($nonce, 'wp_rest')) {
             StarLogger::warning('REST', 'Permission check failed: Invalid Nonce.');
             return new WP_Error('invalid_nonce', 'Invalid security token.', [ 'status' => 403 ]);
         }
@@ -213,7 +217,7 @@ final readonly class SparxstarUECRESTController
         }
 
         return [
-            'ipAddress'     => $client_ip,
+            'ipAddress'     => IpAnonymizer::anonymize($client_ip),
             'language'      => get_locale(),
             'serverTimeUTC' => gmdate('c'),
             'geolocation'   => $geolocation,
