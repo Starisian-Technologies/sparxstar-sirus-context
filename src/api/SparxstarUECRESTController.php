@@ -77,7 +77,10 @@ final readonly class SparxstarUECRESTController
             'REST',
             'Processing snapshot. Detected User ID: ' . $user_id,
             [
-                'fingerprint' => $payload['client_side_data']['identifiers']['fingerprint'] ?? 'unknown',
+                'fingerprint' => $this->sanitize_text_value(
+                    $payload['client_side_data']['identifiers']['fingerprint'] ?? 'unknown',
+                    'unknown'
+                ),
             ]
         );
 
@@ -130,8 +133,8 @@ final readonly class SparxstarUECRESTController
                 'RecorderEvent',
                 'External plugin event received',
                 [
-                    'event_type'   => sanitize_text_field((string) ($data['type'] ?? 'unknown')),
-                    'timestamp'    => sanitize_text_field((string) ($data['ts'] ?? '')),
+                    'event_type'   => $this->sanitize_text_value($data['type'] ?? 'unknown', 'unknown'),
+                    'timestamp'    => $this->sanitize_text_value($data['ts'] ?? ''),
                     'has_env_data' => array_key_exists('env', $data),
                 ]
             );
@@ -192,7 +195,25 @@ final readonly class SparxstarUECRESTController
             return false;
         }
 
-        return is_array($client_side_data['identifiers'] ?? null);
+        if (! is_array($client_side_data['identifiers'] ?? null)) {
+            return false;
+        }
+
+        foreach (['fingerprint', 'session_id', 'device_hash'] as $field) {
+            if (array_key_exists($field, $client_side_data['identifiers'])
+                && ! is_scalar($client_side_data['identifiers'][$field])
+                && $client_side_data['identifiers'][$field] !== null) {
+                return false;
+            }
+        }
+
+        foreach (['technical', 'identifiers_extra'] as $field) {
+            if (array_key_exists($field, $client_side_data) && ! is_array($client_side_data[$field])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -269,6 +290,15 @@ final readonly class SparxstarUECRESTController
         set_transient($key, $count + 1, self::RATE_LIMIT_WINDOW_SECONDS);
 
         return true;
+    }
+
+    private function sanitize_text_value(mixed $value, string $default = ''): string
+    {
+        if (! is_scalar($value) && $value !== null) {
+            return $default;
+        }
+
+        return sanitize_text_field((string) ($value ?? $default));
     }
 
     /**

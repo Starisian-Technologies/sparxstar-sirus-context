@@ -192,6 +192,31 @@ final class SparxstarUECAPITest extends TestCase
                     ],
                 ],
             ],
+            'identifiers fingerprint must be scalar' => [
+                [
+                    'client_side_data' => [
+                        'identifiers' => [
+                            'fingerprint' => ['invalid'],
+                        ],
+                    ],
+                ],
+            ],
+            'technical must be array' => [
+                [
+                    'client_side_data' => [
+                        'identifiers' => [],
+                        'technical' => 'invalid',
+                    ],
+                ],
+            ],
+            'identifiers_extra must be array' => [
+                [
+                    'client_side_data' => [
+                        'identifiers' => [],
+                        'identifiers_extra' => 'invalid',
+                    ],
+                ],
+            ],
         ];
     }
 
