@@ -58,16 +58,22 @@
 
             const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
 
-            // Prefer sendBeacon for reliability during page unload
-            // Note: sendBeacon cannot send custom headers, so nonce is not included
-            // The recorder-log endpoint has open permissions for telemetry
+            // Prefer sendBeacon for reliability during page unload. Because Beacon
+            // cannot set custom headers, carry the REST nonce as a query parameter.
+            const endpoint = new URL(
+                window.sparxstarUECRecorderLog.endpoint,
+                window.location.origin
+            );
+            endpoint.searchParams.set('_wpnonce', window.sparxstarUECRecorderLog.nonce || '');
+
             if (navigator.sendBeacon) {
-                navigator.sendBeacon(window.sparxstarUECRecorderLog.endpoint, blob);
+                navigator.sendBeacon(endpoint.toString(), blob);
             } else {
-                fetch(window.sparxstarUECRecorderLog.endpoint, {
+                fetch(endpoint.toString(), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'X-WP-Nonce': window.sparxstarUECRecorderLog.nonce || '',
                     },
                     body: JSON.stringify(payload),
                     keepalive: true,

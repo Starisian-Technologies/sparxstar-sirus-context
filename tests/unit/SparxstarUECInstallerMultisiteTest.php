@@ -63,6 +63,35 @@ final class SparxstarUECInstallerMultisiteTest extends TestCase
         $this->assertNotEmpty($sql_for_site_3);
     }
 
+    public function test_network_activation_batches_sites_above_boundary(): void
+    {
+        $GLOBALS['__is_multisite'] = true;
+        $GLOBALS['__sites']        = array_map(
+            static fn (int $blog_id): WP_Site => new WP_Site(['blog_id' => $blog_id]),
+            range(1, 105)
+        );
+
+        SparxstarUECInstaller::spx_uec_activate(true);
+
+        $this->assertCount(100, $GLOBALS['switched_blogs']);
+        $this->assertSame(range(1, 100), $GLOBALS['switched_blogs']);
+
+        $scheduled = array_values(
+            array_filter(
+                $GLOBALS['scheduled_hooks'],
+                static fn (array $event): bool => $event['hook'] === SparxstarUECInstaller::NETWORK_ACTIVATION_HOOK
+            )
+        );
+
+        $this->assertCount(1, $scheduled);
+        $this->assertSame([100], $scheduled[0]['args']);
+
+        SparxstarUECInstaller::continue_network_activation(100);
+
+        $this->assertCount(105, $GLOBALS['switched_blogs']);
+        $this->assertSame(range(1, 105), $GLOBALS['switched_blogs']);
+    }
+
     /**
      * New site provisioning initialises only the target blog.
      */
@@ -75,6 +104,29 @@ final class SparxstarUECInstallerMultisiteTest extends TestCase
         $sql_for_site_5 = array_filter($GLOBALS['dbDelta_queries'], static fn (string $sql): bool => str_contains($sql, 'wp_5_sparxstar_uec_snapshots'));
         $this->assertNotEmpty($sql_for_site_5);
         $this->assertSame('none', $GLOBALS['wp_options'][5]['sparxstar_uec_geoip_provider'] ?? null);
+        $this->assertSame(1, $GLOBALS['current_blog_id']);
+    }
+
+    public function test_blog_context_is_restored_after_site_operation_exception(): void
+    {
+        $method = new \ReflectionMethod(SparxstarUECInstaller::class, 'with_blog_context');
+        $method->setAccessible(true);
+
+        try {
+            $method->invoke(
+                null,
+                5,
+                static function (): void {
+                    throw new \RuntimeException('boom');
+                }
+            );
+            $this->fail('Expected RuntimeException to be thrown.');
+        } catch (\ReflectionException $exception) {
+            throw $exception;
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('boom', $exception->getMessage());
+        }
+
         $this->assertSame(1, $GLOBALS['current_blog_id']);
     }
 

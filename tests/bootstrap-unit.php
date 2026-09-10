@@ -286,8 +286,15 @@ if (!function_exists('get_sites')) {
      */
     function get_sites(array $args = []): array
     {
-        unset($args);
-        return $GLOBALS['__sites'] ?? [];
+        $sites  = $GLOBALS['__sites'] ?? [];
+        $offset = max(0, (int) ($args['offset'] ?? 0));
+        $number = isset($args['number']) ? max(0, (int) $args['number']) : 0;
+
+        if ($number === 0) {
+            return array_slice($sites, $offset);
+        }
+
+        return array_slice($sites, $offset, $number);
     }
 }
 
@@ -789,6 +796,30 @@ if (!function_exists('wp_schedule_event')) {
             'args' => $args,
         ];
         return true;
+    }
+
+    if (!function_exists('wp_schedule_single_event')) {
+        /**
+         * Record a one-off scheduled hook in the in-memory registry.
+         *
+         * @param int    $timestamp When to run.
+         * @param string $hook Hook name.
+         * @param array  $args Arguments to pass.
+         * @return bool  True after recording.
+         */
+        function wp_schedule_single_event(int $timestamp, string $hook, array $args = []): bool
+        {
+            $blog_id = $GLOBALS['current_blog_id'] ?? 1;
+            $hash    = md5($blog_id . '|' . $hook . serialize($args));
+            $GLOBALS['scheduled_hooks'][$hash] = [
+                'blog_id' => $blog_id,
+                'timestamp' => $timestamp,
+                'recurrence' => false,
+                'hook' => $hook,
+                'args' => $args,
+            ];
+            return true;
+        }
     }
 }
 

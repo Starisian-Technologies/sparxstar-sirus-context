@@ -49,6 +49,7 @@ final class ConsentManager
      * Stored as a site option so multisite sub-sites have independent defaults.
      */
     private const OPTION_TECHNICAL_CONSENT = 'sirus_technical_consent_default';
+
     /** User meta key for per-user technical consent state. */
     private const META_TECHNICAL_CONSENT = 'sirus_technical_consent';
 

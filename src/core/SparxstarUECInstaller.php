@@ -15,6 +15,10 @@ use Starisian\SparxstarUEC\cron\SparxstarUECScheduler;
  */
 class SparxstarUECInstaller
 {
+    private const NETWORK_BATCH_SIZE = 100;
+
+    public const NETWORK_ACTIVATION_HOOK = 'sparxstar_uec_continue_network_activation';
+
     /**
      * Run activation tasks respecting network-wide installs.
      *
@@ -31,14 +35,7 @@ class SparxstarUECInstaller
                 return;
             }
 
-            $sites = get_sites([ 'number' => 0 ]);
-            foreach ($sites as $site) {
-                $blog_id = (int) $site->blog_id;
-
-                switch_to_blog($blog_id);
-                self::activate_site($wpdb);
-                restore_current_blog();
-            }
+            self::process_network_activation_batch(0, $wpdb);
 
             return;
         }
@@ -60,13 +57,21 @@ class SparxstarUECInstaller
                 return;
             }
 
-            $sites = get_sites([ 'number' => 0 ]);
-            foreach ($sites as $site) {
-                $blog_id = (int) $site->blog_id;
-                switch_to_blog($blog_id);
-                self::deactivate_site();
-                restore_current_blog();
-            }
+            $offset = 0;
+            do {
+                $sites = get_sites([ 'number' => self::NETWORK_BATCH_SIZE, 'offset' => $offset ]);
+                foreach ($sites as $site) {
+                    $blog_id = (int) $site->blog_id;
+                    self::with_blog_context(
+                        $blog_id,
+                        static function (): void {
+                            self::deactivate_site();
+                        }
+                    );
+                }
+
+                $offset += count($sites);
+            } while (count($sites) === self::NETWORK_BATCH_SIZE);
 
             return;
         }
@@ -89,9 +94,9 @@ class SparxstarUECInstaller
 
         $blog_id = $new_site instanceof \WP_Site ? (int) $new_site->blog_id : $new_site;
 
-        switch_to_blog($blog_id);
-        self::activate_site($wpdb);
-        restore_current_blog();
+        self::with_blog_context($blog_id, static function () use ($wpdb): void {
+            self::activate_site($wpdb);
+        });
     }
 
     /**
@@ -126,5 +131,66 @@ class SparxstarUECInstaller
         add_option('sparxstar_uec_geoip_provider', 'none');
         add_option('sparxstar_uec_ipinfo_api_key', '');
         add_option('sparxstar_uec_maxmind_db_path', '');
+    }
+
+    public static function continue_network_activation(int $offset): void
+    {
+        if (! is_multisite() || ! is_super_admin()) {
+            return;
+        }
+
+        global $wpdb;
+
+        self::process_network_activation_batch($offset, $wpdb);
+    }
+
+    /**
+     * @param \wpdb $wpdb Database adapter from the current request.
+     */
+    private static function process_network_activation_batch(int $offset, \wpdb $wpdb): void
+    {
+        $processed = self::process_network_batch(
+            $offset,
+            static function (int $blog_id) use ($wpdb): void {
+                self::with_blog_context($blog_id, static function () use ($wpdb): void {
+                    self::activate_site($wpdb);
+                });
+            }
+        );
+
+        if ($processed === self::NETWORK_BATCH_SIZE) {
+            $next_offset = $offset + $processed;
+
+            if (! wp_next_scheduled(self::NETWORK_ACTIVATION_HOOK, [ $next_offset ])) {
+                wp_schedule_single_event(time() + 1, self::NETWORK_ACTIVATION_HOOK, [ $next_offset ]);
+            }
+        }
+    }
+
+    /**
+     * @param callable(int):void $site_callback
+     */
+    private static function process_network_batch(int $offset, callable $site_callback): int
+    {
+        $sites = get_sites([ 'number' => self::NETWORK_BATCH_SIZE, 'offset' => $offset ]);
+
+        foreach ($sites as $site) {
+            $site_callback((int) $site->blog_id);
+        }
+
+        return count($sites);
+    }
+
+    /**
+     * @param callable():void $operation
+     */
+    private static function with_blog_context(int $blog_id, callable $operation): void
+    {
+        switch_to_blog($blog_id);
+        try {
+            $operation();
+        } finally {
+            restore_current_blog();
+        }
     }
 }

@@ -19,6 +19,12 @@ if (! function_exists('is_super_admin')) {
     return;
 }
 
+// Data removal is deliberately opt-in. Deactivation and a default uninstall
+// retain all user-owned diagnostic data and settings.
+if (! defined('SPX_ENV_CHECK_DELETE_ON_UNINSTALL') || SPX_ENV_CHECK_DELETE_ON_UNINSTALL !== true) {
+    return;
+}
+
 $autoloader = __DIR__ . '/vendor/autoload.php';
 if (file_exists($autoloader)) {
     require_once $autoloader;
@@ -53,13 +59,20 @@ if (is_multisite()) {
         return;
     }
 
-    $sites = get_sites(['number' => 0]);
-    foreach ($sites as $site) {
-        $current_blog_id = (int) $site->blog_id;
-        switch_to_blog($current_blog_id);
-        spx_uec_uninstall_site($wpdb);
-        restore_current_blog();
-    }
+    $offset = 0;
+    do {
+        $sites = get_sites(['number' => 100, 'offset' => $offset]);
+        foreach ($sites as $site) {
+            $current_blog_id = (int) $site->blog_id;
+            switch_to_blog($current_blog_id);
+            try {
+                spx_uec_uninstall_site($wpdb);
+            } finally {
+                restore_current_blog();
+            }
+        }
+        $offset += count($sites);
+    } while (count($sites) === 100);
     return;
 }
 

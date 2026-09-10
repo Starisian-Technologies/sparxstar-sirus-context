@@ -140,17 +140,18 @@ final class SirusNetworkSettingsPage
         if (is_multisite()) {
             switch_to_blog($blog_id);
         }
+        try {
+            $user     = get_userdata($user_id);
+            $can_view = false;
 
-        $user     = get_userdata($user_id);
-        $can_view = false;
-
-        if ($user instanceof \WP_User) {
-            $user_roles = (array) $user->roles;
-            $can_view   = (bool) array_intersect($user_roles, $access['roles']);
-        }
-
-        if (is_multisite()) {
-            restore_current_blog();
+            if ($user instanceof \WP_User) {
+                $user_roles = (array) $user->roles;
+                $can_view   = (bool) array_intersect($user_roles, $access['roles']);
+            }
+        } finally {
+            if (is_multisite()) {
+                restore_current_blog();
+            }
         }
 
         return $can_view;

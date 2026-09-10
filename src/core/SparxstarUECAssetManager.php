@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Starisian\SparxstarUEC\core;
 
+use Starisian\Sparxstar\Sirus\helpers\IpAnonymizer;
+
 if (! defined('ABSPATH')) {
     exit;
 }
@@ -64,7 +66,7 @@ final class SparxstarUECAssetManager
             'sparxstarUECRecorderLog',
             [
                 'endpoint' => esc_url_raw(rest_url('star-uec/v1/recorder-log')),
-                // No nonce required - open endpoint for passive telemetry
+                'nonce'    => wp_create_nonce('wp_rest'),
             ]
         );
 
@@ -150,7 +152,9 @@ final class SparxstarUECAssetManager
             ],
             'nonce'      => wp_create_nonce('wp_rest'),
             'debug'      => defined('WP_DEBUG') && WP_DEBUG,
-            'ip_address' => \Starisian\SparxstarUEC\StarUserEnv::get_current_visitor_ip(),
+            'ip_address' => IpAnonymizer::anonymize(
+                \Starisian\SparxstarUEC\StarUserEnv::get_current_visitor_ip()
+            ),
             // phpcs:disable WordPress.WP.I18n.NonSingularStringLiteralDomain -- text domain centralized in the class constant; this plugin ships its own translations, not WordPress.org language packs
             'i18n' => [
                 'notice'         => __('Important Notice', self::TEXT_DOMAIN),

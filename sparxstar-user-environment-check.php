@@ -138,6 +138,12 @@ function spx_uec_on_uninstall(): void
 // This points to the newly named SparxstarUECInstaller class.
 register_activation_hook(SPX_ENV_CHECK_PLUGIN_FILE, ['Starisian\SparxstarUEC\core\SparxstarUECInstaller', 'spx_uec_activate']);
 register_deactivation_hook(SPX_ENV_CHECK_PLUGIN_FILE, ['Starisian\SparxstarUEC\core\SparxstarUECInstaller', 'spx_uec_deactivate']);
+add_action(
+    'sparxstar_uec_continue_network_activation',
+    ['Starisian\SparxstarUEC\core\SparxstarUECInstaller', 'continue_network_activation'],
+    10,
+    1
+);
 
 // Multisite: ensure new sites are initialised automatically.
 add_action('wp_initialize_site', ['Starisian\SparxstarUEC\core\SparxstarUECInstaller', 'spx_uec_initialize_new_site'], 10, 1);

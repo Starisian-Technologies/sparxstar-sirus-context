@@ -14,10 +14,9 @@ use WP_REST_Request;
 use WP_REST_Response;
 use Starisian\SparxstarUEC\StarUserEnv;
 use Starisian\SparxstarUEC\helpers\StarLogger;
+use Starisian\Sparxstar\Sirus\helpers\IpAnonymizer;
 use Starisian\SparxstarUEC\core\SparxstarUECDatabase;
 use Starisian\SparxstarUEC\services\SparxstarUECGeoIPService;
-
-// Import Logger
 
 if (! defined('ABSPATH')) {
     exit;
@@ -25,6 +24,10 @@ if (! defined('ABSPATH')) {
 
 final readonly class SparxstarUECRESTController
 {
+    private const RATE_LIMIT_TRANSIENT_PREFIX = 'spx_uec_public_ingest_';
+    private const RATE_LIMIT_WINDOW_SECONDS   = 60;
+    private const RATE_LIMIT_MAX_REQUESTS     = 30;
+
     public function __construct(private SparxstarUECDatabase $database)
     {
     }
@@ -50,7 +53,7 @@ final readonly class SparxstarUECRESTController
             [
                 'methods'             => 'POST',
                 'callback'            => $this->handle_recorder_log(...),
-                'permission_callback' => '__return_true', // Open endpoint - passive telemetry, no nonce required
+                'permission_callback' => $this->check_permissions(...),
             ]
         );
     }
@@ -61,7 +64,7 @@ final readonly class SparxstarUECRESTController
     public function handle_log_request(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
         $payload = $request->get_json_params();
-        if ($payload === []) {
+        if (! is_array($payload) || ! $this->has_valid_snapshot_payload($payload)) {
             StarLogger::warning('REST', 'Received empty or invalid JSON payload.');
             return new WP_Error('invalid_data', 'Invalid JSON payload.', [ 'status' => 400 ]);
         }
@@ -74,7 +77,10 @@ final readonly class SparxstarUECRESTController
             'REST',
             'Processing snapshot. Detected User ID: ' . $user_id,
             [
-                'fingerprint' => $payload['client_side_data']['identifiers']['fingerprint'] ?? 'unknown',
+                'fingerprint' => $this->sanitize_text_value(
+                    $payload['client_side_data']['identifiers']['fingerprint'] ?? 'unknown',
+                    'unknown'
+                ),
             ]
         );
 
@@ -127,14 +133,11 @@ final readonly class SparxstarUECRESTController
                 'RecorderEvent',
                 'External plugin event received',
                 [
-                    'event_type'   => $data['type'] ?? 'unknown',
-                    'timestamp'    => $data['ts']   ?? '',
-                    'has_env_data' => isset($data['env']),
-                    'event_data'   => $data['event'] ?? [],
+                    'event_type'   => $this->sanitize_text_value($data['type'] ?? 'unknown', 'unknown'),
+                    'timestamp'    => $this->sanitize_text_value($data['ts'] ?? ''),
+                    'has_env_data' => array_key_exists('env', $data),
                 ]
             );
-            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional diagnostic logging, reached only inside the WP_DEBUG-guarded branch above
-            error_log('[SparxstarUEC Recorder] ' . wp_json_encode($data));
         }
 
         return new WP_REST_Response([ 'status' => 'ok' ], 200);
@@ -148,6 +151,7 @@ final readonly class SparxstarUECRESTController
      */
     private function map_and_normalize_snapshot(array $payload): array
     {
+        $payload     = $this->sanitize_snapshot_payload($payload);
         $client      = $payload['client_side_data']  ?? [];
         $identifiers = $client['identifiers']        ?? [];
         $hints       = $payload['client_hints_data'] ?? [];
@@ -177,17 +181,124 @@ final readonly class SparxstarUECRESTController
         ];
     }
 
+    /**
+     * @param mixed $payload
+     */
+    private function has_valid_snapshot_payload(mixed $payload): bool
+    {
+        if (! is_array($payload) || $payload === []) {
+            return false;
+        }
+
+        $client_side_data = $payload['client_side_data'] ?? null;
+        if (! is_array($client_side_data)) {
+            return false;
+        }
+
+        if (! is_array($client_side_data['identifiers'] ?? null)) {
+            return false;
+        }
+
+        foreach (['fingerprint', 'session_id', 'device_hash'] as $field) {
+            if (array_key_exists($field, $client_side_data['identifiers'])
+                && ! is_scalar($client_side_data['identifiers'][$field])
+                && $client_side_data['identifiers'][$field] !== null) {
+                return false;
+            }
+        }
+
+        foreach (['technical', 'identifiers_extra'] as $field) {
+            if (array_key_exists($field, $client_side_data) && ! is_array($client_side_data[$field])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Replace any raw IP values before the snapshot is persisted.
+     *
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    private function sanitize_snapshot_payload(array $payload): array
+    {
+        foreach ($payload as $key => $value) {
+            $payload[ $key ] = $this->sanitize_snapshot_value($value);
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @param mixed $value
+     * @return mixed
+     */
+    private function sanitize_snapshot_value(mixed $value): mixed
+    {
+        if (is_string($value)) {
+            $anonymized = IpAnonymizer::anonymize($value);
+            return $anonymized !== '' ? $anonymized : $value;
+        }
+
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        foreach ($value as $key => $item) {
+            $value[ $key ] = $this->sanitize_snapshot_value($item);
+        }
+
+        return $value;
+    }
+
     // --- Helper Methods ---
 
     public function check_permissions(WP_REST_Request $request): bool|WP_Error
     {
         $nonce = $request->get_header('X-WP-Nonce');
-        if (! $nonce || ! wp_verify_nonce($nonce, 'wp_rest')) {
+        if (! is_string($nonce) || $nonce === '') {
+            $nonce = sanitize_text_field(
+                wp_unslash((string) ($request->get_param('_wpnonce') ?? ''))
+            );
+        }
+
+        if ($nonce === '' || ! wp_verify_nonce($nonce, 'wp_rest')) {
             StarLogger::warning('REST', 'Permission check failed: Invalid Nonce.');
             return new WP_Error('invalid_nonce', 'Invalid security token.', [ 'status' => 403 ]);
         }
 
+        if (! $this->allow_public_ingestion_request()) {
+            StarLogger::warning('REST', 'Permission check failed: Rate limit exceeded.');
+            return new WP_Error('rate_limited', 'Too many requests. Please try again later.', [ 'status' => 429 ]);
+        }
+
         return true;
+    }
+
+    private function allow_public_ingestion_request(): bool
+    {
+        $ip_subnet = IpAnonymizer::ipSubnet(StarUserEnv::get_current_visitor_ip());
+        $key       = self::RATE_LIMIT_TRANSIENT_PREFIX . md5($ip_subnet);
+        $count     = (int) get_transient($key);
+
+        if ($count >= self::RATE_LIMIT_MAX_REQUESTS) {
+            return false;
+        }
+
+        set_transient($key, $count + 1, self::RATE_LIMIT_WINDOW_SECONDS);
+
+        return true;
+    }
+
+    private function sanitize_text_value(mixed $value, string $default = ''): string
+    {
+        if (! is_scalar($value) && $value !== null) {
+            return $default;
+        }
+
+        return sanitize_text_field((string) ($value ?? $default));
     }
 
     /**
@@ -213,7 +324,7 @@ final readonly class SparxstarUECRESTController
         }
 
         return [
-            'ipAddress'     => $client_ip,
+            'ipAddress'     => IpAnonymizer::anonymize($client_ip),
             'language'      => get_locale(),
             'serverTimeUTC' => gmdate('c'),
             'geolocation'   => $geolocation,

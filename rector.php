@@ -36,11 +36,8 @@ return RectorConfig::configure()
         codingStyle: true,
         typeDeclarations: true,
         // Keep false for WP. Prevents removing 'public' from hook callbacks.
-        privatization: false, 
+        privatization: false,
         earlyReturn: true,
-        // CAUTION: Set to false if you want to keep empty() checks. 
-        // Set to true if you want strict comparisons (===).
-        strictBooleans: false, 
     )
     // Targets PHP 8.2 features
     ->withPhpSets(php82: true);
