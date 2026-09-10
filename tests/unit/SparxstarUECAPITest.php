@@ -65,16 +65,46 @@ final class SparxstarUECAPITest extends TestCase
     }
 
     /**
-     * Verify that every registered mutation route uses an explicit permission callback.
+     * Verify that permission checks reject requests with no nonce.
      */
-    public function test_registered_routes_do_not_use_unrestricted_permission_callback(): void
+    public function test_check_permissions_rejects_requests_without_a_nonce(): void
     {
         $controller = new SparxstarUECRESTController(new SparxstarUECDatabase($GLOBALS['wpdb']));
-        $controller->register_routes();
+        $request    = new \WP_REST_Request('POST', '/star-uec/v1/log');
 
-        foreach ($GLOBALS['spx_registered_routes'] as $route) {
-            $this->assertIsCallable($route['args']['permission_callback']);
-            $this->assertNotSame('__return_true', $route['args']['permission_callback']);
-        }
+        $result = $controller->check_permissions($request);
+
+        $this->assertInstanceOf(\WP_Error::class, $result);
+        $this->assertSame('invalid_nonce', $result->get_error_code());
+    }
+
+    /**
+     * Verify that permission checks reject requests with an invalid nonce.
+     */
+    public function test_check_permissions_rejects_requests_with_an_invalid_nonce(): void
+    {
+        $controller = new SparxstarUECRESTController(new SparxstarUECDatabase($GLOBALS['wpdb']));
+        $request    = new \WP_REST_Request('POST', '/star-uec/v1/log');
+        $request->set_header('X-WP-Nonce', 'definitely-invalid-nonce');
+
+        $result = $controller->check_permissions($request);
+
+        $this->assertInstanceOf(\WP_Error::class, $result);
+        $this->assertSame('invalid_nonce', $result->get_error_code());
+    }
+
+    /**
+     * Verify that permission checks accept requests with a valid nonce.
+     */
+    public function test_check_permissions_accepts_requests_with_a_valid_nonce(): void
+    {
+        $controller = new SparxstarUECRESTController(new SparxstarUECDatabase($GLOBALS['wpdb']));
+        $request    = new \WP_REST_Request('POST', '/star-uec/v1/log');
+        $nonce      = wp_create_nonce('wp_rest');
+        $request->set_header('X-WP-Nonce', $nonce);
+
+        $result = $controller->check_permissions($request);
+
+        $this->assertTrue($result);
     }
 }
