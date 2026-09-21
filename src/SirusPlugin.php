@@ -75,7 +75,7 @@ final class SirusPlugin
     {
         add_action('rest_api_init', [ $this, 'registerRestRoutes' ]);
         add_action('wp_enqueue_scripts', [ $this, 'enqueueAssets' ]);
-        add_action('plugins_loaded', [ $this, 'initAdminPages' ]);
+        $this->initAdminPages();
 
         // Daily telemetry pruning cron.
         add_action(ClientTelemetry::CRON_HOOK, [ $this, 'runTelemetryPrune' ]);
@@ -110,10 +110,16 @@ final class SirusPlugin
     /**
      * Initialises admin and network-admin pages.
      *
-     * Called on plugins_loaded — the standard WP bootstrap hook. Construction
-     * is gated by is_admin() so admin page classes and their repository/service
-     * dependencies are only instantiated during admin HTTP requests (including
-     * network admin). Frontend, WP-Cron, and WP-CLI requests are excluded.
+     * Called directly from registerHooks(), which itself already runs on
+     * plugins_loaded. It previously re-registered itself on plugins_loaded at
+     * the same priority that was already executing; that only worked because
+     * WP_Hook re-sorts its callback list mid-iteration, which is an
+     * implementation detail rather than a documented guarantee.
+     *
+     * Construction is gated by is_admin() so admin page classes and their
+     * repository dependencies are only instantiated during admin HTTP requests
+     * (including network admin). Frontend, WP-Cron, and WP-CLI requests are
+     * excluded.
      *
      * plugins_loaded fires before init, admin_menu, and network_admin_menu, so
      * constructor-registered hook callbacks are captured correctly. If any
@@ -131,20 +137,13 @@ final class SirusPlugin
         // Network settings page: super-admin only, registered in network_admin_menu.
         new SirusNetworkSettingsPage();
 
-        // Build coordinator dependencies.
+        // Dashboard dependencies. The mitigation coordinator is not built
+        // here: it is only needed by the REST controllers, which construct
+        // their own on rest_api_init.
         $event_repo    = new SirusEventRepository($wpdb);
         $rule_hit_repo = new SirusRuleHitRepository($wpdb);
-        $action_repo   = new SirusMitigationActionRepository($wpdb);
-        $coordinator   = new SirusMitigationCoordinator(
-            new SirusSignalEvaluator(),
-            new SirusImpactScorer(),
-            new SirusMitigationRuleEngine(),
-            $rule_hit_repo,
-            $action_repo
-        );
 
-        $scorer = new SirusPriorityScorer();
-        new SirusDashboardPage($event_repo, $scorer, $rule_hit_repo);
+        new SirusDashboardPage($event_repo, new SirusPriorityScorer(), $rule_hit_repo);
     }
 
     /**
