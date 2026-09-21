@@ -42,22 +42,22 @@ final class SirusDirectiveController
      */
     public function register_routes(): void
     {
+        // The /directives route below is intentionally public and read-only.
+        // It returns only advisory rendering hints (a mode string, a TTL, and
+        // a list of suggested client-side degradations such as 'reduce_media');
+        // it exposes no user, device or site data and mutates nothing. It must
+        // stay reachable without a nonce so that anonymous, page-cached and
+        // offline-first clients on poor connections can still fetch their
+        // degradation directive -- requiring a nonce would make the response
+        // per-session and defeat full-page caching. Mutating and admin routes
+        // use a real permission callback; see get_rule_hits() below and
+        // SirusRESTController::verify_rest_nonce().
         register_rest_route(
             self::NAMESPACE,
             '/directives',
             [
                 'methods'             => 'GET',
                 'callback'            => [ $this, 'get_directives' ],
-                // Intentionally public and read-only. This route returns only
-                // advisory rendering hints (a mode string, a TTL, and a list of
-                // suggested client-side degradations such as 'reduce_media');
-                // it exposes no user, device or site data and mutates nothing.
-                // It must stay reachable without a nonce so that anonymous,
-                // page-cached and offline-first clients on poor connections can
-                // still fetch their degradation directive -- requiring a nonce
-                // would make the response per-session and defeat full-page
-                // caching. Mutating and admin routes use a real permission
-                // callback; see get_rule_hits() below and SirusRESTController.
                 'permission_callback' => '__return_true',
                 'args'                => [
                     'device_id' => [
