@@ -116,23 +116,9 @@ if (! file_exists($autoloader)) {
 // =========================================================================
 //  3. LIFECYCLE HOOKS (ACTIVATION, DEACTIVATION, UNINSTALL)
 // =========================================================================
-/**
- * Uninstall handler for permanent cleanup.
- * This must be a standalone function or a static method.
- */
-function spx_uec_on_uninstall(): void
-{
-    if (! current_user_can('activate_plugins')) {
-        return;
-    }
-    // Include the dedicated uninstall script for cleanup tasks.
-    $uninstall_file = SPX_ENV_CHECK_PLUGIN_PATH . 'uninstall.php';
-    if (file_exists($uninstall_file)) {
-        require_once $uninstall_file;
-    }
-    // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.flush_rewrite_rules_flush_rewrite_rules -- one-time flush on deactivation cleanup, not a per-request call
-    flush_rewrite_rules();
-}
+// No uninstall callback is defined or registered here. WordPress ignores
+// register_uninstall_hook() whenever a root-level uninstall.php exists, and
+// this plugin ships one, so uninstall cleanup lives in uninstall.php alone.
 
 // 3. Register Activation & Deactivation Hooks
 // This points to the newly named SparxstarUECInstaller class.

@@ -355,8 +355,21 @@ Machine-readable downstream contract: [`docs/contracts/sirus-api-contract.v1.jso
 | Method | Route | Controller | Auth |
 |---|---|---|---|
 | `POST` | `/wp-json/sirus/v1/event` | `SirusEventController` | WP nonce required (`X-WP-Nonce` or `?_wpnonce`) |
-| `GET` | `/wp-json/sirus/v1/directives` | `SirusDirectiveController` | WP nonce required |
-| `GET` | `/wp-json/sirus/v1/directives/{device_id}` | `SirusDirectiveController` | WP nonce required |
+| `GET` | `/wp-json/sirus/v1/directives` | `SirusDirectiveController` | **Public** — no nonce. Read-only advisory rendering hints only; see note below |
+| `GET` | `/wp-json/sirus/v1/rule-hits` | `SirusDirectiveController` | `manage_options` or super admin |
+
+> **`/directives` is intentionally public.** `SirusDirectiveController::register_routes()`
+> registers it with `'permission_callback' => '__return_true'`. It returns only a mode
+> string, a TTL, a reason, a confidence score and a list of suggested client-side
+> degradations such as `reduce_media`; it exposes no user, device or site data and
+> mutates nothing. It stays nonce-free so anonymous, page-cached and offline-first
+> clients on poor connections can still fetch a degradation directive — requiring a
+> nonce would make every response per-session and defeat full-page caching.
+>
+> A `/sirus/v1/directives/{device_id}` route was previously listed here as requiring a
+> nonce. No such route exists: the controller registers `/directives` and `/rule-hits`
+> and nothing else. `device_id` is passed to `/directives` as a required query
+> parameter, sanitized with `sanitize_text_field`.
 
 ### `sparxstar/v1` namespace (Sirus context producer + UEC compat)
 
