@@ -49,7 +49,6 @@ function spx_uec_uninstall_site(\wpdb $wpdb): void
     delete_option('sparxstar_uec_maxmind_db_path');
 
     wp_clear_scheduled_hook('sparxstar_env_cleanup_snapshots');
-    wp_cache_flush();
 }
 
 global $wpdb;
@@ -73,7 +72,12 @@ if (is_multisite()) {
         }
         $offset += count($sites);
     } while (count($sites) === 100);
+
+    // Flushed once for the whole run: wp_cache_flush() is global, so calling
+    // it per site would clear every site's cache once per site on a network.
+    wp_cache_flush();
     return;
 }
 
 spx_uec_uninstall_site($wpdb);
+wp_cache_flush();
