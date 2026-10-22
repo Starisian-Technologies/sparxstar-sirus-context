@@ -66,9 +66,7 @@ final class SparxstarUECSessionManager
                 );
             }
 
-            if (! isset($_SESSION[ self::SESSION_NAMESPACE ])) {
-                $_SESSION[ self::SESSION_NAMESPACE ] = [];
-            }
+            $_SESSION[ self::SESSION_NAMESPACE ] ??= [];
         } catch (\Throwable $throwable) {
             StarLogger::log('SparxstarUECSessionManager', $throwable);
         }
