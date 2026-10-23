@@ -14,14 +14,15 @@
     "format": "prettier --write \"src/**/*.{js,css}\"",
     "fix": "pnpm run lint:fix && pnpm run stylelint:fix && pnpm run format",
     "stylelint:fix": "stylelint \"src/css/**/*.css\" --fix",
-    "clean": "rm -rf assets",
+    "clean": "rm -f assets/css/sparxstar-user-environment-check.min.css assets/js/sirus-context.js",
     "validate": "node validate-build.cjs",
     "build:css": "postcss src/css/sparxstar-user-environment-check.css -o assets/css/sparxstar-user-environment-check.min.css",
     "build:js": "rollup -c roll-up.config.mjs",
     "build:js:dev": "rollup -c roll-up.config.dev.mjs",
-    "build": "pnpm run validate && pnpm run clean && mkdir -p assets/js && pnpm run build:css && pnpm run build:js",
-    "build:dev": "pnpm run validate && pnpm run clean && mkdir -p assets/js && pnpm run build:css && pnpm run build:js:dev",
-    "version:sync": "node sync-version.js"
+    "build": "pnpm run validate && pnpm run clean && mkdir -p assets/js assets/css && pnpm run build:css && pnpm run build:js && pnpm run verify:assets",
+    "build:dev": "pnpm run validate && pnpm run clean && mkdir -p assets/js assets/css && pnpm run build:css && pnpm run build:js:dev && pnpm run verify:assets",
+    "version:sync": "node sync-version.js",
+    "verify:assets": "node verify-assets.cjs"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^29.0.3",
