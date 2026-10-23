@@ -4,6 +4,8 @@
  * Plugin Name: SPARXSTAR User Environment Check
  * Description: Logs browser diagnostics with a database-first architecture.
  * Version: 0.9.6
+ * Requires at least: 6.8
+ * Requires PHP: 8.2
  * Author: Starisian
  * Text Domain: sparxstar-user-environment-check
  */

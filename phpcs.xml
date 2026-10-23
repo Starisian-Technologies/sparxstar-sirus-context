@@ -77,15 +77,30 @@
   -->
   <config name="ignore_warnings_on_exit" value="1"/>
 
-  <!-- PHP cross-version compatibility -->
-  <config name="testVersion" value="8.1-8.4"/>
+  <!--
+    PHP cross-version compatibility.
+
+    Must match the "Requires PHP" header in sparxstar-sirus-context.php and the
+    pinned config.platform.php in composer.json. It read 8.1-8.4 while both of
+    those said 8.2, which let PHP 8.1-only constructs past this ruleset.
+  -->
+  <config name="testVersion" value="8.2-"/>
   <rule ref="PHPCompatibilityWP"/>
 
   <!-- Unused/undefined variable detection -->
   <rule ref="VariableAnalysis.CodeAnalysis.VariableAnalysis"/>
 
-  <!-- WordPress security sniffs: real work for a cookie / trust / device engine -->
-  <config name="minimum_supported_wp_version" value="6.4"/>
+  <!--
+    WordPress security sniffs: real work for a cookie / trust / device engine.
+
+    minimum_supported_wp_version must match "Requires at least" in
+    sparxstar-sirus-context.php. Nothing in the sniff selection below reads it
+    today — the WordPress.WP.Deprecated* sniffs that consume it are loaded by
+    phpcs.xml.dist, not here — so it is inert rather than load-bearing. It is
+    kept and kept correct so that adding a WP sniff here cannot silently
+    inherit a floor four minors below the one the plugin actually declares.
+  -->
+  <config name="minimum_supported_wp_version" value="6.8"/>
   <rule ref="WordPress.Security"/>
   <rule ref="WordPress.DB"/>
 

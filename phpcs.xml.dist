@@ -31,6 +31,17 @@
   <!-- Target PHP version -->
   <config name="testVersion" value="8.2-"/>
 
+  <!--
+    Target WordPress version.
+
+    This ruleset loads WordPress-Extra, which brings the WordPress.WP.Deprecated*
+    sniffs, and those read this value. With it unset they fell back to the WPCS
+    built-in default (6.7 in wp-coding-standards/wpcs 3.x) rather than the 6.8
+    that sparxstar-sirus-context.php declares, so anything deprecated in 6.8
+    went unreported.
+  -->
+  <config name="minimum_wp_version" value="6.8"/>
+
   <!-- Core standards -->
   <rule ref="WordPress-Core"/>
   <rule ref="WordPress-Extra"/>
