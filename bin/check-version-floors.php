@@ -65,7 +65,12 @@ function readPluginHeader(string $path, string $field): ?string
  */
 function readPhpcsConfig(string $path, string $name): ?string
 {
-    $xml = @simplexml_load_file($path);
+    // LIBXML_NONET is explicit rather than load-bearing: PHP 8 does not
+    // expand external entities unless LIBXML_NOENT is passed, and these are
+    // the repo's own ruleset files. It states that parsing a ruleset never
+    // reaches the network, which phpcs.xml's xsi:noNamespaceSchemaLocation
+    // URL would otherwise leave an open question.
+    $xml = @simplexml_load_file($path, SimpleXMLElement::class, LIBXML_NONET);
     if ($xml === false) {
         return null;
     }
@@ -142,7 +147,9 @@ foreach ($rulesets as $ruleset) {
     $testVersion = readPhpcsConfig($path, 'testVersion');
     if ($testVersion === null) {
         $errors[] = "{$ruleset}: declares no testVersion, so PHPCompatibility checks nothing.";
-    } elseif (! str_starts_with($testVersion, $minPhp)) {
+    } elseif (preg_match('/^' . preg_quote($minPhp, '/') . '(?:-|$)/', $testVersion) !== 1) {
+        // Matched to a token boundary, not as a prefix: a plain prefix test
+        // reads "8.20-" as satisfying a floor of "8.2".
         $errors[] = "{$ruleset}: testVersion is {$testVersion}, which does not start at the "
             . "{$minPhp} the plugin header declares.";
     }
@@ -153,13 +160,28 @@ foreach ($rulesets as $ruleset) {
 // config.platform.php tells Composer which PHP to resolve against. If it sits
 // below the declared floor, Composer will happily pick dependency versions
 // that the supported runtime cannot load.
+// A file this guard cannot read is not a file that passes. Casting a failed
+// read to '' made json_decode return null, which left $platformPhp null and
+// skipped the check with exit 0 -- the same silent-omission shape the guard
+// exists to catch.
 $composerPath = $root . '/composer.json';
-$composer = json_decode((string) file_get_contents($composerPath), true);
-$platformPhp = $composer['config']['platform']['php'] ?? null;
+$composerRaw = file_get_contents($composerPath);
 
-if (is_string($platformPhp) && version_compare($platformPhp, $minPhp, '<')) {
-    $errors[] = "composer.json: config.platform.php is {$platformPhp}, below the {$minPhp} "
-        . "the plugin header declares.";
+if ($composerRaw === false) {
+    $errors[] = 'composer.json: could not be read, so config.platform.php cannot be checked.';
+} else {
+    $composer = json_decode($composerRaw, true);
+
+    if (! is_array($composer)) {
+        $errors[] = 'composer.json: is not valid JSON, so config.platform.php cannot be checked.';
+    } else {
+        $platformPhp = $composer['config']['platform']['php'] ?? null;
+
+        if (is_string($platformPhp) && version_compare($platformPhp, $minPhp, '<')) {
+            $errors[] = "composer.json: config.platform.php is {$platformPhp}, below the {$minPhp} "
+                . "the plugin header declares.";
+        }
+    }
 }
 
 // ── Report ───────────────────────────────────────────────────────────────

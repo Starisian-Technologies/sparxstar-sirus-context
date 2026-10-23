@@ -43,18 +43,36 @@ final class VersionFloorCheckTest extends SirusTestCase
 
         $this->root = dirname(__DIR__, 2);
 
-        $scratch = tempnam(sys_get_temp_dir(), 'floors');
-        unlink($scratch);
-        mkdir($scratch . '/bin', 0o777, true);
+        // A name nothing else holds yet, created in one step: tempnam() then
+        // unlink() then mkdir() leaves a window where the name is free.
+        $scratch = sys_get_temp_dir() . '/version-floors-' . bin2hex(random_bytes(8));
+        $this->assertTrue(
+            mkdir($scratch . '/bin', 0o700, true),
+            "Could not create the scratch root at {$scratch}."
+        );
         $this->scratch = $scratch;
 
         // The script resolves the repo root as dirname(__DIR__), so it has to
         // sit in bin/ of the scratch root for the copies to be what it reads.
-        copy($this->root . '/bin/check-version-floors.php', $scratch . '/bin/check-version-floors.php');
+        // Each copy is asserted: a silent failure leaves an incomplete fixture,
+        // and every later mutation then fails with a misleading message about
+        // the text it could not find rather than about the missing file.
+        $this->copyIntoScratch('bin/check-version-floors.php');
 
         foreach (self::DECLARATION_FILES as $file) {
-            copy($this->root . '/' . $file, $scratch . '/' . $file);
+            $this->copyIntoScratch($file);
         }
+    }
+
+    private function copyIntoScratch(string $relativePath): void
+    {
+        $source = $this->root . '/' . $relativePath;
+
+        $this->assertFileExists($source, "Fixture source is missing: {$relativePath}");
+        $this->assertTrue(
+            copy($source, $this->scratch . '/' . $relativePath),
+            "Could not copy fixture into the scratch root: {$relativePath}"
+        );
     }
 
     protected function tearDown(): void
@@ -202,6 +220,15 @@ final class VersionFloorCheckTest extends SirusTestCase
         $this->assertCheckFailsWith('but the plugin header declares 6.9');
     }
 
+    public function testFailsWhenTestVersionOnlyLooksLikeTheFloor(): void
+    {
+        // A prefix test reads "8.20-" as starting at 8.2. It does not: the
+        // match has to land on a token boundary.
+        $this->mutate('phpcs.xml.dist', 'testVersion" value="8.2-"', 'testVersion" value="8.20-"');
+
+        $this->assertCheckFailsWith('testVersion is 8.20-');
+    }
+
     // ── Composer platform pin ─────────────────────────────────────────────────
 
     public function testFailsWhenTheComposerPlatformPinSitsBelowTheFloor(): void
@@ -209,6 +236,22 @@ final class VersionFloorCheckTest extends SirusTestCase
         $this->mutate('composer.json', '"php": "8.2.29"', '"php": "8.1.0"');
 
         $this->assertCheckFailsWith('config.platform.php is 8.1.0');
+    }
+
+    public function testFailsWhenComposerJsonCannotBeRead(): void
+    {
+        // Unreadable is not the same as satisfying the floor. Casting the
+        // failed read to '' let this exit 0 with the pin never checked.
+        unlink($this->scratch . '/composer.json');
+
+        $this->assertCheckFailsWith('composer.json: could not be read');
+    }
+
+    public function testFailsWhenComposerJsonIsNotValidJson(): void
+    {
+        file_put_contents($this->scratch . '/composer.json', '{ this is not json');
+
+        $this->assertCheckFailsWith('composer.json: is not valid JSON');
     }
 
     // ── Invalid XML ───────────────────────────────────────────────────────────
