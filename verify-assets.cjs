@@ -74,7 +74,24 @@ try {
         .map((line) => line.trim())
         .filter((line) => line !== '');
 } catch (error) {
-    console.log(`ℹ️  git unavailable (${error.code || 'error'}); skipping tracked-file sweep`);
+    /*
+     * Only two failures mean "there is no git to ask": the binary is absent,
+     * or this is not a repository. Anything else -- a corrupted index, an
+     * unreadable object, the wrong working directory -- is a real error, and
+     * swallowing it would silently skip the sweep on a checkout where it
+     * should have run. That is the same shape of silent omission this script
+     * exists to catch, so it fails loudly instead.
+     */
+    const stderr = String(error.stderr || '');
+    const noGitAvailable =
+        error.code === 'ENOENT' ||
+        (error.status === 128 && /not a git repository/i.test(stderr));
+
+    if (noGitAvailable) {
+        console.log('ℹ️  not a git checkout; skipping tracked-file sweep');
+    } else {
+        fail(`git ls-files failed unexpectedly: ${error.message.trim()}`);
+    }
 }
 
 if (tracked !== null) {

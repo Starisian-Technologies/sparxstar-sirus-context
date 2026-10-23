@@ -90,7 +90,10 @@ jobs:
             # the index.php guards and sirus-bootstrap.js with it.
             - name: Verify build left the repository state intact
               run: |
-                  deleted="$(git diff --name-only --diff-filter=D)"
+                  # Compare against HEAD, not the index: a deletion that something
+                  # staged is invisible to a bare `git diff` (worktree and index
+                  # already agree), which would pass this check silently.
+                  deleted="$(git diff HEAD --name-only --diff-filter=D)"
                   if [ -n "$deleted" ]; then
                       echo "::error::The build deleted tracked files:"
                       echo "$deleted" | sed 's/^/  /'
@@ -101,7 +104,7 @@ jobs:
                   # Regenerated output drifting from what is committed is not a
                   # failure here -- it means the committed artifact is stale,
                   # which is worth seeing but is not a security regression.
-                  modified="$(git diff --name-only --diff-filter=M)"
+                  modified="$(git diff HEAD --name-only --diff-filter=M)"
                   if [ -n "$modified" ]; then
                       echo "::warning::Build output differs from the committed assets:"
                       echo "$modified" | sed 's/^/  /'
