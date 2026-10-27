@@ -33,8 +33,8 @@ importers:
         specifier: ^16.0.3
         version: 16.0.3(rollup@4.64.7)
       '@rollup/plugin-terser':
-        specifier: ^1.0.0
-        version: 1.0.0(rollup@4.64.7)
+        specifier: ^1.0.2
+        version: 1.0.2(rollup@4.64.7)
       cssnano:
         specifier: ^9.8.0
         version: 9.8.0(postcss@8.5.30)
@@ -397,8 +397,8 @@ packages:
       rollup: 4.64.7
     dev: true
 
-  /@rollup/plugin-terser@1.0.0(rollup@4.64.7):
-    resolution: {integrity: sha512-FnCxhTBx6bMOYQrar6C8h3scPt8/JwIzw3+AJ2K++6guogH5fYaIFia+zZuhqv0eo1RN7W1Pz630SyvLbDjhtQ==}
+  /@rollup/plugin-terser@1.0.2(rollup@4.64.7):
+    resolution: {integrity: sha512-+UihHnuLnQDQ/9wog7ym+7oawCXkjTIo0WwkK7s//0mkktTN0VhYk6fGVxH+NtGzW064w5RCGgreMDxRVhHCzw==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
       rollup: ^2.0.0||^3.0.0||^4.0.0
@@ -407,7 +407,7 @@ packages:
         optional: true
     dependencies:
       rollup: 4.64.7
-      serialize-javascript: 7.1.2
+      serialize-javascript: 7.1.4
       smob: 1.6.2
       terser: 5.51.2
     dev: true
@@ -2975,8 +2975,8 @@ packages:
     hasBin: true
     dev: true
 
-  /serialize-javascript@7.1.2:
-    resolution: {integrity: sha512-GL2BWwVa6JydKO6l/ljVgjAZF4QJ3S7dWDWi53s5GZT8PJzD2fNxi67HANQGKAqPrwEpL5ba7gUBGi0Ls/sEoQ==}
+  /serialize-javascript@7.1.4:
+    resolution: {integrity: sha512-FqlEuoTq/zRmA4Lg6aOqyH3lCHbUtCB0bmHCeFniX2GBdDqMJM3FwdvEhlE5Pim1dlt2FfBdVPmUNNiGhhKqpw==}
     engines: {node: '>=20.0.0'}
     dev: true
 
