@@ -29,6 +29,14 @@ jobs:
             - name: Run API contract smoke test
               run: composer run smoke:api-contract
 
+            # Reads files only, so it runs before `composer install` and fails
+            # fast. Guards the declared WordPress/PHP minimums against drifting
+            # apart again: the plugin headers said WP 6.8 / PHP 8.2 while
+            # phpcs.xml said 6.4 / 8.1-8.4 and phpcs.xml.dist declared no WP
+            # floor at all and silently used the WPCS default.
+            - name: Check declared version floors agree
+              run: composer run check:version-floors
+
             - name: Mint Composer resolver token
               id: composer-token
               uses: actions/create-github-app-token@v3

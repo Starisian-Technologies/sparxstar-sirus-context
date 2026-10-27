@@ -98,7 +98,8 @@
       "@comments:fix"
     ],
     "smoke:api-contract": "php tests/smoke/sirus-api-contract-smoke.php",
-    "check:ouroboros-drift": "php bin/check-ouroboros-stub-drift.php"
+    "check:ouroboros-drift": "php bin/check-ouroboros-stub-drift.php",
+    "check:version-floors": "php bin/check-version-floors.php"
   },
   "extra": {
     "installer-paths": {
