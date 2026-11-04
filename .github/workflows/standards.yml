@@ -12,7 +12,8 @@ jobs:
     uses: Starisian-Technologies/sparxstar-code-conformance/.github/workflows/pnpm-enforcement.yml@v1
     with:
       enforcement_mode: advisory
-    secrets: inherit
+    secrets:
+      COMPOSER_RESOLVER_PRIVATE_KEY: ${{ secrets.COMPOSER_RESOLVER_PRIVATE_KEY }}
 
   php:
     uses: Starisian-Technologies/sparxstar-code-conformance/.github/workflows/php-enforcement.yml@v1
@@ -27,4 +28,5 @@ jobs:
     with:
       repo_type: wp-plugin
       enforcement_mode: advisory
-    secrets: inherit
+    secrets:
+      COMPOSER_RESOLVER_PRIVATE_KEY: ${{ secrets.COMPOSER_RESOLVER_PRIVATE_KEY }}
