@@ -40,4 +40,20 @@ return RectorConfig::configure()
         earlyReturn: true,
     )
     // Targets PHP 8.2 features
-    ->withPhpSets(php82: true);
+    ->withPhpSets(php82: true)
+    // Run single-process. Rector's parallel mode was losing a whole job batch
+    // here: CI reported "results for 48 of 73 files are missing", and 48 is
+    // exactly the default jobSize, so one worker's batch never came back.
+    //
+    // This surfaced on the 2.6.7 -> 2.7.0 bump, but 2.7.0 did not break it. Two
+    // of that release's changes are "Fix silently skipped files when the only
+    // worker is respawned" (rector-src#8521) and "Terminate timed-out and
+    // unconnected workers" (#8522); #8521 adds "report an error when results
+    // for some files are missing". Before it, a run that lost a batch still
+    // exited [OK]. So this check was passing while leaving ~2/3 of src/
+    // unanalysed, and the bump only made that visible.
+    //
+    // The failing run covered 73 files. At that scale parallelism buys little
+    // and costs the guarantee that every file was actually looked at, so take
+    // the guarantee.
+    ->withoutParallel();
