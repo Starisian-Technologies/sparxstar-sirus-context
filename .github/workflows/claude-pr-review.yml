@@ -4,19 +4,15 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions: {}
 jobs:
-  skip-public-repo:
-    if: ${{ !github.event.repository.private }}
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Skipping Claude PR Review because the reusable workflow only supports private caller repositories."
-
   review:
-    if: ${{ github.event.repository.private }}
-    permissions:
-      contents: read
-      pull-requests: write
-    uses: Starisian-Technologies/sparxstar-anthropic-workflow/.github/workflows/claude-pr-review.yml@main
-    secrets:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      COMPOSER_RESOLVER_PRIVATE_KEY: ${{ secrets.COMPOSER_RESOLVER_PRIVATE_KEY }}
+    name: Claude PR review
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Report unsupported public review
+        run: |
+          echo "::notice::No AI review performed. The central reviewer supports private repositories and is migrating to private execution."
+          echo "### AI review not performed" >> "$GITHUB_STEP_SUMMARY"
+          echo "This public repository no longer calls the private reviewer. Use the native Codex integration where enabled; private consumers must install the central relay." >> "$GITHUB_STEP_SUMMARY"
