@@ -57,6 +57,14 @@ jobs:
           owner: Starisian-Technologies
           repositories: sparxstar-product-specification-registry
 
+      - name: Checkout spec registry
+        if: steps.check.outputs.changed == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: Starisian-Technologies/sparxstar-product-specification-registry
+          token: ${{ steps.token.outputs.token }}
+          path: registry
+
       - name: Propose to registry
         if: steps.check.outputs.changed == 'true'
         env:
@@ -70,10 +78,6 @@ jobs:
           REGISTRY="Starisian-Technologies/sparxstar-product-specification-registry"
           BRANCH="propose/${SPEC_KEY}-$(date +%Y%m%d-%H%M%S)"
           TARGET="specs/${SPEC_DOMAIN}/${SPEC_KEY}/${SPEC_KEY}-tech-spec.md"
-
-          git clone --depth 1 \
-            "https://x-access-token:${GH_TOKEN}@github.com/${REGISTRY}.git" \
-            registry
 
           cd registry
 
