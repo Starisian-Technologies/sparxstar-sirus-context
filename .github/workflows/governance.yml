@@ -7,94 +7,21 @@ on:
     branches: [main]
 
 # Default: least-privilege. Jobs that push (propose-spec, sync-contracts) use
-# an explicit app token — GITHUB_TOKEN only needs read access to checkout.
+# an explicit contract-sync app token — GITHUB_TOKEN only needs read access.
 permissions:
   contents: read
 
 jobs:
-  skip-public-repo:
-    if: ${{ !github.event.repository.private }}
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Skipping governance registry fetch jobs because the upstream workflow only supports private caller repositories."
-
-  # ─── STEP 1: PULL SPEC ────────────────────────────────────
-  pull-spec:
-    if: ${{ github.event.repository.private }}
-    uses: Starisian-Technologies/sparxstar-product-specification-registry/.github/workflows/fetch-specs.yml@v1.0.0
-    with:
-      specs: "sirus"
-      agent-ref: main
-      contract-ref: "v1.0.0"
-    secrets:
-      COMPOSER_RESOLVER_PRIVATE_KEY: ${{ secrets.COMPOSER_RESOLVER_PRIVATE_KEY }}
-
-  # ─── STEP 2: CI ───────────────────────────────────────────
-  # Core CI runs after spec pull. Lint and static analysis run
-  # independently via standards.yml — not chained here to avoid
-  # masking PHPStan behind a PHPCS short-circuit.
-
-  smoke:
-    if: ${{ github.event.repository.private }}
-    needs: [pull-spec]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f
-        with:
-          php-version: '8.3'
-          tools: composer:2.9.8
-
-      - name: Run API contract smoke test
-        run: composer run smoke:api-contract
-
-  test:
-    if: ${{ github.event.repository.private }}
-    needs: [pull-spec]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f
-        with:
-          php-version: '8.3'
-          tools: composer:2.9.8
-
-      - name: Mint Composer resolver token
-        id: composer-token
-        uses: actions/create-github-app-token@v1
-        with:
-          client-id: ${{ vars.COMPOSER_RESOLVER_CLIENT_ID }}
-          private-key: ${{ secrets.COMPOSER_RESOLVER_PRIVATE_KEY }}
-          owner: Starisian-Technologies
-          repositories: sparxstar-ouroboros-integrity
-
-      - name: Wire git to use Composer resolver token for Ouroboros
-        env:
-          TOKEN: ${{ steps.composer-token.outputs.token }}
-        run: git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
-
-      - name: Cache Composer packages
-        uses: actions/cache@v4
-        with:
-          path: vendor
-          key: composer-v2-${{ hashFiles('**/composer.lock') }}
-          restore-keys: composer-v2-
-
-      - name: Install PHP dependencies
-        env:
-          COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ steps.composer-token.outputs.token }}"}}'
-        run: composer install --no-interaction
-
-      - name: Run unit tests
-        run: composer run test:unit
+  # Sirus is a PUBLIC repository. The spec registry's fetch-specs.yml lives in
+  # an internal repository, and GitHub refuses to load a reusable workflow
+  # from a non-public repository into a public caller. That refusal happens
+  # when the workflow file is parsed, before any job-level `if:` is evaluated,
+  # so a `pull-spec` job here (even one gated on repository.private) made the
+  # whole workflow fail at startup on every push and pull request.
+  # The smoke and unit-test jobs that hung off pull-spec duplicated ci.yml and
+  # test.yml, which run both on every push and pull request.
+  # Canonical reference: sparxstar-code-conformance →
+  # cross-repo/cross-repo-access-and-installation.md
 
   # ─── STEP 3A: PROPOSE SPEC UPDATE ─────────────────────────
   propose-spec:
@@ -122,12 +49,13 @@ jobs:
 
       - name: Generate token
         if: steps.check.outputs.changed == 'true'
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v3
         id: token
         with:
-          app-id: ${{ vars.CONTRACT_SYNC_CLIENT_ID }}
+          client-id: ${{ vars.CONTRACT_SYNC_CLIENT_ID }}
           private-key: ${{ secrets.CONTRACT_SYNC_PRIVATE_KEY }}
           owner: Starisian-Technologies
+          repositories: sparxstar-product-specification-registry
 
       - name: Propose to registry
         if: steps.check.outputs.changed == 'true'
@@ -199,12 +127,13 @@ jobs:
 
       - name: Generate token
         if: steps.check.outputs.changed == 'true'
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v3
         id: token
         with:
-          app-id: ${{ vars.CONTRACT_SYNC_CLIENT_ID }}
+          client-id: ${{ vars.CONTRACT_SYNC_CLIENT_ID }}
           private-key: ${{ secrets.CONTRACT_SYNC_PRIVATE_KEY }}
           owner: Starisian-Technologies
+          repositories: sparxstar-contracts-registry
 
       - name: Checkout contracts registry
         if: steps.check.outputs.changed == 'true'
