@@ -15,4 +15,4 @@ jobs:
         run: |
           echo "::notice::No AI review performed. The central reviewer supports private repositories and is migrating to private execution."
           echo "### AI review not performed" >> "$GITHUB_STEP_SUMMARY"
-          echo "This public repository no longer calls the private reviewer. Use the native Codex integration where enabled; private consumers must install the central relay." >> "$GITHUB_STEP_SUMMARY"
+          echo "This public repository no longer calls the private reviewer. Rely on Amazon Q in this public repository; private consumers must install the central relay. Do not request native Codex or Copilot." >> "$GITHUB_STEP_SUMMARY"
