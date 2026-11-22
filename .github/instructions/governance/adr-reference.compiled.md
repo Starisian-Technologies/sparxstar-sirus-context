@@ -1,4 +1,4 @@
-# Platform Decisions — Auto-synced from registry@aadeea3
+# Platform Decisions — Auto-synced from registry@bd13b51
 # DO NOT EDIT — this file is overwritten on every registry change
 
 - ADR-001: Relational canonical record; graph is derived projection only
@@ -49,3 +49,4 @@
 - ADR-046: Identity's Device Trust End-to-End Tests Run the Real Device Trust Server at a Pinned Commit
 - ADR-047: 3iAtlas services do not use Helios or Sirus — consent goes to the Consent Node, and no identity is linked across platforms
 - ADR-048: Centralize Provider Review Execution and Keep Consumer Keys Out
+- ADR-049: A 3iAtlas service checks a person's service consent with the Consent Node at accept and again at dispatch, refuses when unsure, and learns of withdrawal from a signed, versioned push it may lose safely

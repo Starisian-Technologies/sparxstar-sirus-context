@@ -1,5 +1,191 @@
-# Cross-Repo Contracts — Auto-synced from registry@aadeea3
+# Cross-Repo Contracts — Auto-synced from registry@bd13b51
 # DO NOT EDIT — this file is overwritten on every registry change
+
+
+<!-- source: contracts/consent-node-service-consent.md -->
+# Cross-Repo Contract — Consent Node ↔ Consuming Services: Service-Level Consent
+
+**Status:** Accepted with [ADR-049](../standards/decisions/ADR-049-service-level-consent-checks-and-withdrawal-signals.md) (owner rulings, 2026-11-22; text drafted by Claude). The parts marked **NEW** are not built yet. Each one names the repository that builds it.
+**Home:** this file, in `sparxstar-architecture-governance-registry`. It is the only copy. Consumer repositories receive it in `.github/instructions/governance/contracts.compiled.md` through governance-sync. Nobody copies it by hand.
+**Executable conformance:** `sparxstar-contracts-registry`, `Contracts/sparxstar-3iatlas-consent-node/conformance/vectors.json`. Both sides run that one suite (§9). The suite is derived from this file. If the two disagree, this file wins and the suite is corrected.
+**Parties:** Consent Node (`sparxstar-3iatlas-consent-node`) is the producer. Every 3iAtlas service that acts for a person under that person's consent is a consumer. The first consumer is Shine (`sparxstar-shine`).
+**Builds on:** [ADR-047](../standards/decisions/ADR-047-3iatlas-runs-without-helios-or-sirus.md) decisions 2–4 (Consent Node owns consent; consent is per person, per whole service; checked at the moment of the action); [ADR-020](../standards/decisions/ADR-020-token-class-audiences.md) and [ADR-044](../standards/decisions/ADR-044-delegated-tokens-by-token-exchange.md) (credential classes and audiences); [INV-015](../standards/invariants.md#inv-015--a-credential-is-valid-for-exactly-one-resource-in-exactly-one-class).
+**Facts read at:** `sparxstar-3iatlas-consent-node@00881c5` and `sparxstar-shine@2f64cd2`. Where this file cites code, the code is the truth. If the code changes, this file is corrected.
+
+---
+
+## 1. Scope
+
+This contract covers one layer of the layered consent model: **consent to a whole service**. It defines:
+
+- how a consumer asks Consent Node whether a person has consented to the consumer's service;
+- when the consumer must ask;
+- how Consent Node tells the consumer that consent was withdrawn;
+- what the consumer keeps and does when it learns of a withdrawal;
+- how each side authenticates the other.
+
+It does **not** cover the other layers: site, account, platform, linked services, account controls, contribution and third party (`src/domain/packages/ConsentPackage.ts`). Nothing here may be read as blocking, replacing or pre-deciding them. A layer above the service layer still gates it, because Consent Node resolves parent layers before it reports a service as effective (§4.3). A layer beside or above it, such as AIWA contribution (ADR-047 decision 3), keeps its own check and its own contract. A consumer may take part in more than one layer. Each layer is checked under its own rules.
+
+It also does not cover consent wording, purposes, policy or retention. Those belong to Consent Node and to AIWA, which holds authority over content (§8).
+
+## 2. Terms
+
+| Term | Meaning |
+| --- | --- |
+| **Person** | The human the work is done for, identified by their Identity Node `sub`. Consent Node's routes call this `identityId`. |
+| **Service** | One consuming service as a whole, such as Shine. Consent is never given per feature, per purpose subset or per device (ADR-047 decision 3). |
+| **Service package** | The one published consent package with layer `service` that governs a consumer. Consent Node authors and publishes it. The consumer holds only its id, in configuration. |
+| **Service consent** | Whether the service package is `effective` for the person. Consent Node computes this (§4.3). |
+| **Marker** | The one consent-state record a consumer keeps per person for its service (§6). |
+| **Signal** | A signed consent change statement that Consent Node pushes to a consumer (§5). |
+| **Accept** | The moment a consumer takes on work for a person and persists or enqueues it. |
+| **Dispatch** | The moment immediately before the consumer executes that work, for example a queue worker about to publish. |
+
+## 3. Authentication, in both directions
+
+Both directions use Identity Node **machine/service** credentials (ADR-020 decision 3). Consent is **never** read from a human session token, and a token never carries consent (ADR-044 decision 3). A consumer that finds a consent-like claim in any token ignores it. Shine already enforces this: `src/auth/identity.js:163-167` ignores `tenant_id` and `consent_scopes`, with tests in `tests/auth/identityContract.test.js`.
+
+### 3.1 Consumer → Consent Node (checks, markers, feed)
+
+- **Audience: `consent`**, a scalar. ADR-049 records this value under ADR-020 decision 8. Consent Node reads it from `CONSENT_SERVICE_AUDIENCE`. Production refuses to start if that value is a list or equals the session audience (`src/config/config.ts:358-366`).
+- **Class:** `token_use: 'service'`. RS256 from Identity's JWKS. The lifetime is at most 300 s, and the token carries none of the session claims `account_id`, `tier`, `school_id`, `class_id` or `sv` (`src/infrastructure/identity/IdentityServiceTokenVerifier.ts`). A session token, a delegated token or an array audience is refused (INV-015).
+- **Caller registry:** Consent Node maps the token's `sub` to the packages the caller may check and the signal feed it may read (`CONSENT_SERVICE_CALLERS_FILE`; `src/domain/service/ServiceCallers.ts`). The registry decides what a caller may do. The token carries no permission. An unknown subject is refused with `FORBIDDEN`.
+- **NEW — `sparxstar-3iatlas-identity-node`:** a machine-client registration for each consumer, with `consent` in its `allowed_audiences`. Identity assigns the `client_id` and `subject` at provisioning (OQ-016). This contract does not name them.
+- **NEW — each consumer** (first `sparxstar-shine`): the client credential and the token minting. Shine has no outbound service credential today. Its only outbound credentials are social-platform keys (`src/config.js:200-244`). Shine chooses its configuration names when it builds this.
+
+### 3.2 Consent Node → consumer (signal delivery)
+
+- **Audience: the consumer's own audience.** For Shine that is `shine` (ADR-044 decision 8). The class is `token_use: 'service'` and the same verification rules as §3.1 apply. The consumer refuses the call unless the token's `sub` is the Consent Node subject it has registered as its signal sender.
+- **Signal authenticity is checked separately.** The JWS signature (§5.2) proves that Consent Node said it. The bearer token proves that Consent Node is the party delivering it. A consumer requires both. A valid JWS that arrives without a valid token, or the reverse, is refused.
+- **NEW — `sparxstar-3iatlas-consent-node`:** today a signal is a bare `POST {"signal": jws}` with no `Authorization` header (`src/infrastructure/HttpConsentSignalTransport.ts:37-43`), and the node has no Identity client configuration. It must obtain a service token for each subscriber's audience and send it as `Authorization: Bearer`.
+- **NEW — `sparxstar-3iatlas-identity-node`:** a machine-client registration for Consent Node, with each consumer's audience (first `shine`) in its `allowed_audiences`.
+- **Divergence to close in Shine:** Shine's configured audience is `sparxstar-shine` (`.env.example:53`), but ADR-044 rules `shine`. This contract uses `shine`. Correcting the configuration is Shine's existing ADR-014 work and is not reopened here.
+
+## 4. The consent check
+
+### 4.1 When a consumer checks
+
+A consumer checks service consent **synchronously, with Consent Node, at both of these moments**:
+
+1. **At accept**, before anything for that work is persisted or enqueued.
+2. **At dispatch**, immediately before the work executes. This includes every retry, every re-queue and every reconciler recovery of the same work.
+
+A check made at accept never authorizes dispatch. A stored marker never replaces either check: it records what the consumer last learned, and the live answer comes from Consent Node at the moment of the action (ADR-047 decision 4).
+
+For Shine:
+
+- **NEW — `sparxstar-shine`:** check at accept in `POST /v1/distributions` (`src/routes/distributions.js:86`), before `insertExecutionRecord`. Do the same on the other governed routes that spec line 248 lists.
+- **NEW — `sparxstar-shine`:** check at dispatch in `processDispatchJob` (`src/queue/dispatch-worker.js:161`) after the record loads and before the per-target loop, for `record.actorSubject`. Re-queued jobs from `src/queue/reconciler.js` run through the same function, so they are covered.
+
+### 4.2 The call
+
+`POST /v1/service/markers` with body `{ "identityId": "<sub>" }` and the §3.1 token (`src/http/server.ts:630`; `src/domain/service/ServiceCheckService.ts`). The response is `{ marker, sequence }`. `marker` is a compact JWS with `typ: consent-marker+jws` and `alg: EdDSA`, signed with the receipt key ring and verified against `/.well-known/consent-receipt-keys.json`.
+
+The service-level check uses this route and not `POST /v1/service/checks`. That route evaluates one `actionId`, and actions are finer than a whole service. It remains available to other layers.
+
+### 4.3 The decision
+
+The consumer **allows** the work only if **every** one of these holds. In every other case it **refuses**:
+
+1. Consent Node answered `200` within the consumer's timeout.
+2. The marker's JWS verifies against a key in the published key set, with `alg: EdDSA` and `typ: consent-marker+jws`.
+3. `iss` equals the Consent Node issuer the consumer is configured with.
+4. `sub` equals the person the consumer asked about.
+5. `service` equals the consumer's own registered Identity subject.
+6. `sequence` is a number, not `null`. A `null` means the caller has no signal feed, which is a misconfiguration under this contract.
+7. `packages` contains exactly one entry whose `package_id` is the consumer's service package, and its `package_version` is not `null`.
+8. That entry's `effective` is `true`.
+
+Consent Node computes `effective` as: every purpose of the current published version is granted and unexpired, and every parent layer (`service` requires `platform`, which requires `account`) is met (`ServiceCheckService.ts`, `marker()`). The consumer reads the package-level `effective` only. It never combines purpose-level values into its own answer, because that would amount to consent per feature.
+
+### 4.4 Fail closed
+
+If Consent Node cannot be reached, times out, answers with anything other than `200`, or returns an answer that fails any rule in §4.3, the consumer **refuses**. "No clear answer" means refuse. There is no grace period, no last-known-good fallback and no default allow.
+
+- **Refused at accept:** nothing is persisted, nothing is enqueued, and no side effect occurs. The caller gets an error that names consent as the reason and contains no consent wording (§8).
+- **Refused at dispatch:** nothing is sent to any target, and the work does not execute. The consumer may hold the work for a later dispatch attempt, which checks again, or end it. It never executes it.
+
+### 4.5 Configuration
+
+**NEW — each consumer:** the consumer needs configuration for the Consent Node base URL, its issuer, its service package id, and its signal-sender subject (§3.2). The consumer names these settings when it builds them. Shine has no consent configuration today (`docs/internal-deployment.md:31-33`), and until it does it must not set up any endpoint.
+
+## 5. Withdrawal signals
+
+### 5.1 Producer duties (Consent Node) — built, except where marked
+
+- **Transactional outbox.** Each consent event on a registered package enqueues one signal per registered service, in the same database transaction as the event. That includes withdrawals made by the parent-layer cascade (`migrations/0003_consent_signals.up.sql`; `src/domain/consent/ConsentLedger.ts`).
+- **Monotonic version.** `sequence` starts at 1 and increases by exactly one per signal for each service (`UNIQUE(service_id, sequence)`). Signals are ordered by `sequence`, and it is the version a consumer compares against.
+- **At-least-once delivery.** Consent Node pushes the signal and retries with exponential backoff (`src/domain/signals/SignalDispatcher.ts`: 3 attempts, 30 s base, doubling). A signal that is never confirmed is dead-lettered, never dropped. Every signal, delivered or not, stays in the service's "changes since" feed, `GET /v1/service/signals?after=<sequence>`. Push plus the feed together make delivery at-least-once.
+- **Stop.** `stop: true` exactly when `event_type` is `withdrawn` or `refused` (`src/domain/signals/ConsentSignals.ts`, `STOP_EVENTS`).
+- **Registration.** `CONSENT_SIGNAL_SUBSCRIBERS_FILE` lists each consumer's `serviceId`, its https `endpoint` and its `packageIds`. **Rule:** a consumer's `serviceId` is its ADR-020 audience, so for Shine it is `shine`. That gives each service one name, so the consumer can check `service_id` against its own audience.
+- **NEW — `sparxstar-3iatlas-consent-node`:** the bearer token on delivery (§3.2).
+
+### 5.2 What a consumer verifies on receipt
+
+A consumer verifies all of the following. It answers **2xx only after** it has durably recorded the outcome:
+
+1. The bearer token, per §3.2.
+2. The JWS verifies against `/.well-known/consent-receipt-keys.json`, with `alg: EdDSA` and `typ: consent-signal+jws`.
+3. `iss` is the configured Consent Node issuer.
+4. `service_id` is the consumer's own `serviceId`.
+
+If any of these fails, the consumer answers non-2xx and changes nothing.
+
+### 5.3 What a consumer does
+
+These rules assume the signal has passed §5.2. Let `M` be the person's marker, if there is one, and `C` the consumer's feed cursor, which is the highest `sequence` it has processed with no gap below it.
+
+| Signal | Outcome | Answer |
+| --- | --- | --- |
+| `package_id` is not the service package | **Out of scope** for this contract. This marker is not changed, and the layer that owns that package handles it. | 2xx |
+| `identity_id` is `null` | **Unmatched.** The consumer cannot identify the person, so it records the signal and changes no marker. The dispatch check (§4.1) still stops that person's work. See §10 for the open owner question. | 2xx |
+| `sequence` ≤ `M.sequence` | **Stale or duplicate.** Ignored and idempotent. | 2xx |
+| `stop: true` | **Withdrawn.** Mark `M` not effective at this `sequence`, then cancel every queued or scheduled unit of that person's work for this service. | 2xx |
+| `stop: false` | **Granted or renewed.** Record `sequence` on `M`. Never resume cancelled work. New work needs a new accept, which checks again. | 2xx |
+
+In every case, if `sequence` > `C + 1`, the consumer has missed signals. It reads the feed from `C` and processes what is missing, in order. The feed read uses the §3.1 token.
+
+**Cancel** means the work will not execute. For Shine, that means the queued `shine-dispatch` jobs and the matching `execution_records` rows for that `actor_subject` are cancelled (`markCancelled`, `src/distributions/executionRecords.js:187`).
+
+- **NEW — `sparxstar-shine`:** the inbound signal route, the marker table, cancellation by subject and the feed catch-up. Shine has no inbound consent route today. It chooses the route path and registers it as its `endpoint`.
+
+### 5.4 Why a lost signal is safe
+
+Every execution passes a live dispatch check (§4.1), and every unclear answer refuses (§4.4). A signal that is lost, delayed, reordered, duplicated or dead-lettered can therefore delay cancellation, but it can never let work run without consent. Signals exist so that work stops early and queues are cleaned up. Safety comes from the dispatch check.
+
+## 6. The marker
+
+A consumer keeps **one marker per person per service**: the person's `sub`, `effective` (true or false), the `sequence` it reflects, and when it was last updated. Each successful check (§4.2) and each applied signal (§5.3) refreshes it. A marker:
+
+- is keyed on the Identity `sub` and nothing else. ADR-047 decision 5 forbids linking identities across platforms;
+- is never per device and never per feature;
+- holds no consent wording, purpose text or policy;
+- never authorizes an action by itself (§4.1).
+
+## 7. Withdrawal is the person's act, in Consent Node
+
+The person grants and withdraws consent in Consent Node's privacy panel (`GET /panel` and `GET /v1/panel`; the routes under `/v1/consent/*`). A consumer may link to the panel. It does not withdraw consent for the person, it does not keep its own consent switch, and it does not treat its own local "disconnect" or "delete" as a consent event.
+
+## 8. Consumers hold no consent wording or policy
+
+Wording, purposes, retention and the policy behind them live in Consent Node's packages, which are published, versioned and approved there. AIWA holds authority over that content. A consumer stores a package id and a boolean. It does not render or paraphrase consent text, and it does not decide what consent means. `sparxstar-shine-ui` already forbids consent wording (`.github/copilot-instructions.md:15-16`).
+
+## 9. Conformance
+
+The single suite is `sparxstar-contracts-registry` `Contracts/sparxstar-3iatlas-consent-node/conformance/vectors.json`. Each case names the side or sides that must run it:
+
+- **`consent_node`** runs it against service-token verification on its service routes, signal production and marker issuance.
+- **`consumer`** runs it against service-token verification on its signal route, the §4.3 decision and the §5.3 outcomes. Shine is the first consumer to run it.
+
+`conformance/check-vectors.mjs` checks the suite against this file's rules, so the suite cannot ship contradicting itself. The contracts registry's `contract-conformance.yml` gate runs that self-check. It also asserts that each bound repository's code holds a harness that loads the suite. The harness itself runs in each repository's own test job, because the gate never executes the consumer's code.
+
+- **NEW — `sparxstar-3iatlas-consent-node` and `sparxstar-shine`:** each builds its harness and calls the gate. The README next to the suite gives the steps.
+
+## 10. Open items (not decided here)
+
+- **Representative actions.** A signal's `identity_id` is `null` when someone else acted for the person. This is Consent Node's open owner question (`docs/contracts/CONSENT-NODE-CONTRACT-v1.md` §11). Until the owner rules, a consumer applies the "unmatched" row in §5.3, and the dispatch check keeps it safe.
+- **Dead-letter redrive.** After three attempts Consent Node stops pushing a signal, and the consumer catches up from the feed when it sees a gap. Whether Consent Node should also re-push dead-lettered signals is Consent Node's decision to make.
+- **Rate limits.** Consent Node limits checks per calling service and per person checked (`CONSENT-NODE-CONTRACT-v1.md` §12). A rate-limited check is refused (§4.4). How a consumer schedules its dispatch to stay under those limits is the consumer's concern.
 
 
 <!-- source: contracts/cross-repo-lineage-node-contract.md -->
