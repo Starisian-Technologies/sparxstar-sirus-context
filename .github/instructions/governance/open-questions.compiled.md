@@ -1,4 +1,4 @@
-# Open Questions — Auto-synced from registry@bd13b51
+# Open Questions — Auto-synced from registry@e9af401
 # DO NOT EDIT
 
 # Open Questions
@@ -137,7 +137,7 @@ region-not-building floor for minor-sourced artifacts, and invents no location
 semantics at the door. Routes to architect + Helios (identity-adjacency) +
 AIWA/Gambian counsel (minor granularity).
 
-## OQ-016 — Registration schema, migration mechanism and Games audience [OPEN]
+## OQ-016 — Registration schema, migration mechanism and Games audience [PARTLY RESOLVED 2026-11-22]
 
 ADR-020 settles the credential classes, their audiences, their claim bindings
 and the offline lifetimes. **None of that is reopened here.** What remains is
@@ -162,6 +162,18 @@ is an implementation fact to establish, not an open architectural question.
 Resolve in the Identity Node implementation and record the chosen schema in
 that service's contract, not by amending ADR-020, unless a new audience or
 class is added.
+
+**Registration schema and migration mechanism resolved, 2026-11-22, by
+[ADR-050](decisions/ADR-050-machine-client-registrations-are-reviewed-migrations.md):**
+a registration is a row in the Identity Node's existing `service_clients` and
+`service_client_keys` tables, changed only by a reviewed, versioned data
+migration applied in the release's migration step. The operator CLI keeps
+only emergency suspend and revoke, which the next release records in a
+migration. ADR-020 is not amended.
+
+**Still open: Games.** Whether `sparxstar-3iatlas-dictionary-games` validates
+an audience, and so needs a registration of its own, is still to be
+established from that repository.
 
 ## OQ-017 — Award identity vocabulary [OPEN]
 

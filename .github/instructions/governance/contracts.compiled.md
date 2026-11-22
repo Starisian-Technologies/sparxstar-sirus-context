@@ -1,4 +1,4 @@
-# Cross-Repo Contracts — Auto-synced from registry@bd13b51
+# Cross-Repo Contracts — Auto-synced from registry@e9af401
 # DO NOT EDIT — this file is overwritten on every registry change
 
 
@@ -183,9 +183,9 @@ The single suite is `sparxstar-contracts-registry` `Contracts/sparxstar-3iatlas-
 
 ## 10. Open items (not decided here)
 
-- **Representative actions.** A signal's `identity_id` is `null` when someone else acted for the person. This is Consent Node's open owner question (`docs/contracts/CONSENT-NODE-CONTRACT-v1.md` §11). Until the owner rules, a consumer applies the "unmatched" row in §5.3, and the dispatch check keeps it safe.
+- **Representative actions.** A signal's `identity_id` is `null` when someone else acted for the person. This is Consent Node's open owner question (`CONSENT-NODE-CONTRACT-v1.md` §11, now in `sparxstar-contracts-registry` `Contracts/sparxstar-3iatlas-consent-node/`). Until the owner rules, a consumer applies the "unmatched" row in §5.3, and the dispatch check keeps it safe.
 - **Dead-letter redrive.** After three attempts Consent Node stops pushing a signal, and the consumer catches up from the feed when it sees a gap. Whether Consent Node should also re-push dead-lettered signals is Consent Node's decision to make.
-- **Rate limits.** Consent Node limits checks per calling service and per person checked (`CONSENT-NODE-CONTRACT-v1.md` §12). A rate-limited check is refused (§4.4). How a consumer schedules its dispatch to stay under those limits is the consumer's concern.
+- **Rate limits.** Consent Node limits checks per calling service and per person checked (`CONSENT-NODE-CONTRACT-v1.md` §12, `sparxstar-contracts-registry`). A rate-limited check is refused (§4.4). How a consumer schedules its dispatch to stay under those limits is the consumer's concern.
 
 
 <!-- source: contracts/cross-repo-lineage-node-contract.md -->
