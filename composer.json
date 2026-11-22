@@ -33,7 +33,7 @@
     "phpstan/phpstan": "^2.1",
     "phpstan/extension-installer": "^1.4",
     "szepeviktor/phpstan-wordpress": "^2.0",
-    "squizlabs/php_codesniffer": "^3.13",
+    "squizlabs/php_codesniffer": "^3.13.6",
     "friendsofphp/php-cs-fixer": "^3.88",
     "phpunit/phpunit": "^11.5.50",
     "yoast/phpunit-polyfills": "^4.0",
