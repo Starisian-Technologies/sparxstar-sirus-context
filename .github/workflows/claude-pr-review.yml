@@ -4,19 +4,15 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions: {}
 jobs:
-  skip-public-repo:
-    if: ${{ !github.event.repository.private }}
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Skipping Claude PR Review because the reusable workflow only supports private caller repositories."
-
   review:
-    if: ${{ github.event.repository.private }}
-    permissions:
-      contents: read
-      pull-requests: write
-    uses: Starisian-Technologies/sparxstar-claude-pr-review/.github/workflows/claude-pr-review.yml@87c63b3fb7cdf026e388225c18883b8c0206c8a8 # v1.1.2
-    secrets:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      COMPOSER_RESOLVER_PRIVATE_KEY: ${{ secrets.COMPOSER_RESOLVER_PRIVATE_KEY }}
+    name: Claude PR review
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Report unsupported public review
+        run: |
+          echo "::notice::No AI review performed. The central reviewer supports private repositories and is migrating to private execution."
+          echo "### AI review not performed" >> "$GITHUB_STEP_SUMMARY"
+          echo "This public repository no longer calls the private reviewer. Rely on Amazon Q in this public repository; private consumers must install the central relay. Do not request native Codex or Copilot." >> "$GITHUB_STEP_SUMMARY"
