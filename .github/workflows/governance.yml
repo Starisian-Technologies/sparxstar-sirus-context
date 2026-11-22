@@ -21,18 +21,13 @@ jobs:
   # ─── STEP 1: PULL SPEC ────────────────────────────────────
   pull-spec:
     if: ${{ github.event.repository.private }}
-    uses: Starisian-Technologies/sparxstar-product-specification-registry/.github/workflows/fetch-specs.yml@v1.0.0
-    with:
-      specs: "sirus"
-      agent-ref: main
-      contract-ref: "v1.0.0"
-    secrets:
-      COMPOSER_RESOLVER_PRIVATE_KEY: ${{ secrets.COMPOSER_RESOLVER_PRIVATE_KEY }}
-
-  # ─── STEP 2: CI ───────────────────────────────────────────
-  # Core CI runs after spec pull. Lint and static analysis run
-  # independently via standards.yml — not chained here to avoid
-  # masking PHPStan behind a PHPCS short-circuit.
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Require registry relay before private activation
+        run: |
+          echo "::error::The private registry workflow call was removed from this public caller. Configure a supported registry relay before enabling this job in a private repository. No registry operation was performed."
+          exit 1
 
   smoke:
     if: ${{ github.event.repository.private }}
