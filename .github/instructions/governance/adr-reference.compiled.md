@@ -1,4 +1,4 @@
-# Platform Decisions — Auto-synced from registry@e9af401
+# Platform Decisions — Auto-synced from registry@53434fa
 # DO NOT EDIT — this file is overwritten on every registry change
 
 - ADR-001: Relational canonical record; graph is derived projection only
@@ -51,3 +51,5 @@
 - ADR-048: Centralize Provider Review Execution and Keep Consumer Keys Out
 - ADR-049: A 3iAtlas service checks a person's service consent with the Consent Node at accept and again at dispatch, refuses when unsure, and learns of withdrawal from a signed, versioned push it may lose safely
 - ADR-050: Machine-client registrations change only through reviewed, versioned data migrations in the Identity Node; the operator CLI keeps only emergency suspend and revoke
+- ADR-051: Record `error-intake` as the machine/service audience for the Error Intake Node
+- ADR-052: The Node Floor for 3iAtlas Modules Is 26
