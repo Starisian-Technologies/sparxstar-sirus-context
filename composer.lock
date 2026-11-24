@@ -203,16 +203,16 @@
         },
         {
             "name": "maxmind/web-service-common",
-            "version": "v0.11.1",
+            "version": "v0.12.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/maxmind/web-service-common-php.git",
-                "reference": "c309236b5a5555b96cf560089ec3cead12d845d2"
+                "reference": "4d981ad2322068477cedf48d0464105fb32c6124"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/maxmind/web-service-common-php/zipball/c309236b5a5555b96cf560089ec3cead12d845d2",
-                "reference": "c309236b5a5555b96cf560089ec3cead12d845d2",
+                "url": "https://api.github.com/repos/maxmind/web-service-common-php/zipball/4d981ad2322068477cedf48d0464105fb32c6124",
+                "reference": "4d981ad2322068477cedf48d0464105fb32c6124",
                 "shasum": ""
             },
             "require": {
@@ -222,10 +222,11 @@
                 "php": ">=8.1"
             },
             "require-dev": {
-                "friendsofphp/php-cs-fixer": "3.*",
-                "phpstan/phpstan": "*",
+                "friendsofphp/php-cs-fixer": "^3.95",
+                "phpstan/phpstan": "^2.2",
                 "phpunit/phpunit": "^10.0",
-                "squizlabs/php_codesniffer": "4.*"
+                "squizlabs/php_codesniffer": "^4.0",
+                "symfony/process": "^6.4 || ^7.0 || ^8.0"
             },
             "type": "library",
             "autoload": {
@@ -248,9 +249,9 @@
             "homepage": "https://github.com/maxmind/web-service-common-php",
             "support": {
                 "issues": "https://github.com/maxmind/web-service-common-php/issues",
-                "source": "https://github.com/maxmind/web-service-common-php/tree/v0.11.1"
+                "source": "https://github.com/maxmind/web-service-common-php/tree/v0.12.0"
             },
-            "time": "2026-01-13T17:56:03+00:00"
+            "time": "2026-11-17T22:59:02+00:00"
         },
         {
             "name": "starisian/sparxstar-ouroboros-integrity",
