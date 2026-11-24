@@ -1,13 +1,15 @@
-# Coding agent review rules — Auto-synced from registry@53434fa
+# Coding agent review rules — Auto-synced from registry@eef1235
 # DO NOT EDIT
 # Coding agent review and merge rules
 
-Owner instructions, 2026-11-21. These rules supersede older instructions asking
-for human approval, Copilot reviews or native Codex review requests.
+Owner instructions, updated 2026-11-24. These rules supersede older instructions asking
+for human approval and native Codex review requests. The ordered fallback below
+supersedes the earlier blanket prohibition on Copilot.
 
-Reviewers are Amazon Q (automatic) plus the central review service. Do not request
-Copilot; the account budget does not cover it. Do not use native `@codex review`;
-use the central service.
+Reviewers are Amazon Q (automatic) plus the central review service. Automatic
+central review tries Anthropic first, then OpenAI when Anthropic is unavailable,
+errors or times out, then requests native Copilot only if neither API works.
+Do not independently request Copilot or use native `@codex review`.
 
 A repository is migrated only if `AGENTS.md` has the central-review pointer and
 the request-review relay workflow is on its default branch. Otherwise rely on
@@ -16,14 +18,13 @@ not a merge blocker under this owner ruling; unrelated CI failures are not
 waived. Never add AI provider keys to consumer repositories.
 
 Open PRs as drafts. Complete the work and get CI green before marking ready for
-review. Draft-to-ready triggers the central cost tier; do not request reviews on
+review. Draft-to-ready triggers the ordered central fallback; do not request reviews on
 drafts or unfinished work.
 
-- Docs, CI config, test-only changes and small behavior-neutral refactors need
-  the automatic Claude review only.
-- Runtime behavior changes also need central Codex review.
-- Auth/2FA, payments/billing, secrets/credentials, data migrations, licence
-  changes and data deletion need all providers.
+- Routine changes use one successful automatic fallback-chain review.
+- Additional central Codex review is available for runtime behavior changes.
+- Reserve explicit `/review all` for high-risk auth/2FA, payments/billing,
+  credentials, migrations, licence changes or data deletion; it is not automatic.
 
 Use standalone `/review codex` or `/review all` only for the applicable tier if
 needed. Post once, never on every push. One successful review per provider/PR
@@ -31,8 +32,12 @@ is enough. Allow one re-review only when behavior changes after review; typo and
 test fixes do not require another paid review. The service caps paid attempts at
 two per provider/PR and enforces configured daily per-provider budgets.
 
-A review counts only when an App-authored Central review comment appears at the
-current head commit. A dispatch, skipped job, daily cap or billing error is not a
+An API review counts only when an App-authored Central review comment names the
+provider, model and current head commit. Copilot delegation counts only when an
+actual native review is submitted at the current head; a pending request is not
+a review. GitHub does not expose a selectable model or accept the central full
+prompt in its review-request API; do not claim identical pinned-spec coverage
+or invent model attribution for native Copilot. A dispatch, skipped job, daily cap or billing error is not a
 review. Never claim one happened or describe an older-head review as current.
 
 If no result appears within two hours, inspect the run, fix the request error
@@ -46,8 +51,13 @@ and base-commit agent rules at pinned registry tags; do not train a separate
 model or substitute stale guidance for current governing documents.
 
 Canonical implementation/setup guide:
-[Central review guide](https://github.com/Starisian-Technologies/sparxstar-claude-pr-review/blob/main/docs/central-review.md)
+[Central review guide](https://github.com/Starisian-Technologies/sparxstar-pr-review/blob/main/docs/central-review.md)
 
 Pilot: `sparxstar-woocommerce-stripe-billing`. Migrate other private repositories
 one at a time, disabling each legacy reviewer only after its first successful
 central review. Until that evidence exists, call a rollout a pilot, not complete.
+
+Execution secrets are repository-level `ANTHROPIC_API_KEY` and
+`CHATGPT_API_SECRET_KEY_GITHUB_ACTIONS` in the private execution repo. Do not
+guess aliases or report missing secrets when listing is forbidden. Both API
+providers use the same resolved SPARXSTAR context and three-pass review prompt.
