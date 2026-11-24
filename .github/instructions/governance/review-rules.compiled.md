@@ -1,4 +1,4 @@
-# Coding agent review rules — Auto-synced from registry@eef1235
+# Coding agent review rules — Auto-synced from registry@18fb11a
 # DO NOT EDIT
 # Coding agent review and merge rules
 
@@ -61,3 +61,11 @@ Execution secrets are repository-level `ANTHROPIC_API_KEY` and
 `CHATGPT_API_SECRET_KEY_GITHUB_ACTIONS` in the private execution repo. Do not
 guess aliases or report missing secrets when listing is forbidden. Both API
 providers use the same resolved SPARXSTAR context and three-pass review prompt.
+
+Source enrollment follows the existing contract-sync App installation's private
+Starisian repository access. No manual repository-name variable is required.
+The service verifies authenticated installation membership and scopes tokens to
+the requested source. Owner/requester permission, private execution, head checks
+and budget limits still apply. Installation membership does not supply missing
+App credentials: consumers need the existing contract-sync client ID/private key
+for a relay; provider API keys remain only in private central execution.
