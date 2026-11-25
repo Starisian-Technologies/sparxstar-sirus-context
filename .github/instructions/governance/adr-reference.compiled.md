@@ -1,4 +1,4 @@
-# Platform Decisions — Auto-synced from registry@c6a2b6d
+# Platform Decisions — Auto-synced from registry@3689bac
 # DO NOT EDIT — this file is overwritten on every registry change
 
 - ADR-001: Relational canonical record; graph is derived projection only
@@ -57,3 +57,4 @@
 - ADR-054: The contract-sync App opens release pull requests
 - ADR-055: Release container images are published to ghcr.io
 - ADR-056: Workflows may use only the two Apps, GITHUB_TOKEN and declared deploy secrets — checked in CI
+- ADR-057: Secrets Management, Credential Isolation, and Disclosure Prevention
