@@ -1,8 +1,8 @@
-# Coding agent review rules — Auto-synced from registry@32944a4
+# Coding agent review rules — Auto-synced from registry@165a430
 # DO NOT EDIT
 # Coding agent review and merge rules
 
-Owner instructions, updated 2026-11-24. These rules supersede older instructions asking
+Owner instructions, updated 2026-11-25. These rules supersede older instructions asking
 for human approval and native Codex review requests. The ordered fallback below
 supersedes the earlier blanket prohibition on Copilot.
 
@@ -16,6 +16,22 @@ the request-review relay workflow is on its default branch. Otherwise rely on
 Amazon Q until migration. A legacy Claude missing-key failure is known and is
 not a merge blocker under this owner ruling; unrelated CI failures are not
 waived. Never add AI provider keys to consumer repositories.
+
+## Dependabot updates (ADR-058)
+
+- Dependabot PRs merge without waiting for CI; CI then runs once on the
+  default branch. Resolve any open review thread first.
+- If the default branch goes red, fix forward or revert the offending update
+  immediately. Nothing else merges ahead of that fix.
+- Never cut a release (including merging a release PR) or deploy from a red
+  default branch.
+- Exception: a repository that deploys automatically on merge (WordPad, and
+  any other repository whose merge triggers a deploy) merges Dependabot PRs
+  only on green CI.
+- Every repository uses the shared `.github/dependabot.yml` template from the
+  reusable-CI repository (`caller-templates/dependabot.yml`).
+
+## Other pull requests
 
 Open PRs as drafts. Complete the work and get CI green before marking ready for
 review. Draft-to-ready triggers the ordered central fallback; do not request reviews on

@@ -1,4 +1,4 @@
-# Platform Decisions — Auto-synced from registry@32944a4
+# Platform Decisions — Auto-synced from registry@165a430
 # DO NOT EDIT — this file is overwritten on every registry change
 
 - ADR-001: Relational canonical record; graph is derived projection only
@@ -58,3 +58,4 @@
 - ADR-055: Release container images are published to ghcr.io
 - ADR-056: Workflows may use only the two Apps, GITHUB_TOKEN and declared deploy secrets — checked in CI
 - ADR-057: Secrets Management, Credential Isolation, and Disclosure Prevention
+- ADR-058: Dependabot updates merge without waiting for CI; main is fixed forward, and nothing ships from a red main
