@@ -1,4 +1,4 @@
-# Open Questions — Auto-synced from registry@bf99dde
+# Open Questions — Auto-synced from registry@0f7ec2f
 # DO NOT EDIT
 
 # Open Questions
@@ -448,14 +448,10 @@ by which service, under whose consent, or with what protection for minors.
 ADR-047 forbids any such link until this question is decided. Raised by Max
 Barrett on 2026-11-13.
 
-## OQ-025 — Which credential opens release pull requests so that CI runs on them? [OPEN]
+## OQ-025 — Which credential opens release pull requests so that CI runs on them? [RESOLVED 2026-11-25]
 
-[ADR-053](decisions/ADR-053-one-release-convention.md) has release-please open
-a release pull request in every repository, and
-[ADR-037](decisions/ADR-037-merge-gate-green-ci-and-zero-open-review-threads.md)
-merges a pull request only on green CI. A pull request opened with a workflow's
-default `GITHUB_TOKEN` does not start `pull_request` workflows, so its required
-checks never report. Which credential opens release pull requests instead — a
-GitHub App, existing or new, and if so which, with what permissions and
-installed on which repositories — is not decided. Raised on 2026-11-24 while
-recording ADR-053.
+A pull request opened with a workflow's default `GITHUB_TOKEN` does not start
+`pull_request` workflows, so a release pull request opened that way could never
+pass ADR-037's merge gate. Which credential opens release pull requests
+instead was open.
+Resolved by [ADR-054](decisions/ADR-054-contract-sync-opens-release-pull-requests.md).

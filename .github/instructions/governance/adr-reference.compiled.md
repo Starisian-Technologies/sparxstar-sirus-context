@@ -1,4 +1,4 @@
-# Platform Decisions — Auto-synced from registry@bf99dde
+# Platform Decisions — Auto-synced from registry@0f7ec2f
 # DO NOT EDIT — this file is overwritten on every registry change
 
 - ADR-001: Relational canonical record; graph is derived projection only
@@ -54,3 +54,4 @@
 - ADR-051: Record `error-intake` as the machine/service audience for the Error Intake Node
 - ADR-052: The Node Floor for 3iAtlas Modules Is 26
 - ADR-053: Release every repository the same way — Semantic Versioning, cut by release-please from Conventional Commits
+- ADR-054: The contract-sync App opens release pull requests
