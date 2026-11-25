@@ -1,4 +1,4 @@
-# Platform Decisions — Auto-synced from registry@0f7ec2f
+# Platform Decisions — Auto-synced from registry@06f8cf4
 # DO NOT EDIT — this file is overwritten on every registry change
 
 - ADR-001: Relational canonical record; graph is derived projection only
@@ -55,3 +55,4 @@
 - ADR-052: The Node Floor for 3iAtlas Modules Is 26
 - ADR-053: Release every repository the same way — Semantic Versioning, cut by release-please from Conventional Commits
 - ADR-054: The contract-sync App opens release pull requests
+- ADR-055: Release container images are published to ghcr.io
